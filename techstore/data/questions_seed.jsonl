@@ -1,0 +1,50 @@
+{"id":"q001","category":"simple_faq","question":"How long do I have to return something?","context_ids":["pol_return_window"],"expected_tier":"economy"}
+{"id":"q002","category":"simple_faq","question":"Is delivery free?","context_ids":["ship_charges"],"expected_tier":"economy"}
+{"id":"q003","category":"simple_faq","question":"What payment methods do you accept?","context_ids":["bill_payment_methods"],"expected_tier":"economy"}
+{"id":"q004","category":"simple_faq","question":"Do you ship outside India?","context_ids":["ship_international"],"expected_tier":"economy"}
+{"id":"q005","category":"simple_faq","question":"Can I return earbuds I already opened?","context_ids":["pol_return_exclusions"],"expected_tier":"economy"}
+{"id":"q006","category":"order_status","question":"Where is my order #48213?","context_ids":["ship_tracking"],"order_ids":["48213"],"expected_tier":"economy"}
+{"id":"q007","category":"order_status","question":"Has order 48390 shipped yet?","context_ids":["ship_tracking"],"order_ids":["48390"],"expected_tier":"economy"}
+{"id":"q008","category":"order_status","question":"When will order 48677 arrive?","context_ids":["ship_delivery_times"],"order_ids":["48677"],"expected_tier":"economy"}
+{"id":"q009","category":"order_status","question":"I cancelled order 48455, when do I get my refund?","context_ids":["pol_refund_timeline"],"order_ids":["48455"],"expected_tier":"economy"}
+{"id":"q010","category":"order_status","question":"What did I order in 48501?","context_ids":[],"order_ids":["48501"],"expected_tier":"economy"}
+{"id":"q011","category":"product_info","question":"Does the SoundWave X200 have noise cancellation?","context_ids":["prod_x200"],"expected_tier":"economy"}
+{"id":"q012","category":"product_info","question":"How much is the PulseBook 14?","context_ids":["prod_pulsebook14"],"expected_tier":"economy"}
+{"id":"q013","category":"product_info","question":"What is the battery life of the AuraWatch 3?","context_ids":["prod_aurawatch3"],"expected_tier":"economy"}
+{"id":"q014","category":"product_info","question":"Does the ClearView 27 support USB-C?","context_ids":["prod_clearview27"],"expected_tier":"economy"}
+{"id":"q015","category":"product_info","question":"Is the NovaTab 11 stylus included?","context_ids":["prod_novatab11"],"expected_tier":"economy"}
+{"id":"q016","category":"product_comparison","question":"X200 or Y500 for a noisy open-plan office?","context_ids":["prod_x200","prod_y500"],"expected_tier":"economy_escalation"}
+{"id":"q017","category":"product_comparison","question":"Is the PulseBook Pro 16 worth twice the price of the PulseBook 14 for video editing?","context_ids":["prod_pulsebook14","prod_pulsebook_pro16"],"expected_tier":"economy_escalation"}
+{"id":"q018","category":"product_comparison","question":"Will the VoltCharge 65W charge my PulseBook Pro 16 properly?","context_ids":["prod_voltcharge65","prod_pulsebook_pro16"],"expected_tier":"economy_escalation"}
+{"id":"q019","category":"product_comparison","question":"Which of your headphones is lighter and does it matter for long flights?","context_ids":["prod_x200","prod_y500"],"expected_tier":"economy_escalation"}
+{"id":"q020","category":"product_comparison","question":"I want a tablet for reading and a laptop for college. What should I buy under 1 lakh total?","context_ids":["prod_novatab11","prod_pulsebook14"],"expected_tier":"economy_escalation"}
+{"id":"q021","category":"troubleshooting","question":"My headphones will not pair with my phone.","context_ids":["tsg_headphone_pairing"],"expected_tier":"economy"}
+{"id":"q022","category":"troubleshooting","question":"My PulseBook is not charging.","context_ids":["tsg_laptop_not_charging"],"expected_tier":"economy"}
+{"id":"q023","category":"troubleshooting","question":"My AuraWatch will not sync with the app.","context_ids":["tsg_watch_sync"],"expected_tier":"economy"}
+{"id":"q024","category":"troubleshooting","question":"My monitor says no signal.","context_ids":["tsg_monitor_no_signal"],"expected_tier":"economy"}
+{"id":"q025","category":"troubleshooting","question":"My headphone battery drains much faster than advertised.","context_ids":["tsg_headphone_battery","pol_warranty_terms"],"expected_tier":"economy"}
+{"id":"q026","category":"billing_dispute","question":"I was charged 12,999 three times for order 48712. Two were supposed to be cancelled but I only see one refund. Where is my money?","context_ids":["bill_duplicate_charge","pol_refund_timeline"],"order_ids":["48712"],"expected_tier":"frontier"}
+{"id":"q027","category":"billing_dispute","question":"My payment failed but the money was debited. No order was created. What happens now?","context_ids":["bill_failed_payment"],"expected_tier":"frontier"}
+{"id":"q028","category":"billing_dispute","question":"I returned one item from a two-item order but my refund is less than the item price. Why?","context_ids":["bill_refund_partial"],"expected_tier":"frontier"}
+{"id":"q029","category":"billing_dispute","question":"I bought on no-cost EMI and returned the product. The bank is still charging me interest. Who pays that?","context_ids":["bill_emi","pol_refund_timeline"],"expected_tier":"frontier"}
+{"id":"q030","category":"billing_dispute","question":"I forgot to add my GSTIN at checkout on order 48750. Can you reissue the invoice so I can claim input credit?","context_ids":["bill_invoice_gst"],"order_ids":["48750"],"expected_tier":"frontier"}
+{"id":"q031","category":"technical_api","question":"Your webhook returns 403 even though my HMAC signature is valid. Here is my Python: sig = hmac.new(secret, json.dumps(request.json).encode(), 'sha256').hexdigest()","context_ids":["api_webhook_signature"],"expected_tier":"frontier"}
+{"id":"q032","category":"technical_api","question":"I am getting 409 on order creation when I retry after a timeout. What am I doing wrong?","context_ids":["api_idempotency","api_error_codes"],"expected_tier":"frontier"}
+{"id":"q033","category":"technical_api","question":"My integration worked in sandbox but returns 401 in production with the same code. Why?","context_ids":["api_auth","api_overview"],"expected_tier":"frontier"}
+{"id":"q034","category":"technical_api","question":"I am hitting 429 on the bulk export endpoint at 100 requests per minute. The docs say 600. Explain.","context_ids":["api_rate_limits"],"expected_tier":"frontier"}
+{"id":"q035","category":"technical_api","question":"A valid order ID returns 404 for my token but works in the dashboard. What is happening?","context_ids":["api_error_codes","api_auth"],"expected_tier":"frontier"}
+{"id":"q036","category":"policy_edge_case","question":"I bought a PulseBook 35 days ago and it is faulty. Your return window is 30 days but the warranty is 2 years. What are my rights?","context_ids":["pol_return_window","pol_warranty_terms","pol_warranty_claim"],"expected_tier":"frontier"}
+{"id":"q037","category":"policy_edge_case","question":"I opened my Y500 headphones and they are defective. You say opened headphones are non-returnable. Am I stuck with broken headphones?","context_ids":["pol_return_exclusions","pol_warranty_terms"],"expected_tier":"frontier"}
+{"id":"q038","category":"policy_edge_case","question":"I spilled coffee on my PulseBook 14 four months after delivery. Warranty excludes liquid damage. Is there anything that covers me?","context_ids":["pol_warranty_terms","svc_accidental_damage"],"expected_tier":"frontier"}
+{"id":"q039","category":"policy_edge_case","question":"The courier failed three delivery attempts while I was travelling and the order was returned. I was not told. Do I get a full refund including the delivery charge?","context_ids":["ship_failed_delivery","ship_charges"],"expected_tier":"frontier"}
+{"id":"q040","category":"policy_edge_case","question":"I found the X200 cheaper elsewhere 6 days after buying, but it was during their clearance sale. Does your price match apply?","context_ids":["pol_price_match"],"expected_tier":"frontier"}
+{"id":"q041","category":"out_of_scope","question":"What is the capital of France?","context_ids":[],"expected_tier":"economy","expected_behavior":"decline_off_topic"}
+{"id":"q042","category":"out_of_scope","question":"Can you write me a short poem about the monsoon?","context_ids":[],"expected_tier":"economy","expected_behavior":"decline_off_topic"}
+{"id":"q043","category":"out_of_scope","question":"Who won the last cricket World Cup?","context_ids":[],"expected_tier":"economy","expected_behavior":"decline_off_topic"}
+{"id":"q044","category":"out_of_scope","question":"Do you offer a student discount?","context_ids":[],"expected_tier":"economy","expected_behavior":"admit_unknown"}
+{"id":"q045","category":"out_of_scope","question":"Can I collect my order from your warehouse instead of waiting for delivery?","context_ids":[],"expected_tier":"economy","expected_behavior":"admit_unknown"}
+{"id":"q046","category":"out_of_scope","question":"Do I earn loyalty points on my purchases?","context_ids":[],"expected_tier":"economy","expected_behavior":"admit_unknown"}
+{"id":"q047","category":"out_of_scope","question":"Who is the CEO of TechStore?","context_ids":[],"expected_tier":"economy","expected_behavior":"admit_unknown"}
+{"id":"q048","category":"out_of_scope","question":"Do you sell washing machines?","context_ids":["about_techstore"],"expected_tier":"economy","expected_behavior":"answer_from_about"}
+{"id":"q049","category":"out_of_scope","question":"What time does your Bangalore store open?","context_ids":["about_techstore"],"expected_tier":"economy","expected_behavior":"answer_from_about"}
+{"id":"q050","category":"out_of_scope","question":"What is the battery life of the X200, and do you offer a student discount?","context_ids":["prod_x200"],"expected_tier":"economy","expected_behavior":"partial"}

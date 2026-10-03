@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- Tokenomics project ---
+# Pre-git safety copies of the spec; git history replaces them.
+*.backup.md
+.DS_Store

@@ -1,0 +1,6 @@
+# Phase 0 — TechStore Support Agent
+openai>=1.40.0            # OpenAI-compatible client (also talks to Groq/Together/our router)
+python-dotenv>=1.0.0
+streamlit>=1.38.0         # demo UI
+sentence-transformers>=3.0.0   # optional: embedding retrieval; agent falls back to keyword search
+tiktoken>=0.7.0                # optional: exact token counts in mock mode; falls back to a heuristic
