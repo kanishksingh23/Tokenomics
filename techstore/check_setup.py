@@ -173,10 +173,12 @@ def check_models() -> list[str]:
 def ping(model: str) -> None:
     import openai                                       # noqa: PLC0415
     client = openai.OpenAI(api_key=config.API_KEY, base_url=config.BASE_URL)
+    from agent import _QUIRKS, chat_completion           # noqa: PLC0415
     try:
-        r = client.chat.completions.create(
-            model=model, messages=[{"role": "user", "content": "Reply with the word ok."}],
-            max_tokens=5, temperature=0)
+        # Same call path as the agent, so a pass here means the agent will work.
+        r, temp = chat_completion(client, model,
+                                  [{"role": "user", "content": "Reply with the word ok."}],
+                                  max_tokens=200, temperature=0)
     except openai.RateLimitError as e:
         msg = str(e)
         report(FAIL, f"{model}: rate limited or out of credit (429)",
@@ -192,6 +194,16 @@ def ping(model: str) -> None:
     u = r.usage
     cost = config.price(model, u.prompt_tokens, u.completion_tokens)
     report(OK, f"{model} answered ({u.prompt_tokens}+{u.completion_tokens} tokens, ${cost:.6f})")
+    q = _QUIRKS.get(model, {})
+    if temp is None:
+        report(WARN, f"{model} rejects temperature: answers will vary run to run",
+               "expected for reasoning models; note it in the benchmark report")
+    if q.get("limit") == "max_tokens":
+        report(OK, f"{model} uses max_tokens (older parameter); handled automatically")
+    reasoning = getattr(getattr(u, "completion_tokens_details", None), "reasoning_tokens", 0) or 0
+    if reasoning:
+        report(WARN, f"{model} is a reasoning model ({reasoning} hidden tokens on a 1-word reply)",
+               "hidden tokens are billed as output; review_results.py reports them per answer")
 
 
 def check_data() -> None:

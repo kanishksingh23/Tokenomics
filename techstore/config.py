@@ -19,24 +19,34 @@ BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 
 # NOTE: verify these exact strings against your provider's model list before the
 # Week 10 benchmark. Pricing below is $ per 1M tokens, as of 2026-09.
-FRONTIER_MODEL = os.getenv("FRONTIER_MODEL", "gpt-5.6-sol")
-ECONOMY_MODEL = os.getenv("ECONOMY_MODEL", "gpt-5.6-luna")
+FRONTIER_MODEL = os.getenv("FRONTIER_MODEL", "gpt-6.1-sol")
+ECONOMY_MODEL = os.getenv("ECONOMY_MODEL", "gpt-6-luna")
 
 # $ per 1M tokens. cached_input applies to prompt tokens the provider served
 # from its own prompt cache (billed at 10% of input). Unverified against the
 # provider's live pricing page -- check before the benchmark.
+# Verified 2026-10-03 against developers.openai.com/api/docs/pricing (Standard
+# tier, short context). Model ids verified on the account's Limits page.
+# cache_write: OpenAI bills writing a prompt prefix into its cache at 1.25x input.
+# Not yet applied in price(): the usage field that reports cache writes has not
+# been observed in a real response. Our ~500-token prompts may never be cached.
+# Batch and Flex tiers are 50% of these rates.
 PRICING = {
-    "gpt-5.6-sol":  {"input": 4.00,  "cached_input": 0.40, "output": 20.00},
-    "gpt-5.6-luna": {"input": 0.20,  "cached_input": 0.02, "output": 1.20},
-    "gpt-6-astra":  {"input": 10.00, "cached_input": 1.00, "output": 50.00},
+    "gpt-6.1-sol": {"input": 2.00,  "cached_input": 0.10, "cache_write": 2.50,  "output": 10.00},
+    "gpt-6-luna":  {"input": 0.10,  "cached_input": 0.01, "cache_write": 0.125, "output": 0.50},
+    "gpt-6-astra": {"input": 10.00, "cached_input": 1.00, "cache_write": 12.50, "output": 50.00},
 }
-PRICING_AS_OF = "2026-09-23"
+PRICING_AS_OF = "2026-10-03"
 
 # keyword measured 81.8% context recall@3 vs 76.4% for embeddings on the labelled
 # seed set (see eval_retrieval.py). Re-evaluate on the full 500 questions.
 RETRIEVER = os.getenv("RETRIEVER", "keyword")   # keyword | embedding | auto
 TOP_K = int(os.getenv("TOP_K", "3"))
-MAX_TOKENS = 600
+# Upper bound on output tokens, including any hidden reasoning tokens. Reasoning
+# models can spend hundreds of tokens thinking before writing; a low cap yields an
+# EMPTY answer that is still billed. You pay only for tokens actually produced,
+# so a generous cap costs nothing extra (worst case: 2000 x $10/1M = $0.02).
+MAX_TOKENS = 2000
 
 # Fixed refusal wordings. system_prompt.txt instructs the model to use these
 # verbatim, and review_results.py detects them; a test keeps the two in sync.

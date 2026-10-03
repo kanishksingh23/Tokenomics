@@ -61,9 +61,9 @@ techstore/
 
 ## Design decisions worth knowing
 
-**Retrieval is not optional.** Stuffing all 84 documents into every prompt costs
-~42,000 prompt tokens instead of ~450 — a 90x cost increase that would invalidate
-the economics in section 2 of the specification. `test_prompt_stays_within_budget`
+**Retrieval is not optional.** Sending all 85 documents in every prompt costs
+~7,700 prompt tokens instead of ~500 — 7x the cost (measured with the real
+tokenizer), growing with every document added. `test_prompt_stays_within_budget`
 guards this.
 
 **Measured prompt size is ~451 tokens** (max 613), against the 400 the spec

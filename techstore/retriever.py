@@ -4,10 +4,10 @@ Two backends. `embedding` (MiniLM) is better; `keyword` (BM25-lite, pure stdlib)
 needs no dependencies so the agent is testable before anything is installed.
 `auto` uses embeddings when sentence-transformers is importable, else keyword.
 
-Why retrieval at all: stuffing all 47 documents into every prompt costs ~24k
-prompt tokens per request instead of ~400 -- a 21x cost increase that would
-invalidate the economics in section 2 of the spec. Retrieval is what makes the
-400-token assumption true.
+Why retrieval at all: sending all 85 documents in every prompt costs ~7,700
+prompt tokens per request instead of ~500 -- 7x the cost, measured with the real
+tokenizer, and growing with every document added. Retrieval is what makes the
+section 2 cost assumption true.
 """
 from __future__ import annotations
 

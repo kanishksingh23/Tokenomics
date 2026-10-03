@@ -42,6 +42,38 @@ def _make_counter():
 count_tokens, TOKEN_COUNTER = _make_counter()
 
 
+# Parameter quirks, learned at runtime per model. Newer OpenAI reasoning models
+# reject `temperature` and `max_tokens` (wanting `max_completion_tokens`); some
+# OpenAI-compatible servers reject `max_completion_tokens`. Each quirk costs one
+# rejected request (400s are not billed) and is then remembered.
+_QUIRKS: dict[str, dict] = {}
+
+
+def chat_completion(client, model: str, messages: list[dict], max_tokens: int,
+                    temperature: float | None):
+    """Returns (response, temperature actually sent or None)."""
+    q = _QUIRKS.setdefault(model, {"temperature": True, "limit": "max_completion_tokens"})
+    for _ in range(4):
+        kwargs = {"model": model, "messages": messages, q["limit"]: max_tokens}
+        if q["temperature"] and temperature is not None:
+            kwargs["temperature"] = temperature
+        try:
+            return client.chat.completions.create(**kwargs), kwargs.get("temperature")
+        except Exception as exc:                        # noqa: BLE001
+            if getattr(exc, "status_code", None) != 400:
+                raise
+            msg = str(exc).lower()
+            if q["temperature"] and "temperature" in msg:
+                q["temperature"] = False
+                continue
+            if f"'{q['limit']}'" in msg or f'"{q["limit"]}"' in msg or f" {q['limit']} " in f" {msg} ":
+                q["limit"] = ("max_tokens" if q["limit"] == "max_completion_tokens"
+                              else "max_completion_tokens")
+                continue
+            raise
+    raise RuntimeError(f"{model}: could not find request parameters the model accepts")
+
+
 @dataclass
 class Answer:
     """One interaction. This record is the seed of the spec's accounting ledger."""
@@ -56,6 +88,7 @@ class Answer:
     completion_tokens: int = 0
     reasoning_tokens: int = 0         # hidden, billed as output; 0 for non-reasoning models
     finish_reason: str | None = None  # "length" means the answer was cut off at MAX_TOKENS
+    temperature_used: float | None = None  # None: the model rejected temperature (not reproducible at T=0)
     cost_usd: float = 0.0
     # True in mock mode: tokens are counted locally and output length is
     # assumed. Never mix estimated rows into benchmark results.
@@ -170,14 +203,11 @@ class SupportAgent:
             result.latency_ms = round((time.perf_counter() - t0) * 1000, 1)
             return result
         try:
-            resp = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": f"{self.system_prompt}\n\n{context}"},
-                    {"role": "user", "content": question},
-                ],
-                temperature=config.TEMPERATURE,
-                max_tokens=config.MAX_TOKENS,
+            resp, result.temperature_used = chat_completion(
+                self.client, self.model,
+                [{"role": "system", "content": f"{self.system_prompt}\n\n{context}"},
+                 {"role": "user", "content": question}],
+                max_tokens=config.MAX_TOKENS, temperature=config.TEMPERATURE,
             )
             result.answer = (resp.choices[0].message.content or "").strip()
             result.finish_reason = resp.choices[0].finish_reason

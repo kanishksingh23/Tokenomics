@@ -101,8 +101,8 @@ def test_order_id_extraction():
 
 
 def test_prompt_stays_within_budget():
-    """Section 2's cost model assumes a ~400-token prompt. Stuffing the whole KB
-    would be ~24k tokens and 21x the cost, so this guards the economics."""
+    """Section 2's cost model assumes a ~400-token prompt. Sending the whole KB
+    would be ~7,700 tokens and 7x the cost, so this guards the economics."""
     a = SupportAgent(retriever_mode="keyword")
     for q, _ in RECALL_CASES:
         ctx, _, _, _ = a.build_context(q)
@@ -118,13 +118,14 @@ def test_mock_cost_is_flagged_as_estimate():
 
 
 def test_cached_tokens_are_discounted():
-    full = config.price("gpt-5.6-sol", 1000, 0)
-    half_cached = config.price("gpt-5.6-sol", 1000, 0, cached_prompt_tokens=500)
-    assert abs(full - 0.004) < 1e-12
-    assert abs(half_cached - (500 * 4.0 + 500 * 0.4) / 1e6) < 1e-12
+    p = config.PRICING["gpt-6.1-sol"]
+    full = config.price("gpt-6.1-sol", 1000, 0)
+    half_cached = config.price("gpt-6.1-sol", 1000, 0, cached_prompt_tokens=500)
+    assert abs(full - 1000 * p["input"] / 1e6) < 1e-12
+    assert abs(half_cached - (500 * p["input"] + 500 * p["cached_input"]) / 1e6) < 1e-12
     # cached count can never exceed the prompt it belongs to
-    assert config.price("gpt-5.6-sol", 100, 0, cached_prompt_tokens=10_000) == config.price(
-        "gpt-5.6-sol", 100, 0, cached_prompt_tokens=100)
+    assert config.price("gpt-6.1-sol", 100, 0, cached_prompt_tokens=10_000) == config.price(
+        "gpt-6.1-sol", 100, 0, cached_prompt_tokens=100)
 
 
 def test_near_identical_order_queries_differ():
@@ -192,3 +193,64 @@ def test_refusal_behaviour_grading():
     assert "unanswerable half" in bp("partial", "The X200 lasts 40 hours.")
     assert bp(None, "The return window is 30 days.") is None
     assert "over-refusal" in bp(None, unk)
+
+
+
+class _ApiError(Exception):
+    def __init__(self, status, msg):
+        super().__init__(msg)
+        self.status_code = status
+
+
+class _FakeClient:
+    """Rejects parameters the way real models do, and records every request."""
+    def __init__(self, reject):
+        self.reject, self.calls = reject, []
+        self.chat = type("C", (), {"completions": self})()
+
+    def create(self, **kw):
+        self.calls.append(kw)
+        for param, (status, msg) in self.reject.items():
+            if param in kw:
+                raise _ApiError(status, msg)
+        return "RESPONSE"
+
+
+def _fresh(model):
+    from agent import _QUIRKS
+    _QUIRKS.pop(model, None)
+
+
+def test_reasoning_model_rejecting_temperature_is_retried_without_it():
+    from agent import chat_completion
+    _fresh("m-reason")
+    c = _FakeClient({"temperature": (400, "Unsupported value: 'temperature' does not support 0")})
+    resp, temp = chat_completion(c, "m-reason", [], 2000, 0.0)
+    assert resp == "RESPONSE" and temp is None
+    assert len(c.calls) == 2 and "temperature" not in c.calls[1]
+    assert c.calls[1]["max_completion_tokens"] == 2000
+    chat_completion(c, "m-reason", [], 2000, 0.0)       # quirk remembered:
+    assert len(c.calls) == 3                             # one request, not two
+
+
+def test_server_rejecting_max_completion_tokens_falls_back():
+    from agent import chat_completion
+    _fresh("m-compat")
+    c = _FakeClient({"max_completion_tokens":
+                     (400, "Unrecognized request argument supplied: 'max_completion_tokens'")})
+    resp, temp = chat_completion(c, "m-compat", [], 2000, 0.0)
+    assert resp == "RESPONSE" and temp == 0.0
+    assert c.calls[-1]["max_tokens"] == 2000 and "max_completion_tokens" not in c.calls[-1]
+
+
+def test_unrelated_errors_are_not_retried():
+    from agent import chat_completion
+    for status, msg in [(429, "Rate limit: temperature"), (400, "Invalid 'messages': empty")]:
+        _fresh("m-err")
+        c = _FakeClient({"model": (status, msg)})
+        try:
+            chat_completion(c, "m-err", [], 2000, 0.0)
+            raise AssertionError("should have raised")
+        except _ApiError:
+            pass
+        assert len(c.calls) == 1, f"{status} must not be retried (would waste money)"

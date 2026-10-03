@@ -6,7 +6,7 @@
 **Target Delivery**: 6–8 Week Core Build expanded into a full 12-Week Production-Grade Roadmap  
 **Repository**: [`kanishksingh23/Tokenomics`](https://github.com/kanishksingh23/Tokenomics)  
 **License**: MIT (see [§9](#licensing--distribution-strategy))  
-**Spec Version**: 2.3 — out-of-scope handling, About TechStore document, licence settled as MIT  
+**Spec Version**: 2.4 — GPT-6 generation models and official pricing; budget fitted to a \$50 credit  
 
 ---
 
@@ -14,7 +14,7 @@
 
 1. [Executive Summary & Core Mission](#1-executive-summary--core-mission)
 2. [The Fundamental Problem & Mathematical Reality](#2-the-fundamental-problem--mathematical-reality)
-   - [Sensitivity Analysis & the Committed Claim](#sensitivity-analysis-why-we-commit-to-4060-not-66)
+   - [Sensitivity Analysis & the Committed Claim](#sensitivity-analysis-why-we-commit-to-4060-not-67)
    - [Tier-Pair Selection: Cheapest ≠ Best](#-tier-pair-selection-why-the-cheapest-economy-model-is-not-the-best-one)
    - [Open-Weight Models: Where They Fit](#open-weight-models-where-they-fit)
 3. [System Architecture & The Three Core Layers](#3-system-architecture--the-three-core-layers)
@@ -77,30 +77,29 @@ To automatically inspect, classify, and route incoming requests to the cheapest 
 # 2. The Fundamental Problem & Mathematical Reality
 
 ### The Pricing Asymmetry
-In production environments, engineering teams face a false trilemma between cost, latency, and capability. Current market pricing (per 1M tokens, verified September 2026):
+In production environments, engineering teams face a false trilemma between cost, latency, and capability. Market pricing per 1M tokens, October 2026:
 
-| Class | Model | Input | Output | Cost / typical request* |
-|:---|:---|---:|---:|---:|
-| **Frontier** | GPT-6 Astra | \$10.00 | \$50.00 | \$0.01150 |
-| **Frontier** | Claude Fable 5.1 | \$10.00 | \$50.00 | \$0.01150 |
-| **Frontier** | Claude Opus 5 | \$5.00 | \$25.00 | \$0.00575 |
-| **Frontier** ⭐ | **GPT-5.6 Sol** | **\$4.00** | **\$20.00** | **\$0.00460** |
-| Mid | GPT-5.6 Terra | \$2.00 | \$12.00 | \$0.00260 |
-| Mid | Claude Sonnet 5 | \$2.00 | \$10.00 | \$0.00230 |
-| **Economy** | Claude Haiku 4.5 | \$1.00 | \$5.00 | \$0.00115 |
-| **Economy** | Gemini 3.8 Flash | \$0.75 | \$3.75 | \$0.00086 |
-| **Economy** | DeepSeek V3.1 (open) | \$0.60 | \$1.70 | \$0.00050 |
-| **Economy** | Llama 3.3 70B / Groq (open) | \$0.59 | \$0.79 | \$0.00035 |
-| **Economy** ⭐ | **GPT-5.6 Luna** | **\$0.20** | **\$1.20** | **\$0.00026** |
-| **Economy** | Llama 3.1 8B / Groq (open) | \$0.05 | \$0.08 | \$0.00003 |
+| Class | Model | Input | Output | Cost / typical request* | Source |
+|:---|:---|---:|---:|---:|:---|
+| **Frontier** | GPT-6 Astra | \$10.00 | \$50.00 | \$0.011500 | OpenAI pricing page ✔ |
+| **Frontier** | Claude Fable 5.1 | \$10.00 | \$50.00 | \$0.011500 | Anthropic list price |
+| **Frontier** | Claude Opus 5 | \$5.00 | \$25.00 | \$0.005750 | Anthropic list price |
+| **Frontier** ⭐ | **GPT-6.1 Sol** | **\$2.00** | **\$10.00** | **\$0.002300** | **OpenAI pricing page ✔** |
+| Mid | Claude Sonnet 5 | \$2.00 | \$10.00 | \$0.002300 | Anthropic list price |
+| **Economy** | Claude Haiku 4.5 | \$1.00 | \$5.00 | \$0.001150 | Anthropic list price |
+| **Economy** | Gemini 3.8 Flash | \$0.75 | \$3.75 | \$0.000862 | third-party, Sept 2026 |
+| **Economy** | DeepSeek V3.1 (open) | \$0.60 | \$1.70 | \$0.000495 | third-party, Sept 2026 |
+| **Economy** | Llama 3.3 70B / Groq (open) | \$0.59 | \$0.79 | \$0.000354 | third-party, Sept 2026 |
+| **Economy** ⭐ | **GPT-6 Luna** | **\$0.10** | **\$0.50** | **\$0.000115** | **OpenAI pricing page ✔** |
+| **Economy** | Llama 3.1 8B / Groq (open) | \$0.05 | \$0.08 | \$0.000032 | third-party, Sept 2026 |
 
 \* 400 prompt tokens + 150 completion tokens — the representative support request used throughout this document. **This figure is only achievable with retrieval; see below.**
 
-**Selected pair: GPT-5.6 Sol (frontier) + GPT-5.6 Luna (economy)**, pending the Week 7 empirical confirmation below. Frontier latency 1,200–2,000 ms; economy latency 200–400 ms.
+**Selected pair: GPT-6.1 Sol (frontier) + GPT-6 Luna (economy).** Both model ids are confirmed on the project's OpenAI account (Limits page) and both prices on OpenAI's official pricing page, 2026-10-03. The economy choice is re-tested empirically in Week 7 (below). Frontier latency 1,200–2,000 ms; economy latency 200–400 ms.
 
 > **Naming convention.** We say **Economy** and **Frontier** throughout, never "Tier 1 / Tier 2" — readers reflexively parse "Tier 1" as *best*, which inverts the meaning. Code uses the enum `ModelTier.ECONOMY | ModelTier.FRONTIER`.
 >
-> **Pricing volatility — two live risks.** GPT-5.6 Sol's \$4/\$20 is promotional and guaranteed only through 21 Nov 2026 (standard: \$5/\$30 — which *improves* $\rho$ to 0.040, so we are insulated). Gemini 3.8 Flash's \$0.75/\$3.75 is introductory and doubles on 1 Jan 2027, mid-evaluation — which is why it is **not** selected despite attractive headline pricing. Authoritative pricing lives in `app/providers/pricing.yaml` with a mandatory `as_of:` date; CI fails if that date is more than 90 days old.
+> **Pricing details that matter.** *Cached input* bills at 5–10% of input, but *writing* a prompt into OpenAI's cache costs 1.25× input, and our only stable prefix (the 170-token system prompt) is likely below the caching threshold — so no saving is budgeted from caching. *Batch* and *Flex* tiers are 50% of standard: every benchmark run uses Batch. *Long-context* rates (double) apply only above ~272K prompt tokens; ours are ~500. Gemini 3.8 Flash's price is introductory and doubles on 1 Jan 2027, mid-evaluation — one reason it is not selected. Authoritative prices live in `techstore/config.py` (later `app/providers/pricing.yaml`) with a mandatory `as_of` date; CI fails if it is more than 90 days old.
 
 ### The Traffic Reality
 In real-world enterprise traffic, **60% to 80% of queries are routine**:
@@ -121,10 +120,10 @@ $$\text{Total Cost} = N \cdot \left[ 0 \cdot \alpha + C_e \cdot \beta + (C_e + C
 
 | | Input | Output | Total |
 |:---|:---|:---|:---|
-| Frontier — GPT-5.6 Sol @ \$4 / \$20 | $400 \times 4.0\text{e-}6 = \$0.001600$ | $150 \times 20.0\text{e-}6 = \$0.003000$ | $\mathbf{\$0.004600}$ |
-| Economy — GPT-5.6 Luna @ \$0.20 / \$1.20 | $400 \times 0.2\text{e-}6 = \$0.000080$ | $150 \times 1.2\text{e-}6 = \$0.000180$ | $\mathbf{\$0.000260}$ |
+| Frontier — GPT-6.1 Sol @ \$2 / \$10 | $400 \times 2.0\text{e-}6 = \$0.000800$ | $150 \times 10.0\text{e-}6 = \$0.001500$ | $\mathbf{\$0.002300}$ |
+| Economy — GPT-6 Luna @ \$0.10 / \$0.50 | $400 \times 0.1\text{e-}6 = \$0.000040$ | $150 \times 0.5\text{e-}6 = \$0.000075$ | $\mathbf{\$0.000115}$ |
 
-$$\rho = \frac{C_e}{C_f} = \frac{0.000260}{0.004600} = \mathbf{0.0565} \qquad \text{(a 17.7}\times\text{ spread)}$$
+$$\rho = \frac{C_e}{C_f} = \frac{0.000115}{0.002300} = \mathbf{0.050} \qquad \text{(a 20}\times\text{ spread)}$$
 
 Normalising by $C_f$, the **Router Cost Ratio** is:
 
@@ -136,25 +135,25 @@ The cost model above rests on a ~400-token prompt, and that number is **not free
 
 | How the knowledge base reaches the model | Prompt tokens | Cost/req (Sol) | One 500-query arm |
 |:---|---:|---:|---:|
-| **Retrieve top-3 relevant documents** | ~470 (measured) | \$0.00486 | **\$2.43** |
-| Concatenate all 47 documents into every prompt | ~24,000 | \$0.09900 | **\$49.50** |
+| **Retrieve top-3 relevant documents** | ~507 (measured) | \$0.00251 | **\$1.26** |
+| Concatenate all 85 documents into every prompt | ~7,659 (measured) | \$0.01682 | **\$8.41** |
 
-Full-context concatenation is **21× more expensive** and would consume the entire project budget on a single benchmark run. The price ratio is barely affected ($\rho$ moves 0.0565 → 0.0503, because both tiers pay the same inflated input) — so this is invisible in the savings percentage and catastrophic in the absolute bill.
+Full-context concatenation is **7× more expensive** at today's 85 documents, and the multiplier grows with every document added — a real retailer's knowledge base runs to thousands. The price ratio is unaffected, because both tiers pay the same inflated input, so the extra cost is invisible in the savings percentage and large in the absolute bill. *(Revision v2.2 stated 21×, from an unmeasured word-count estimate; 7× is measured with the real tokenizer.)*
 
 **Therefore retrieval is a required component of the application layer**, specified in [§9](#phase-0-the-techstore-support-agent-built-first) and guarded by `techstore/tests/test_agent.py::test_prompt_stays_within_budget`.
 
-**Measured correction**: the built agent assembles **~470 prompt tokens** on the 40-question seed set, against the 400 assumed here. $\rho$ moves 0.0565 → 0.0561 (immaterial; the 40–60% claim is unaffected) but absolute cost per request rises ~6%. The figures throughout this document retain 400 for arithmetic legibility; the benchmark report will use the measured value. **Re-measure once the full 500-question corpus exists.**
+**Measured correction**: counted with the real tokenizer (`o200k_base`), the built agent sends **~507 prompt tokens** per question on the seed set, against the 400 assumed here. $\rho$ is unchanged at 0.050 (both tiers scale together; the 40–60% claim is unaffected) but absolute cost per request is ~9% higher. Figures in this document retain 400 for arithmetic legibility; the benchmark report uses measured values. **Re-measure once the full 500-question corpus exists.**
 
-### Sensitivity Analysis (why we commit to 40–60%, not 66%)
+### Sensitivity Analysis (why we commit to 40–60%, not 67%)
 
 | Scenario | $\alpha$ | $\beta$ | $\gamma$ | $\delta$ | $R$ | Reduction |
 |:---|:--|:--|:--|:--|:--|:--|
-| Optimistic (high cacheability, accurate classifier) | 0.10 | 0.60 | 0.05 | 0.25 | 0.337 | **66.3%** |
-| **Expected (planning target)** | 0.08 | 0.55 | 0.07 | 0.30 | 0.405 | **59.5%** |
-| Conservative (low cache hit, cautious classifier) | 0.05 | 0.45 | 0.10 | 0.40 | 0.531 | **46.9%** |
-| Pessimistic (adversarial traffic mix) | 0.03 | 0.35 | 0.12 | 0.50 | 0.647 | **35.3%** |
+| Optimistic (high cacheability, accurate classifier) | 0.10 | 0.60 | 0.05 | 0.25 | 0.333 | **66.8%** |
+| **Expected (planning target)** | 0.08 | 0.55 | 0.07 | 0.30 | 0.401 | **59.9%** |
+| Conservative (low cache hit, cautious classifier) | 0.05 | 0.45 | 0.10 | 0.40 | 0.528 | **47.2%** |
+| Pessimistic (adversarial traffic mix) | 0.03 | 0.35 | 0.12 | 0.50 | 0.643 | **35.7%** |
 
-**Result**: The committed headline claim is **40–60%**, which brackets the Expected and Conservative scenarios. The optimistic 66% is reported as a ceiling, never as the promise. Under-promising here is strategically correct: the benchmark only has to clear a bar we are confident of clearing.
+**Result**: The committed headline claim is **40–60%**, which brackets the Expected and Conservative scenarios. The optimistic 67% is reported as a ceiling, never as the promise. Under-promising here is strategically correct: the benchmark only has to clear a bar we are confident of clearing.
 
 ### ⚠ Tier-Pair Selection: Why the Cheapest Economy Model Is Not the Best One
 
@@ -162,29 +161,33 @@ Full-context concatenation is **21× more expensive** and would consume the enti
 
 | Frontier / Economy pair | $\rho$ | Spread | Reduction (Expected scenario) |
 |:---|---:|---:|---:|
-| GPT-6 Astra / GPT-5.6 Luna | 0.023 | 44× | 61.6% ✅ |
-| **GPT-5.6 Sol / GPT-5.6 Luna** | **0.057** | **18×** | **59.5% ✅** |
+| GPT-6 Astra / GPT-6 Luna | 0.010 | 100× | 62.4% ✅ |
+| Claude Opus 5 / GPT-6 Luna | 0.020 | 50× | 61.8% ✅ |
+| **GPT-6.1 Sol / GPT-6 Luna** | **0.050** | **20×** | **59.9% ✅** |
 | GPT-6 Astra / Gemini 3.8 Flash | 0.075 | 13× | 58.4% ✅ |
 | Claude Fable 5.1 / Claude Haiku 4.5 | 0.100 | 10× | 56.8% ✅ |
 | Claude Opus 5 / Claude Haiku 4.5 | 0.200 | 5× | 50.6% ✅ |
 | **Claude Sonnet 5 / Claude Haiku 4.5** | **0.500** | **2×** | **32.0% ❌ fails the claim** |
+| **GPT-6.1 Sol / Claude Haiku 4.5** | **0.500** | **2×** | **32.0% ❌ fails the claim** |
 
-Had we paired Sonnet 5 with Haiku 4.5 — both current, both defensible choices — the project would return 32% with a flawless implementation, and the cause would have been invisible. We would have blamed the classifier.
+Had we paired Sonnet 5 with Haiku 4.5 — both current, both defensible choices — the project would return 32% with a flawless implementation, and the cause would have been invisible. The last row matters for **failover design**: if the economy provider fails and economy traffic falls back to Claude Haiku while the frontier stays on Sol, the price gap collapses to 2× and savings fall below the claim. Cross-provider failover must therefore move *both* tiers together (Sol+Luna → Opus 5+Haiku 4.5, 50.6%), never one tier alone.
 
-**But price spread is only half the story, and it is the half you can look up.** A cheaper economy model escalates more often, and every escalation pays *both* tiers. Holding the frontier at Sol:
+**But price spread is only half the story, and it is the half you can look up.** A cheaper economy model escalates more often, and every escalation pays *both* tiers. Holding the frontier at GPT-6.1 Sol:
 
 | Economy candidate | \$/req | $\rho$ | Spread | @ $\gamma$=5% | @ $\gamma$=10% | @ $\gamma$=20% |
 |:---|---:|---:|---:|---:|---:|---:|
-| Llama 3.1 8B (Groq) | \$0.000032 | 0.007 | 144× | **64.6%** | 59.6% | 49.6% |
-| GPT-5.6 Luna | \$0.000260 | 0.057 | 18× | 61.5% | 56.5% | 46.5% |
-| Llama 3.3 70B (Groq) | \$0.000354 | 0.077 | 13× | 60.2% | 55.2% | 45.2% |
-| DeepSeek V3.1 | \$0.000495 | 0.108 | 9× | 58.3% | 53.3% | 43.3% |
-| Gemini 3.8 Flash | \$0.000862 | 0.188 | 5× | 53.4% | 48.4% | 38.4% |
-| Claude Haiku 4.5 | \$0.001150 | 0.250 | 4× | 49.5% | 44.5% | 34.5% |
+| Llama 3.1 8B (Groq) | \$0.000032 | 0.014 | 72× | **64.1%** | 59.1% | 49.1% |
+| **GPT-6 Luna** | \$0.000115 | 0.050 | 20× | 61.9% | 56.9% | 46.9% |
+| Llama 3.3 70B (Groq) | \$0.000354 | 0.154 | 6.5× | 55.4% | 50.4% | 40.4% |
+| DeepSeek V3.1 | \$0.000495 | 0.215 | 4.6× | 51.7% | 46.7% | 36.7% |
+| Gemini 3.8 Flash | \$0.000862 | 0.375 | 2.7× | 41.8% | 36.7% | 26.8% |
+| Claude Haiku 4.5 | \$0.001150 | 0.500 | 2.0× | 34.0% | 29.0% | 19.0% |
 
-**Read across the rows, not down the first column.** Llama 3.1 8B at $\gamma$=20% (49.6%) is *worse* than GPT-5.6 Luna at $\gamma$=5% (61.5%), despite being eight times cheaper per token. **Escalation rate dominates price ratio.** The cheapest model is the best choice only if it is also good enough to rarely need escalating — and that is an empirical question, not a pricing-page lookup.
+**Read across the rows, not down the first column.** Llama 3.1 8B at $\gamma$=20% (49.1%) is *worse* than GPT-6 Luna at $\gamma$=5% (61.9%), despite being 3.6× cheaper per token. **Escalation rate dominates price ratio.** The cheapest model is the best choice only if it is also good enough to rarely need escalating — an empirical question, not a pricing-page lookup.
 
-**Therefore the tier pair is measured, not assumed.** `benchmarks/select_tier_pair.py` (Week 7, ~\$2, one afternoon) runs the 50-query development subset against three economy candidates — GPT-5.6 Luna, Llama 3.3 70B via Groq, and DeepSeek V3.1 — reporting for each the realised $\gamma$, the resulting saving, and quality. The winner is adopted and the table above is republished with measured rather than projected columns. This converts an arbitrary configuration choice into a reported experimental result.
+A second effect of the GPT-6 generation: because Sol now costs half what its predecessor did, every *other* economy model is relatively more expensive beside it. Llama 3.3 70B's advantage shrank from 13× to 6.5×, and DeepSeek and Gemini Flash fall below 5× — too narrow to be worth testing.
+
+**Therefore the tier pair is measured, not assumed.** `benchmarks/select_tier_pair.py` (Week 7, ~\$1, one afternoon) runs the 50-query development subset against three economy candidates — GPT-6 Luna, Llama 3.3 70B via Groq, and Llama 3.1 8B via Groq — reporting for each the realised $\gamma$, the resulting saving, and quality. The winner is adopted and the table above is republished with measured rather than projected columns.
 
 ### Open-Weight Models: Where They Fit
 
@@ -193,7 +196,7 @@ Open models (Llama, Qwen, DeepSeek, Mistral) appear in this project in three dis
 | Role | Decision | Rationale |
 |:---|:---|:---|
 | **Development backend** (Ollama, local) | ✅ **Adopt** | Weeks 1–9 test that requests flow, caches hit, breakers trip — none of which needs a frontier model. Reduces development API spend to ~zero and exercises the provider abstraction against a genuinely different backend. |
-| **Hosted economy tier** (Groq / Together / Fireworks) | ✅ **Candidate** — decided by the Week 7 experiment | Real per-token pricing preserves the cost claim; open weights are permanently reproducible, unlike a closed model that may be deprecated or repriced. |
+| **Hosted economy tier** (Groq / Together / Fireworks) | ✅ **Candidate** — decided by the Week 7 experiment | Real per-token pricing preserves the cost claim; open weights are permanently reproducible, unlike a closed model that may be deprecated or repriced. Against GPT-6.1 Sol, only Llama 3.1 8B remains clearly cheaper than GPT-6 Luna. |
 | **Fully local benchmark** (both tiers on-device) | ❌ **Reject** | **The project's claim is denominated in dollars.** A locally-hosted model has no marginal per-token price, so the headline result degenerates to "60% of \$0". Restating it in GPU-seconds is weaker, harder to measure honestly, and unrelatable to the stakeholder audience the use case was chosen for. Separately, a student-grade GPU cannot host a genuinely frontier-class open model, so the quality gap that justifies routing would not exist. |
 
 **Reproducibility dividend**: retaining at least one open-weight tier means a third party can re-run our benchmark in three years against identical weights. Closed frontier models carry no such guarantee. This is stated as an explicit advantage in the benchmark report.
@@ -201,7 +204,7 @@ Open models (Llama, Qwen, DeepSeek, Mistral) appear in this project in three dis
 ### The Escalation Break-Even (a result that reframes the whole design)
 Trying the economy model first and escalating with probability $p$ costs $C_f(\rho + p)$ in expectation. This beats always-frontier whenever:
 
-$$\rho + p < 1 \quad \Longrightarrow \quad p < 1 - \rho = \mathbf{0.943}$$
+$$\rho + p < 1 \quad \Longrightarrow \quad p < 1 - \rho = \mathbf{0.95}$$
 
 **On cost alone, cheap-first is almost always correct.** The binding constraint is *latency*. With $L_e = 300$ ms and $L_f = 1600$ ms, expected latency $L_e + p \cdot L_f < L_f$ requires:
 
@@ -583,7 +586,7 @@ end
 
 ## SLA-Aware Load Balancing
 
-When multiple healthy providers exist in the same tier (e.g. OpenAI `gpt-5.6-luna` and Groq `llama-3.3-70b`), the gateway computes selection probabilities from real-time health and latency.
+When multiple healthy providers exist in the same tier (e.g. OpenAI `gpt-6-luna` and Groq `llama-3.3-70b`), the gateway computes selection probabilities from real-time health and latency.
 
 v1 used $W_m = (1/\text{Cost}_m) \cdot \Lambda_{P95}(m) \cdot (1 - \text{ErrorRate}_m)$, which has three defects: `Cost` was undefined (input? output? blended?), the reciprocal-cost term *dominates* everything else (a 1.7× cheaper provider wins ~63% of traffic even when markedly slower), and a provider driven to near-zero weight stops producing latency samples and can therefore **never recover**. Corrected:
 
@@ -698,7 +701,7 @@ Every interaction emits a structured record, written to **DuckDB** (not a bare J
     "exploration": { "is_exploration": false, "propensity": 0.93 }
   },
   "routing": {
-    "initial_model": "gpt-5.6-luna",
+    "initial_model": "gpt-6-luna",
     "initial_provider": "openai",
     "escalated": true,
     "escalation_suppressed_by": null,
@@ -707,7 +710,7 @@ Every interaction emits a structured record, written to **DuckDB** (not a bare J
       "signals": { "logprob": 0.5, "hedge": 0.72, "length": 0.60, "repeat": 0.0, "struct": 0.0 },
       "available_signals": ["logprob", "hedge", "length", "repeat", "struct"]
     },
-    "final_model": "gpt-5.6-sol",
+    "final_model": "gpt-6.1-sol",
     "final_provider": "openai"
   },
   "usage": {
@@ -797,9 +800,9 @@ Exported to **Jaeger**:
   ├── [embed_shared] ─────────────────────────────────────────── 11.0ms   ◄── computed ONCE
   ├── [semantic_cache_lookup] ─────────────────────────────────── 1.8ms (miss)
   ├── [complexity_classification] ─────────────────────────────── 1.1ms (calibrated=0.38)
-  ├── [provider_call: gpt-5.6-luna] ─────────────────────────── 320.0ms
+  ├── [provider_call: gpt-6-luna] ───────────────────────────── 320.0ms
   ├── [uncertainty_verification] ──────────────────────────────── 2.1ms (U=0.62: hedge+length)
-  ├── [escalation_provider_call: gpt-5.6-sol] ──────────────── 490.0ms
+  ├── [escalation_provider_call: gpt-6.1-sol] ──────────────── 490.0ms
   └── [cache_store_async] ─────────────────────────────────────── 4.8ms
                                           router overhead total ≈ 13.6ms  ◄── claim C3
 ```
@@ -1046,7 +1049,7 @@ techstore/
 
 | Decision | Rationale |
 |:---|:---|
-| **Retrieval, not full-context** | Top-3 documents at ~470 tokens, versus ~24,000 for concatenating the whole KB — a 21× cost difference that would invalidate the economics |
+| **Retrieval, not full-context** | Top-3 documents at ~507 tokens, versus ~7,700 for concatenating the whole knowledge base — a 7× cost difference that grows with every document added |
 | **Two retrieval backends** | `keyword` (BM25-lite, pure stdlib) makes the corpus loop runnable with zero installs and no API key; `embedding` uses the same MiniLM the router needs for Layers 1B and 2, validating that pipeline early. `auto` prefers embeddings and falls back silently |
 | **OpenAI-compatible client** | The same client reaches OpenAI, Groq, Together — and, from Week 4, our own gateway |
 | **`Answer` dataclass records tokens, cost, latency, retrieved ids** | This record is the seed of the [§6](#per-request-accounting-ledger) accounting ledger |
@@ -1281,7 +1284,7 @@ The single largest schedule risk is not code — it is the corpus. The 500 quest
 * **Probability calibration** (Platt/isotonic) + reliability diagram + ECE.
 * Bootstrap training from Chatbot Arena/RouteLLM preference data; assert zero overlap with the benchmark corpus.
 * `benchmarks/tune_threshold.py` Pareto sweep to derive $\tau$ from the latency SLA.
-* **`benchmarks/select_tier_pair.py`** — run the 50-query development subset against three economy candidates (GPT-5.6 Luna, Llama 3.3 70B via Groq, DeepSeek V3.1), measuring realised $\gamma$, saving, and quality for each. Cost ≈ \$2, one afternoon. Adopt the winner and republish the [§2](#-tier-pair-selection-why-the-cheapest-economy-model-is-not-the-best-one) table with measured columns.
+* **`benchmarks/select_tier_pair.py`** — run the 50-query development subset against three economy candidates (GPT-6 Luna, Llama 3.3 70B via Groq, Llama 3.1 8B via Groq), measuring realised $\gamma$, saving, and quality for each. Cost ≈ \$1, one afternoon. Adopt the winner and republish the [§2](#-tier-pair-selection-why-the-cheapest-economy-model-is-not-the-best-one) table with measured columns.
 * **Exit Criteria**: simple → Economy, complex → Frontier; **total router overhead < 20 ms at P95** (claim C3); ECE < 0.05; $\tau$ chosen by sweep, not by assumption; **tier pair selected on measured escalation rate, not on price ratio alone**.
 
 ### Week 8: Uncertainty-Based Escalation
@@ -1493,7 +1496,7 @@ Nothing user-visible. Every dependency has a declared degradation mode — cache
 **In three different places, with three different answers.** *Locally, for development* — yes; Weeks 1–9 need no frontier model, and an Ollama backend reduces development spend to near zero. *Hosted, as the economy tier* — a strong candidate, decided empirically by `select_tier_pair.py` in Week 7. *For the benchmark, both tiers local* — no: the project's claim is denominated in dollars, and a locally-hosted model has no marginal per-token price, so the headline result degenerates to "60% of \$0". See [§2](#open-weight-models-where-they-fit).
 
 ### Q12: Isn't the cheapest economy model automatically the best choice?
-**No, and this is the most counter-intuitive result in the specification.** A weaker economy model escalates more often, and every escalation pays *both* tiers. Llama 3.1 8B at a 20% escalation rate returns 49.6% savings — *worse* than GPT-5.6 Luna at 5% (61.5%) — despite being eight times cheaper per token. **Escalation rate dominates price ratio**, and escalation rate can only be measured, not looked up. Hence the Week 7 tier-pair experiment.
+**No, and this is the most counter-intuitive result in the specification.** A weaker economy model escalates more often, and every escalation pays *both* tiers. Llama 3.1 8B at a 20% escalation rate returns 49.1% savings — *worse* than GPT-6 Luna at 5% (61.9%) — despite being 3.6× cheaper per token. **Escalation rate dominates price ratio**, and escalation rate can only be measured, not looked up. Hence the Week 7 tier-pair experiment.
 
 ### Q13: Is the 500-query corpus used for training?
 **No, and this is enforced.** The benchmark corpus is held out entirely; training draws from Chatbot Arena preference data and synthetic prompts. A CI check asserts zero hash overlap between training data and benchmark data. Training on the benchmark would invalidate every number in the report.
@@ -1582,68 +1585,85 @@ A cost-optimisation system that costs more to run than it saves is a net negativ
 
 ### Break-Even Analysis
 
-Savings per request under the Expected scenario with the Sol/Luna pair: $C_f(1 - R) = \$0.00460 \times 0.595 \approx \$0.002737$.
+Savings per request under the Expected scenario with the GPT-6.1 Sol / GPT-6 Luna pair: $C_f(1 - R) = \$0.002300 \times 0.599 \approx \$0.001378$.
 
-$$\text{Break-even volume} = \frac{\$130}{\$0.002737} \approx \mathbf{47{,}500 \text{ requests/month}} \approx 0.018 \text{ RPS}$$
+$$\text{Break-even volume} = \frac{\$130}{\$0.001378} \approx \mathbf{94{,}400 \text{ requests/month}} \approx 0.036 \text{ RPS}$$
 
-**The router pays for itself at roughly one request per minute** — effectively immediately for any real deployment. At 50 RPS (the Locust target, ~130M requests/month) it saves on the order of \$355K/month against baseline. Plotting savings-versus-volume with the infrastructure cost line crossing at 47.5K requests answers "is this worth deploying?" at a glance.
+**The router pays for itself at roughly two requests per minute** — effectively immediately for any real deployment. At 50 RPS (the Locust target, ~130M requests/month) it saves on the order of \$178K/month against baseline. Cheaper frontier pricing halves the absolute saving per request relative to earlier model generations, but the *percentage* saving — the project's claim — is unchanged.
 
-### ⚠ Project API Budget (corrected for 2026 pricing)
+### Project API Budget
 
-A prior revision of this document estimated ~\$450 using 2024 GPT-4o rates. Current frontier pricing is materially higher per call, but the model-selection and batching decisions below more than compensate. Measured cost of **one full five-arm benchmark run** (Track A 500 + Track B 1,144 + judge):
+**Available: \$50 of prepaid OpenAI credit**, with the project spend limit set to \$20/month (Settings → Project → Limits) and alerts at 50% and 100%. The judge runs on a separate Anthropic account.
 
-| Frontier model | Track A | Track B | Judge | **Full run** |
+Cost of **one full five-arm benchmark run** (Track A 500 + Track B 1,144), OpenAI side, at official prices:
+
+| Frontier model | Track A | Track B | Standard | **Batch API (−50%)** |
 |:---|---:|---:|---:|---:|
-| GPT-6 Astra | \$12.06 | \$62.41 | \$9.86 | **\$84.34** |
-| **GPT-5.6 Sol (selected)** | **\$5.04** | **\$26.08** | **\$9.86** | **\$40.98** |
-| GPT-5.6 Sol at standard price | \$6.97 | \$36.82 | \$9.86 | \$53.65 |
+| GPT-6 Astra | \$11.86 | \$61.37 | \$73.24 | \$36.62 |
+| **GPT-6.1 Sol (selected)** | **\$2.50** | **\$12.93** | **\$15.42** | **\$7.71** |
 
-**This is why Sol is selected over Astra**: Astra costs 2.1× more to benchmark and buys 2.1 percentage points of headline saving (61.6% vs 59.5%). Both clear the committed 40–60% band comfortably.
+Plus the judge (Claude Sonnet 5, cross-family): \$9.86 per run, **\$4.93** batched.
 
-**Six cost controls, applied in order:**
+**Why Sol, not Astra:** Astra costs 4.75× more to benchmark and buys 2.5 percentage points of headline saving (62.4% vs 59.9%). One batched Astra run would consume most of the \$50 credit.
+
+**Cost controls, applied in order:**
 
 | # | Lever | Effect |
 |:--|:---|:---|
-| 1 | **Ollama local models for Weeks 1–9 development** | Development API spend → ~\$0 |
-| 2 | **Mock providers in all unit tests** (CI never calls a real API) | CI spend → \$0 |
-| 3 | **Batch API for benchmark runs** (50% discount; nothing is latency-sensitive) | Full run \$41 → ~\$20 |
-| 4 | **Prompt caching** — the system prompt and KB prefix is identical across all 500 queries; cached input bills at 10% | ~\$20 → ~\$15 |
-| 5 | **50-query stratified dev subset** for iteration; full corpus only for final numbers | ~\$0.50 per iteration |
-| 6 | **Mid-tier judge** (Claude Sonnet 5) — also satisfies the cross-family independence requirement | ~⅓ of an Opus-class judge |
+| 1 | **Mock mode** for UI work and development; Ollama local models once the gateway exists | Development spend → near \$0 |
+| 2 | **No real API calls in tests** — CI uses fakes | CI spend → \$0 |
+| 3 | **Batch API for every benchmark run** — nothing in a benchmark is latency-sensitive | \$15.42 → \$7.71 per run |
+| 4 | **50-question development subset** for iteration; full corpus only for final numbers | ~\$0.15 per iteration |
+| 5 | **`check_setup.py --ping` before any large run** — catches wrong model ids, keys and request parameters for under \$0.001 | Avoids paying for failed batches |
+| 6 | **Mid-tier judge** (Claude Sonnet 5), which also gives cross-family independence | ~⅓ of an Opus-class judge |
 
-### Realistic Project Budget
+Prompt caching is **not** counted as a saving: the only prefix shared across questions is the 170-token system prompt, likely below OpenAI's caching threshold, and cache *writes* bill at 1.25× input.
 
-| Item | Cost |
-|:---|---:|
-| Ad-hoc development calls | ~\$25 |
-| Dev-subset runs (≈30 × \$0.50) | ~\$15 |
-| Full benchmark × 3 final runs, batched + prefix-cached | ~\$45 |
-| Judge scoring | ~\$20 |
-| Contingency (failed runs, re-grades, ablations) | ~\$25 |
-| **Total** | **≈ \$130** |
+### Budget Allocation
 
-**Split across two contributors: ~\$65 each over twelve weeks.** A reduced-scope variant — Track B trimmed to 300 items, 2 final runs instead of 3 — lands near **\$60 total** while preserving every core claim, at the cost of some external comparability.
+| Item | When | OpenAI credit | Anthropic credit |
+|:---|:---|---:|---:|
+| Phase 0: 50 seed questions, plus ~3 reruns after fixes | Week 2 | ~\$1 | — |
+| Development checks (mostly mock mode) | Weeks 3–9 | ~\$5 | — |
+| Tier-pair selection (`select_tier_pair.py`) | Week 7 | ~\$1 | — |
+| **Final benchmark: 3 full runs, batched** | Week 10 | **~\$23** | **~\$15** (judge) |
+| Reserve: failed runs, re-grades, ablations | — | ~\$20 | — |
+| **Total** | | **≈ \$50 (prepaid)** | **≈ \$15** |
 
-### 🚨 Mandatory: Hard Spending Caps Before the First API Call
+**Whole project: ≈ \$65 in API spend**, against ~\$130 estimated in v2.1 at the previous generation's prices. A reduced-scope variant — Track B trimmed to 300 items, two final runs — costs ~\$6 on OpenAI and ~\$5 for the judge.
 
-Both providers support prepaid credits and hard monthly spend limits. Configure **both** before writing any code that calls an API:
+**Batch queue limit.** At usage tier 2, OpenAI allows 1,350,000 tokens queued per model in Batch. Several arms call GPT-6.1 Sol, so submitting all five at once would exceed it. The benchmark runner submits **one arm at a time**.
 
-* Prepay a fixed amount (e.g. \$50) rather than attaching a card with an open limit
-* Set the hard cap at or below that amount
-* Set a soft alert at 50%
+### 🚨 Spending Caps (configured)
 
-This project builds a system that calls LLMs in loops, with retries, escalation, and automated benchmark runners. **A defect in a retry loop or an off-by-one in a benchmark script can issue thousands of calls in minutes.** Note the symmetry with edge case **E15** in [§13](#edge-case-catalogue) — a per-request and per-tenant cost ceiling is a control this router implements for its users. It should be applied to our own accounts first.
+* \$50 prepaid credit; auto-recharge off
+* Project spend limit \$20/month, with email alerts at 50% (\$10) and 100% (\$20). OpenAI notes actual costs can slightly exceed the limit, which is why the early alert matters.
+* The API key is created **inside the capped project** — a key from another project would not be covered by the limit
+
+This project builds a system that calls LLMs in loops, with retries, escalation, and automated benchmark runners. **A defect in a retry loop or an off-by-one in a benchmark script can issue thousands of calls in minutes.** Note the symmetry with edge case **E15** in [§13](#edge-case-catalogue) — a per-request and per-tenant cost ceiling is a control this router implements for its users, applied first to our own accounts. The agent likewise never retries rate-limit or server errors automatically; it retries only a rejected request parameter, which OpenAI does not bill.
 
 ### Free and Discounted Access Worth Checking
 
 * **GitHub Student Developer Pack** — bundled provider credits, via student email
-* **New-account trial credits** — register both accounts early so credits are live when needed
-* **Groq free tier** — rate-limited but potentially covers a meaningful share of development traffic
+* **Groq free tier** — rate-limited but potentially covers development traffic for the Llama economy candidates
 * **Institutional research credits** — some departments hold cloud or API budgets for final-year projects; one email to the supervisor
 
 ---
 
 ## Appendix A: Revision History
+
+### Changes in v2.4 (GPT-6 generation, official pricing)
+
+| Area | v2.3 | v2.4 | Severity |
+|:---|:---|:---|:---|
+| Model pair | GPT-5.6 Sol / GPT-5.6 Luna (previous generation, prices from third-party research) | **GPT-6.1 Sol / GPT-6 Luna**, ids confirmed on the account, prices confirmed on OpenAI's official pricing page | **Critical** |
+| Price ratio | $\rho$ = 0.0565 (18×) | $\rho$ = 0.050 (20×); expected saving 59.9%; claim unaffected | Medium |
+| Economy candidates | Luna, Llama 3.3 70B, DeepSeek V3.1 | Luna, Llama 3.3 70B, Llama 3.1 8B — cheaper Sol shrank the others' advantage below 5× | Medium |
+| Failover | Implied per-tier fallback | Both tiers must fail over together; Sol + Haiku is a 2× pair and fails the claim | High |
+| Full-context cost | 21× / 24,000 tokens (v2.2, word-count estimate) | **7× / ~7,700 tokens, measured with the real tokenizer**. Retrieval still required; the earlier figure was overstated | High |
+| Budget | ~\$130, generic | ≈ \$65 total, fitted to the \$50 prepaid OpenAI credit; Batch API for every benchmark run; queue limit handled by submitting arms sequentially | High |
+| Prompt caching | Counted as a ~25% budget saving | Not counted: shared prefix too short; cache writes cost 1.25× input | Medium |
+| Request parameters | `temperature`, `max_tokens` assumed accepted | Agent adapts if a reasoning model rejects them; output cap raised to 2,000 so hidden reasoning cannot produce empty answers | High |
 
 ### Changes in v2.3 (out-of-scope handling, licence)
 
