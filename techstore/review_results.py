@@ -20,7 +20,7 @@ from collections import defaultdict
 
 import config
 
-RUPEES = re.compile(r"₹\s?([\d,]+)")
+RUPEES = re.compile(r"₹\s?([\d,]+(?:\.\d+)?)")
 LONG_ANSWER_TOKENS = 400
 
 
@@ -29,11 +29,15 @@ def load_jsonl(path) -> list[dict]:
         return [json.loads(l) for l in fh if l.strip()]
 
 
-def known_amounts() -> set[int]:
+def _amount(text: str) -> float:
+    return float(text.replace(",", ""))
+
+
+def known_amounts() -> set[float]:
     """Every rupee figure the agent could legitimately cite: KB text and order records."""
     amounts: set[int] = set()
     for d in load_jsonl(config.KB_PATH):
-        amounts.update(int(m.replace(",", "")) for m in RUPEES.findall(d["text"]))
+        amounts.update(_amount(m) for m in RUPEES.findall(d["text"]))
         if d.get("price"):
             amounts.add(int(d["price"]))
     for o in load_jsonl(config.ORDERS_PATH):
@@ -51,24 +55,35 @@ def _norm(text: str) -> str:
 # small punctuation change in the model's reply still counts.
 _UNKNOWN = _norm(config.REFUSAL_UNKNOWN.split(".")[0])      # "i don't have that information"
 _OFF_TOPIC = _norm(config.REFUSAL_OFF_TOPIC.split(",")[0])  # "i can only help with techstore orders"
+_PARTIAL = _norm(config.REFUSAL_PARTIAL)                    # "i don't have information about"
 
 
 def refusal_kind(answer: str) -> str | None:
-    """'unknown', 'off_topic', or None if the reply contains neither refusal."""
-    a = _norm(answer or "")
-    if _OFF_TOPIC in a:
+    """'off_topic' or 'unknown' when the reply OPENS with that refusal (a refusal of
+    the whole question); 'partial' when a refusal appears after some answer; else None."""
+    a = _norm(answer or "").lstrip("*_\"'\u201c ")
+    if a.startswith(_OFF_TOPIC):
         return "off_topic"
-    if _UNKNOWN in a:
+    if a.startswith(_UNKNOWN):
         return "unknown"
+    if _OFF_TOPIC in a or _UNKNOWN in a or _PARTIAL in a:
+        return "partial"
     return None
 
 
-def behavior_problem(expected: str | None, answer: str) -> str | None:
-    """None if the reply behaved as expected, else a description of what went wrong."""
+def behavior_problem(expected: str | None, answer: str, missing_gold: bool = False) -> str | None:
+    """None if the reply behaved as expected, else a description of what went wrong.
+
+    `missing_gold`: retrieval failed to supply a document the question needs. A
+    partial answer is then the CORRECT behaviour, and only retrieval is at fault."""
     kind = refusal_kind(answer)
     if expected is None:                                   # an ordinary, answerable question
-        return ("refused an answerable question (over-refusal: check retrieval and prompt)"
-                if kind else None)
+        if kind in ("unknown", "off_topic"):
+            return "REFUSED an answerable question outright"
+        if kind == "partial" and not missing_gold:
+            return ("possible unnecessary hedge (check): the needed documents were retrieved, "
+                    "yet it says something is missing")
+        return None
     if expected == "decline_off_topic":
         if kind == "off_topic":
             return None
@@ -77,13 +92,20 @@ def behavior_problem(expected: str | None, answer: str) -> str | None:
     if expected == "admit_unknown":
         if kind == "unknown":
             return None
-        return ("treated a TechStore question as off-topic" if kind == "off_topic"
-                else "did NOT admit it lacks the information: check for invented facts")
+        if kind == "off_topic":
+            return "treated a TechStore question as off-topic"
+        if kind == "partial":
+            return "answered first, refused after: check the opening for invented facts"
+        return "did NOT admit it lacks the information: check for invented facts"
     if expected == "answer_from_about":
-        return ("refused, but the About TechStore document answers this" if kind else None)
+        return ("refused, but the About TechStore document answers this"
+                if kind in ("unknown", "off_topic") else None)
     if expected == "partial":
-        return (None if kind == "unknown"
-                else "did not flag the unanswerable half of the question")
+        if kind == "partial":
+            return None
+        if kind in ("unknown", "off_topic"):
+            return "refused the whole question, though half of it is answerable"
+        return "did not flag the unanswerable half of the question"
     return f"unknown expected_behavior {expected!r}"
 
 
@@ -120,7 +142,7 @@ def main() -> int:
         q = by_id.get(r.get("id")) or by_text.get(r["question"]) or {}
         gold = q.get("context_ids", [])
         missing = [g for g in gold if g not in r.get("retrieved", [])]
-        cited = [int(m.replace(",", "")) for m in RUPEES.findall(r.get("answer") or "")]
+        cited = [_amount(m) for m in RUPEES.findall(r.get("answer") or "")]
         unknown = sorted({a for a in cited if a not in amounts})
         flags = []
         if r.get("error"):
@@ -131,15 +153,18 @@ def main() -> int:
             flags.append("missing gold doc: " + ", ".join(titles.get(m, m) for m in missing))
         if unknown and not r.get("cost_is_estimate"):
             flags.append("rupee amount not in KB/orders (invented, or computed -- check): "
-                         + ", ".join(f"₹{a:,}" for a in unknown))
+                         + ", ".join(f"₹{a:,.2f}".replace(".00", "") for a in unknown))
         if (r.get("completion_tokens") or 0) > LONG_ANSWER_TOKENS and not r.get("cost_is_estimate"):
             flags.append(f"long answer ({r['completion_tokens']} tokens)")
         behavior = None
         if not r.get("cost_is_estimate") and not r.get("error"):
-            behavior = behavior_problem(q.get("expected_behavior"), r.get("answer") or "")
+            behavior = behavior_problem(q.get("expected_behavior"), r.get("answer") or "",
+                                        missing_gold=bool(missing))
             if behavior:
                 flags.append("BEHAVIOUR: " + behavior)
         r["_behavior_ok"] = behavior is None
+        r["_kind"] = refusal_kind(r.get("answer") or "")
+        r["_missing"] = bool(missing)
         graded.append((r, q, gold, missing, flags))
 
     # -------------------------------------------------------------- summary
@@ -200,10 +225,14 @@ def main() -> int:
     if checked:
         oos = [(r, q) for r, q in checked if q.get("expected_behavior")]
         normal = [(r, q) for r, q in checked if not q.get("expected_behavior")]
+        outright = sum(r["_kind"] in ("unknown", "off_topic") for r, _ in normal)
+        hedges = sum(r["_kind"] == "partial" and not r["_missing"] for r, _ in normal)
+        explained = sum(r["_kind"] == "partial" and r["_missing"] for r, _ in normal)
         print(f"\nbehaviour  out-of-scope handled correctly: "
-              f"{sum(r['_behavior_ok'] for r, _ in oos)}/{len(oos)}"
-              f"    answerable questions refused: "
-              f"{sum(not r['_behavior_ok'] for r, _ in normal)}/{len(normal)}")
+              f"{sum(r['_behavior_ok'] for r, _ in oos)}/{len(oos)}")
+        print(f"           answerable questions ({len(normal)}): refused outright {outright}"
+              f" · possible hedges to check {hedges}"
+              f" · partial answers caused by retrieval misses {explained}")
 
     n_flagged = sum(bool(f) for *_, f in graded)
     print(f"\n{n_flagged}/{len(rows)} answers flagged for a closer look")

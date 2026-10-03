@@ -48,15 +48,23 @@ TOP_K = int(os.getenv("TOP_K", "3"))
 # so a generous cap costs nothing extra (worst case: 2000 x $10/1M = $0.02).
 MAX_TOKENS = 2000
 
+# The store's "today". Fixed so answers do not change with the real calendar:
+# the model knows the real date, and against frozen order records a later run
+# would see every delivery as overdue. validate_data.py checks the fixtures
+# agree with it (nothing happened after today; nothing due is already past).
+SIMULATED_TODAY = "2026-09-30"
+
 # Fixed refusal wordings. system_prompt.txt instructs the model to use these
 # verbatim, and review_results.py detects them; a test keeps the two in sync.
 REFUSAL_UNKNOWN = "I don't have that information. I can connect you with a human agent who can help."
 REFUSAL_OFF_TOPIC = "I can only help with TechStore orders, products, and support."
+# Opening of the one sentence used when only PART of a question can be answered.
+REFUSAL_PARTIAL = "I don't have information about"
 
 # Mock mode cannot know how long a real answer is, so it assumes this many
 # output tokens (the section 2 planning figure). Output costs 5x input on Sol,
 # so this assumption dominates the estimate.
-MOCK_OUTPUT_TOKENS = 150
+MOCK_OUTPUT_TOKENS = 93   # calibrated: mean billed output over the 50-question real run, 2026-10-03
 TEMPERATURE = 0.0
 
 

@@ -22,6 +22,18 @@ from retriever import Doc, build_retriever, load_docs
 
 ORDER_ID = re.compile(r"\b(?:order\s*#?\s*)?(\d{5})\b", re.I)
 
+
+def _alias_pattern(alias: str) -> re.Pattern:
+    words = [re.escape(w) for w in alias.lower().split()]
+    return re.compile(r"\b" + r"\s*".join(words) + r"\b")
+
+
+def _pretty_date(iso: str) -> str:
+    y, m, d = (int(x) for x in iso.split("-"))
+    months = ["January", "February", "March", "April", "May", "June", "July",
+              "August", "September", "October", "November", "December"]
+    return f"{d} {months[m - 1]} {y}"
+
 # Chat formatting overhead: ~3 tokens per message plus 3 to prime the reply.
 _MSG_OVERHEAD = 3
 _REPLY_PRIMING = 3
@@ -127,7 +139,7 @@ class MockCompletion:
             + "\n".join(f"  - {t}" for t in titles)
         )
         # Count what the API would actually receive: two messages plus overhead.
-        system = f"{self.agent.system_prompt}\n\n{context}"
+        system = self.agent.system_message(context)
         prompt_tokens = (count_tokens(system) + count_tokens(question)
                          + 2 * _MSG_OVERHEAD + _REPLY_PRIMING)
         # The placeholder text says nothing about a real answer's length.
@@ -142,6 +154,11 @@ class SupportAgent:
         self.docs: list[Doc] = load_docs(config.KB_PATH)
         self.retriever = build_retriever(self.docs, retriever_mode or config.RETRIEVER)
         self.orders = _load_orders(config.ORDERS_PATH)
+        # Product pages are always included when a question names the product.
+        # Retrieval alone missed the PulseBook 14 page in "Is the Pro 16 worth
+        # twice the PulseBook 14?", because the Pro 16 page outscored it.
+        self._product_patterns = [(d, [_alias_pattern(a) for a in d.meta.get("aliases", [])])
+                                  for d in self.docs if d.meta.get("aliases")]
         self.system_prompt = config.SYSTEM_PROMPT_PATH.read_text(encoding="utf-8").strip()
         self.mock = mock
         self._client = None
@@ -151,9 +168,21 @@ class SupportAgent:
         ids = {m.group(1) for m in ORDER_ID.finditer(question)}
         return [self.orders[i] for i in sorted(ids) if i in self.orders]
 
+    def named_products(self, question: str) -> list[Doc]:
+        q = question.lower()
+        return [d for d, pats in self._product_patterns if any(p.search(q) for p in pats)]
+
+    def system_message(self, context: str) -> str:
+        return (f"{self.system_prompt}\n\nToday's date: {_pretty_date(config.SIMULATED_TODAY)}."
+                f"\n\n{context}")
+
     def build_context(self, question: str) -> tuple[str, list[str], list[str], float]:
         t0 = time.perf_counter()
-        hits = self.retriever.search(question, self.top_k)
+        named = self.named_products(question)[: self.top_k]
+        named_ids = {d.id for d in named}
+        searched = [(d, s) for d, s in self.retriever.search(question, self.top_k + len(named))
+                    if d.id not in named_ids]
+        hits = [(d, None) for d in named] + searched[: self.top_k - len(named)]
         orders = self._orders_in(question)
         retrieval_ms = (time.perf_counter() - t0) * 1000
 
@@ -205,7 +234,7 @@ class SupportAgent:
         try:
             resp, result.temperature_used = chat_completion(
                 self.client, self.model,
-                [{"role": "system", "content": f"{self.system_prompt}\n\n{context}"},
+                [{"role": "system", "content": self.system_message(context)},
                  {"role": "user", "content": question}],
                 max_tokens=config.MAX_TOKENS, temperature=config.TEMPERATURE,
             )

@@ -1,5 +1,7 @@
 # Phase 0 — TechStore Support Agent
-openai>=1.40.0            # OpenAI-compatible client (also talks to Groq/Together/our router)
+openai>=3.0                    # OpenAI-compatible client (also talks to Groq/Together/our router)
+brotli>=1.2                    # required by openai 3.x (httpx2): with only an older brotlicffi
+                               # installed, decompressing API replies crashes
 python-dotenv>=1.0.0
 streamlit>=1.38.0         # demo UI
 sentence-transformers>=3.0.0   # optional: embedding retrieval; agent falls back to keyword search

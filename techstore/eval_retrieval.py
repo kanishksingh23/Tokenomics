@@ -39,6 +39,11 @@ def main() -> int:
     kw = KeywordRetriever(docs)
     methods = {"keyword": lambda q, n: [d.id for d, _ in kw.search(q, n)]}
 
+    # What the agent actually sends: named product pages first, then keyword search.
+    from agent import SupportAgent                      # noqa: PLC0415
+    agent = SupportAgent(retriever_mode="keyword", top_k=args.k)
+    methods["keyword+names"] = lambda q, n: agent.build_context(q)[1]
+
     try:
         from retriever import EmbeddingRetriever  # noqa: PLC0415
         emb = EmbeddingRetriever(docs)

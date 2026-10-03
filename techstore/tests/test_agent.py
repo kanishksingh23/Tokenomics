@@ -163,6 +163,7 @@ def test_system_prompt_carries_the_exact_refusals():
     prompt = config.SYSTEM_PROMPT_PATH.read_text(encoding="utf-8")
     assert config.REFUSAL_UNKNOWN in prompt
     assert config.REFUSAL_OFF_TOPIC in prompt
+    assert config.REFUSAL_PARTIAL in prompt
 
 
 def test_no_match_is_stated_explicitly():
@@ -192,7 +193,14 @@ def test_refusal_behaviour_grading():
     assert bp("partial", "The X200 lasts 40 hours. " + unk) is None
     assert "unanswerable half" in bp("partial", "The X200 lasts 40 hours.")
     assert bp(None, "The return window is 30 days.") is None
-    assert "over-refusal" in bp(None, unk)
+    assert "REFUSED" in bp(None, unk)
+    hedge = "Your order shipped with BlueDart. " + unk
+    assert bp(None, hedge, missing_gold=True) is None        # retrieval's fault, not the model's
+    assert "unnecessary hedge" in bp(None, hedge, missing_gold=False)
+    assert bp("decline_off_topic", "**" + off + "**") is None    # markdown-wrapped refusal
+    assert bp("partial", "The X200 lasts 40 hours. "
+              + config.REFUSAL_PARTIAL + " student discounts.") is None
+    assert "whole question" in bp("partial", unk)
 
 
 
@@ -254,3 +262,34 @@ def test_unrelated_errors_are_not_retried():
         except _ApiError:
             pass
         assert len(c.calls) == 1, f"{status} must not be retried (would waste money)"
+
+
+
+def test_named_products_are_always_retrieved():
+    a = SupportAgent(retriever_mode="keyword")
+    _, docs, _, _ = a.build_context(
+        "Is the PulseBook Pro 16 worth twice the price of the PulseBook 14 for video editing?")
+    assert {"prod_pulsebook14", "prod_pulsebook_pro16"} <= set(docs)
+    assert len(docs) == a.top_k
+    _, docs, _, _ = a.build_context("Does the AuraWatch 3 have GPS?")
+    assert docs[0] == "prod_aurawatch3" and "prod_aurawatch_pro" not in docs[:1]
+    _, docs, _, _ = a.build_context("Is delivery free?")      # names nothing: plain retrieval
+    assert not any(d.startswith("prod_") for d in docs)
+
+
+def test_every_product_has_aliases():
+    for d in load_docs(config.KB_PATH):
+        if d.category == "product":
+            assert d.meta.get("aliases"), f"{d.id} has no aliases"
+
+
+def test_simulated_date_reaches_the_model_and_fits_the_fixtures():
+    import validate_data
+    a = SupportAgent(retriever_mode="keyword")
+    assert "Today's date: 30 September 2026." in a.system_message("ctx")
+    assert validate_data.main() == 0          # includes the date-consistency rule
+
+
+def test_rupee_amounts_with_paise_parse():
+    from review_results import RUPEES, _amount
+    assert [_amount(m) for m in RUPEES.findall("contribution is ₹6,499.90, total ₹1,34,999")] == [6499.90, 134999.0]

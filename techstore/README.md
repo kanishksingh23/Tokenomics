@@ -85,6 +85,15 @@ MPS GPU, which recompiles per input length: p95 144 ms on unseen queries versus
 Terms" is the most-missed document and is central to policy edge cases; and
 comparisons naming two products often retrieve only one of them.
 
+**Named products are always retrieved.** Product pages carry an `aliases` list;
+when a question names a product ("PulseBook 14", "X200"), its page is included
+first and retrieval fills the remaining slots.
+
+**The store has a fixed "today"** (`SIMULATED_TODAY` in `config.py`, stated in
+every prompt). The model knows the real date, so against frozen order records
+answers would otherwise drift with the calendar. `validate_data.py` checks that
+no fixture event is after today and no due date is already past.
+
 **Two retrieval backends.** `keyword` is pure stdlib so the agent is testable
 before anything is installed; `embedding` uses the same MiniLM model the router
 needs for Layer 1B and Layer 2, so this validates that pipeline early. `auto`

@@ -6,7 +6,7 @@
 **Target Delivery**: 6–8 Week Core Build expanded into a full 12-Week Production-Grade Roadmap  
 **Repository**: [`kanishksingh23/Tokenomics`](https://github.com/kanishksingh23/Tokenomics)  
 **License**: MIT (see [§9](#licensing--distribution-strategy))  
-**Spec Version**: 2.4 — GPT-6 generation models and official pricing; budget fitted to a \$50 credit  
+**Spec Version**: 2.5 — Phase 0 measured against the real model; latency and reproducibility assumptions corrected  
 
 ---
 
@@ -95,7 +95,7 @@ In production environments, engineering teams face a false trilemma between cost
 
 \* 400 prompt tokens + 150 completion tokens — the representative support request used throughout this document. **This figure is only achievable with retrieval; see below.**
 
-**Selected pair: GPT-6.1 Sol (frontier) + GPT-6 Luna (economy).** Both model ids are confirmed on the project's OpenAI account (Limits page) and both prices on OpenAI's official pricing page, 2026-10-03. The economy choice is re-tested empirically in Week 7 (below). Frontier latency 1,200–2,000 ms; economy latency 200–400 ms.
+**Selected pair: GPT-6.1 Sol (frontier) + GPT-6 Luna (economy).** Both model ids are confirmed on the project's OpenAI account (Limits page) and both prices on OpenAI's official pricing page, 2026-10-03. The economy choice is re-tested empirically in Week 7 (below). **Measured latency** (50 real support questions, 2026-10-03): GPT-6.1 Sol median **2.9 s**, p90 **5.0 s** — slower than the 1.2–2 s assumed in earlier revisions. GPT-6 Luna's latency is not yet measured (Week 7).
 
 > **Naming convention.** We say **Economy** and **Frontier** throughout, never "Tier 1 / Tier 2" — readers reflexively parse "Tier 1" as *best*, which inverts the meaning. Code uses the enum `ModelTier.ECONOMY | ModelTier.FRONTIER`.
 >
@@ -142,7 +142,7 @@ Full-context concatenation is **7× more expensive** at today's 85 documents, an
 
 **Therefore retrieval is a required component of the application layer**, specified in [§9](#phase-0-the-techstore-support-agent-built-first) and guarded by `techstore/tests/test_agent.py::test_prompt_stays_within_budget`.
 
-**Measured correction**: counted with the real tokenizer (`o200k_base`), the built agent sends **~507 prompt tokens** per question on the seed set, against the 400 assumed here. $\rho$ is unchanged at 0.050 (both tiers scale together; the 40–60% claim is unaffected) but absolute cost per request is ~9% higher. Figures in this document retain 400 for arithmetic legibility; the benchmark report uses measured values. **Re-measure once the full 500-question corpus exists.**
+**Measured correction**: on the first real run (50 questions, 2026-10-03) the agent sent **639 prompt tokens** and received **93 output tokens** per question on average — more input than the 400 assumed here (the refusal rules lengthened the system prompt) but less output than 150, so measured cost was **\$0.0022 per question** against \$0.0023 projected. Before the refusal rules it sent ~507. $\rho$ is unchanged at 0.050 (both tiers scale together; the 40–60% claim is unaffected) but absolute cost per request is ~9% higher. Figures in this document retain 400 for arithmetic legibility; the benchmark report uses measured values. **Re-measure once the full 500-question corpus exists.**
 
 ### Sensitivity Analysis (why we commit to 40–60%, not 67%)
 
@@ -206,13 +206,13 @@ Trying the economy model first and escalating with probability $p$ costs $C_f(\r
 
 $$\rho + p < 1 \quad \Longrightarrow \quad p < 1 - \rho = \mathbf{0.95}$$
 
-**On cost alone, cheap-first is almost always correct.** The binding constraint is *latency*. With $L_e = 300$ ms and $L_f = 1600$ ms, expected latency $L_e + p \cdot L_f < L_f$ requires:
+**On cost alone, cheap-first is almost always correct.** The binding constraint is *latency*. With the measured frontier median $L_f = 2900$ ms and an assumed $L_e = 300$ ms (economy latency is not yet measured), expected latency $L_e + p \cdot L_f < L_f$ requires:
 
-$$p < 1 - \frac{L_e}{L_f} = \mathbf{0.812}$$
+$$p < 1 - \frac{L_e}{L_f} = \mathbf{0.897} \quad \text{(provisional until } L_e \text{ is measured)}$$
 
 and the P99 tail is far tighter still, because an escalated request pays *both* latencies serially.
 
-**Design consequence**: the classifier threshold is **not** a cost-optimisation parameter. It is a point on a cost–latency–quality Pareto frontier, and it must be *derived from an SLA*, not hardcoded at 0.50. `benchmarks/tune_threshold.py` sweeps $\tau \in [0.2, 0.8]$ and emits the frontier plot; we then select $\tau$ as the cheapest point satisfying $P95_{\text{latency}} \le 2000$ ms and quality within the TOST margin.
+**Design consequence**: the classifier threshold is **not** a cost-optimisation parameter. It is a point on a cost–latency–quality Pareto frontier, and it must be *derived from an SLA*, not hardcoded at 0.50. `benchmarks/tune_threshold.py` sweeps $\tau \in [0.2, 0.8]$ and emits the frontier plot; we then select $\tau$ as the cheapest point whose P95 latency is **no worse than the always-frontier baseline's** and whose quality is within the TOST margin. *(Earlier revisions used an absolute P95 ≤ 2,000 ms target; GPT-6.1 Sol alone measures p90 5.0 s, so an absolute target that the baseline itself misses would be meaningless.)*
 
 ---
 
@@ -596,7 +596,7 @@ $$u_m = \log\!\left(\frac{1}{\text{Cost}_m}\right) + \log \Lambda_{P95}(m) + \lo
 
 $$\Pr(m) = (1 - k\eta)\cdot\frac{e^{u_m / T}}{\sum_j e^{u_j / T}} \;+\; \eta$$
 
-* $\Lambda_{P95}$ dampens traffic when P95 latency crosses thresholds: $1.0$ below 800 ms, $0.6$ in $[800, 2000)$ ms, $0.2$ at or above 2000 ms.
+* $\Lambda_{P95}$ dampens traffic when a provider's P95 latency rises above **its tier's typical P95**: $1.0$ below 1.5× the tier median P95, $0.6$ from 1.5× to 3×, $0.2$ beyond. Thresholds are relative because absolute ones (the earlier 800 / 2,000 ms) would mark every frontier provider as degraded — GPT-6.1 Sol's measured median alone is 2.9 s.
 * Softmax with temperature $T$ (default 0.5) keeps the trade-off **smooth and tunable** instead of letting one term dominate.
 * $\eta = 0.05$ is a **floor probability** per healthy provider ($k$ = number of healthy providers) so every provider keeps producing fresh latency and error samples. Without this floor the balancer is not exploring, and its own measurements go stale.
 
@@ -883,7 +883,7 @@ v1 compared the router against a single strawman ("always frontier"). Beating a 
 ### Reproducibility Controls
 Without these, re-running the benchmark yields different numbers and "reproducible" becomes false advertising:
 * Pinned model snapshot IDs (never floating aliases), recorded per run alongside the `pricing.yaml` `as_of` date.
-* `temperature = 0`, fixed `seed` where supported, fixed `max_tokens`.
+* `temperature = 0` **where the model accepts it**. GPT-6.1 Sol and GPT-6 Luna both reject the parameter, so their answers vary between runs: the $k = 3$ repeats below are therefore **required**, not optional, and every result records the temperature actually used (`temperature_used`, null when rejected). Fixed `seed` where supported; fixed output cap.
 * Corpus SHA-256 and git commit recorded in every result file.
 * $k = 3$ repeat runs; report mean ± SD, because even at $T=0$ provider outputs are not perfectly deterministic.
 * All raw responses committed to `benchmarks/results/<run_id>/` so a third party can re-grade with a judge of their own choosing.
@@ -1063,6 +1063,33 @@ techstore/
 * Assembled prompt stays under 900 tokens for every seed question (guards the [§2](#-the-400-token-assumption-requires-a-retriever) economics)
 * The agent returns sensible answers across all eight categories with cost and latency logged
 * Demonstrable to a third party in a browser
+
+### Phase 0 Results: First Run Against the Real Model (2026-10-03)
+
+**Status: exit criteria met.** All 50 seed questions answered by GPT-6.1 Sol through the full agent; the remaining milestone is the demonstration to the mentor.
+
+| Measure | Result |
+|:---|:---|
+| Cost | **\$0.1104** total, \$0.0022 per question (projected \$0.0023) |
+| Tokens per question | prompt 639 · output 93 (median 75, p90 185) · hidden reasoning 7 |
+| Latency | median 2.9 s · p90 5.0 s |
+| Out-of-scope behaviour | **10/10** — declined off-topic, admitted unknowns, answered catalogue questions from About TechStore, split the half-answerable question |
+| Answerable questions refused outright | **0 / 40** |
+| Invented prices | **0** — all three flagged ₹ amounts were correct arithmetic |
+| Author's provisional grading | **44 correct · 6 partial · 0 wrong · 0 hallucinated** (pending the co-author's independent grading in `review.csv`) |
+
+**What the run exposed, and what was done:**
+
+| Finding | Fix | Verified by re-run |
+|:---|:---|:---|
+| Knowledge base contradicted itself on whether over-ear headphones are returnable once opened (the model noticed and hedged) | Hygiene policy now covers all headphone types; Y500 page states it | ✅ q037 |
+| "Refunded in full" after failed delivery did not say whether the delivery charge is included | Stated explicitly | ✅ q039 |
+| The model knows the real date, so against frozen order records deliveries looked overdue — results would drift with the calendar | Fixed simulated date (`SIMULATED_TODAY`, 30 Sep 2026) in every prompt, with an explicit rule to use it; fixtures validated against it | ✅ q006 correct 3/3, q008, q009 |
+| Comparisons naming two products retrieved only one | Named-product rule: product pages carry aliases and are always included when named | ✅ q017, q018 · retrieval 82.8% → 84.5%, comparisons 70% → 80% |
+| Complete answers ending with a needless hand-off | Prompt: offer a human only for actions (e.g. investigating an overdue refund); one fixed partial-answer phrasing | ✅ two of four resolved; two remaining were judged legitimate |
+| Grader counted every partial answer as a refusal | Grader separates outright refusals, partial answers caused by retrieval misses, and possible hedges to check | — |
+
+Controls re-run alongside the fixes (q001, q026, q041, q044, q050) were unchanged — no regressions. **Known remaining gap:** questions naming a *category* rather than a product ("which of your headphones is lighter", "a laptop for college") still miss product pages (q019, q020); the model then answers honestly in part.
 
 ### The Three Datasets (these are routinely confused)
 
@@ -1651,6 +1678,17 @@ This project builds a system that calls LLMs in loops, with retries, escalation,
 ---
 
 ## Appendix A: Revision History
+
+### Changes in v2.5 (Phase 0 measured)
+
+| Area | v2.4 | v2.5 | Severity |
+|:---|:---|:---|:---|
+| Frontier latency | 1.2–2 s assumed | **2.9 s median, 5.0 s p90, measured**; latency break-even 0.812 → 0.897 (provisional) | High |
+| Latency target | Absolute P95 ≤ 2,000 ms | Relative: no worse than the always-frontier baseline (which itself misses 2 s) | High |
+| Load-balancer latency penalty | Absolute 800 / 2,000 ms thresholds | Relative to the tier's typical P95 | Medium |
+| Reproducibility | `temperature = 0` | Both models reject temperature; k = 3 repeats required; temperature recorded per result | High |
+| Date handling | Unaddressed | Fixed simulated date in every prompt; fixtures validated against it | High |
+| Phase 0 | Built, unmeasured | Measured: \$0.11 for 50 questions, 0 hallucinations, 10/10 out-of-scope, 44/6/0/0 provisional grading; fixes verified by targeted re-run | — |
 
 ### Changes in v2.4 (GPT-6 generation, official pricing)
 

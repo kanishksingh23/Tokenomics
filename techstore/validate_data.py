@@ -41,6 +41,21 @@ def main() -> int:
 
     orders = rows(config.ORDERS_PATH)
     order_ids = {o["order_id"] for o in orders}
+    today = config.SIMULATED_TODAY
+    for o in orders:
+        happened = [o.get(k) for k in ("placed_at", "delivered_at", "cancelled_at")]
+        due = [o.get("eta")]
+        for c in o["charges"]:
+            happened += [c["date"], c.get("refunded_at")]
+            due.append(c.get("refund_eta"))
+            if "reverses by " in c.get("note", ""):
+                due.append(c["note"].split("reverses by ")[1])
+        for dt in filter(None, happened):
+            if dt > today:
+                errors.append(f"order {o['order_id']}: event dated {dt}, after SIMULATED_TODAY {today}")
+        for dt in filter(None, due):
+            if dt < today:
+                errors.append(f"order {o['order_id']}: due date {dt} already past on {today}")
     for o in orders:
         got = sum(i["qty"] * i["unit_price"] for i in o["items"])
         if got != o["total"]:
