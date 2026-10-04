@@ -89,6 +89,13 @@ comparisons naming two products often retrieve only one of them.
 when a question names a product ("PulseBook 14", "X200"), its page is included
 first and retrieval fills the remaining slots.
 
+**Category questions get the product catalogue.** `catalogue_summary` lists all
+16 products on one line each (name, type, price, key specs). It is never returned
+by search; it is added, on top of the usual documents, when a question names a
+category and asks to compare, choose or buy ("which of your headphones is
+lighter?"). `validate_data.py` checks every price and spec number in it against
+the product pages, so it cannot drift from them.
+
 **The store has a fixed "today"** (`SIMULATED_TODAY` in `config.py`, stated in
 every prompt). The model knows the real date, so against frozen order records
 answers would otherwise drift with the calendar. `validate_data.py` checks that

@@ -6,7 +6,7 @@
 **Target Delivery**: 6–8 Week Core Build expanded into a full 12-Week Production-Grade Roadmap  
 **Repository**: [`kanishksingh23/Tokenomics`](https://github.com/kanishksingh23/Tokenomics)  
 **License**: MIT (see [§9](#licensing--distribution-strategy))  
-**Spec Version**: 2.6 — Phase 0 graded by humans; grading rubric made precise; AI judge calibration required  
+**Spec Version**: 2.7 — product catalogue for category questions; knowledge base freed of claims about real-world law  
 
 ---
 
@@ -1109,7 +1109,7 @@ techstore/
 
 **Grading.** Two human graders independently found no wrong or hallucinated answer. Their 8 `partial` verdicts and Claude's 6 overlapped on 4 (q017, q019, q020, q036). The six disagreements split into two patterns: humans marked down unnecessary hand-offs (q008, q028) and answers they judged incomplete or awkward (q026, q031); Claude marked down claims the evidence did not support (q037, q039). Each pattern is now a written rule in the [grading rubric](#grading-rubric). Human grading also exposed one gap in the test data — order #48712's reversed hold had no date, so the model rightly said it could not give one — and one style rule (write "order #48712"). Both were fixed and verified on a real re-run. Grades are archived in `techstore/runs/2026-10-03_phase0/`.
 
-Controls re-run alongside the fixes (q001, q026, q041, q044, q050) were unchanged — no regressions. **Known remaining gap:** questions naming a *category* rather than a product ("which of your headphones is lighter", "a laptop for college") still miss product pages (q019, q020); the model then answers honestly in part.
+Controls re-run alongside the fixes (q001, q026, q041, q044, q050) were unchanged — no regressions. **Category questions** — naming a category rather than a product ("which of your headphones is lighter", "a laptop for college") — missed the product pages they needed (q019, q020). Fixed with a one-line-per-product catalogue, added on top of the searched documents only when a question names a category and asks to compare, choose or buy; `validate_data.py` checks every price and spec number in it against the product pages. Verified on a real re-run: both now answer fully and correctly (q020's three totals checked), and a category question about an owned item (q021, pairing) is unaffected.
 
 ### The Three Datasets (these are routinely confused)
 
@@ -1698,6 +1698,13 @@ This project builds a system that calls LLMs in loops, with retries, escalation,
 ---
 
 ## Appendix A: Revision History
+
+### Changes in v2.7 (catalogue, knowledge-base wording)
+
+| Area | v2.6 | v2.7 | Severity |
+|:---|:---|:---|:---|
+| Category questions | Missed product pages (q019, q020) | Product catalogue included for category comparisons; cross-checked against product pages; verified on a real re-run | Medium |
+| Claims about real-world rules | Privacy, GST-invoice and power-bank documents asserted what law or airlines require | Restated as TechStore's own policy, or as advice to check the airline's rules | Medium |
 
 ### Changes in v2.6 (Phase 0 graded)
 

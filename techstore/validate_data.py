@@ -39,6 +39,31 @@ def main() -> int:
         if len(d["text"].split()) < 25:
             warnings.append(f"thin document: {d['id']}")
 
+    # The catalogue repeats facts from the product pages, so it must never drift
+    # from them: the agent quotes it to customers. Each line's name and price must
+    # match its product page, and every number in its specs must appear there.
+    import re
+    cat = next((d for d in kb if d["id"] == "catalogue_summary"), None)
+    products = {d["id"]: d for d in kb if d["category"] == "product"}
+    if cat is None:
+        errors.append("catalogue_summary is missing")
+    else:
+        lines = [l for l in cat["text"].split("\n")[1:] if l.strip()]
+        if sorted(cat.get("sources", [])) != sorted(products) or len(lines) != len(products):
+            errors.append("catalogue must list every product exactly once")
+        for pid, line in zip(cat.get("sources", []), lines):
+            p = products.get(pid)
+            name, _, price, specs = [x.strip() for x in line.split("|")]
+            if not p or name != p["title"]:
+                errors.append(f"catalogue line for {pid}: name {name!r} != product title")
+                continue
+            if int(price.replace("₹", "").replace(",", "")) != p["price"]:
+                errors.append(f"catalogue line for {pid}: price {price} != {p['price']}")
+            page = p["text"].replace(",", "")
+            for num in re.findall(r"\d+(?:\.\d+)?", specs.replace(",", "")):
+                if not re.search(r"(?<![\d.])" + re.escape(num) + r"(?![\d])", page):
+                    errors.append(f"catalogue line for {pid}: '{num}' not found on the product page")
+
     orders = rows(config.ORDERS_PATH)
     order_ids = {o["order_id"] for o in orders}
     today = config.SIMULATED_TODAY

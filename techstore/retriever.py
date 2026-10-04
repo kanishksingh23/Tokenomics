@@ -163,7 +163,14 @@ class EmbeddingRetriever:
         return [(self.docs[i], float(sims[i])) for i in order]
 
 
+def searchable(docs: list[Doc]) -> list[Doc]:
+    """Documents the search may return. `inject_only` documents (the catalogue)
+    are added by rule, never by search, so they cannot crowd out others."""
+    return [d for d in docs if not d.meta.get("inject_only")]
+
+
 def build_retriever(docs: list[Doc], mode: str = "auto"):
+    docs = searchable(docs)
     if mode == "keyword":
         return KeywordRetriever(docs)
     if mode == "embedding":

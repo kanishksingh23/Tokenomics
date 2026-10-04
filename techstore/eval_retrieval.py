@@ -36,7 +36,8 @@ def main() -> int:
     qs = [json.loads(l) for l in open(args.questions, encoding="utf-8") if l.strip()]
     qs = [q for q in qs if q.get("context_ids")]
 
-    kw = KeywordRetriever(docs)
+    from retriever import searchable                    # noqa: PLC0415
+    kw = KeywordRetriever(searchable(docs))
     methods = {"keyword": lambda q, n: [d.id for d, _ in kw.search(q, n)]}
 
     # What the agent actually sends: named product pages first, then keyword search.

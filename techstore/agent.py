@@ -28,6 +28,20 @@ def _alias_pattern(alias: str) -> re.Pattern:
     return re.compile(r"\b" + r"\s*".join(words) + r"\b")
 
 
+# A question gets the product catalogue when it names a product CATEGORY and asks
+# to compare, choose or buy. Questions naming a category alone ("my headphones
+# will not pair") are about one item the customer already owns and do not.
+_CATEGORY = re.compile(r"\b(headphones?|earbuds?|buds|laptops?|notebooks?|tablets?|smart\s?watch(es)?|"
+                       r"watch(es)?|monitors?|chargers?|power\s?banks?|products?)\b", re.I)
+_INTENT = re.compile(r"\b(which|compare|comparison|vs\.?|versus|best|recommend|suggest|cheapest|cheaper|"
+                     r"lightest|lighter|heaviest|longest|difference|options|choose|should i (buy|get)|"
+                     r"do you (sell|have|offer)|budget|lakh)\b|\bunder\s+(₹|rs\.?\s*)?\d", re.I)
+
+
+def wants_catalogue(question: str) -> bool:
+    return bool(_CATEGORY.search(question) and _INTENT.search(question))
+
+
 def _pretty_date(iso: str) -> str:
     y, m, d = (int(x) for x in iso.split("-"))
     months = ["January", "February", "March", "April", "May", "June", "July",
@@ -183,6 +197,10 @@ class SupportAgent:
         searched = [(d, s) for d, s in self.retriever.search(question, self.top_k + len(named))
                     if d.id not in named_ids]
         hits = [(d, None) for d in named] + searched[: self.top_k - len(named)]
+        # The catalogue is extra: it never takes one of the top_k slots.
+        catalogue = next((d for d in self.docs if d.id == "catalogue_summary"), None)
+        if catalogue and wants_catalogue(question):
+            hits.append((catalogue, None))
         orders = self._orders_in(question)
         retrieval_ms = (time.perf_counter() - t0) * 1000
 

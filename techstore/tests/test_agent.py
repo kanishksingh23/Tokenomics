@@ -293,3 +293,35 @@ def test_simulated_date_reaches_the_model_and_fits_the_fixtures():
 def test_rupee_amounts_with_paise_parse():
     from review_results import RUPEES, _amount
     assert [_amount(m) for m in RUPEES.findall("contribution is ₹6,499.90, total ₹1,34,999")] == [6499.90, 134999.0]
+
+
+def test_catalogue_only_for_category_comparisons():
+    from agent import wants_catalogue
+    for q in ["Which of your headphones is lighter?", "What is your cheapest pair of headphones?",
+              "Which charger do I need for the Pro 16 laptop?",
+              "I want a tablet and a laptop. What should I buy under 1 lakh?"]:
+        assert wants_catalogue(q), q
+    for q in ["My headphones will not pair with my phone.", "Is my laptop under warranty?",
+              "My monitor says no signal.", "Does the ClearView 27 support USB-C?"]:
+        assert not wants_catalogue(q), q
+    a = SupportAgent(retriever_mode="keyword")
+    _, docs, _, _ = a.build_context("Which of your headphones is lighter?")
+    assert docs[-1] == "catalogue_summary" and len(docs) == a.top_k + 1   # extra, not a slot
+
+
+def test_catalogue_is_never_returned_by_search():
+    r = build_retriever(load_docs(config.KB_PATH), "keyword")
+    for q in ["product catalogue", "all products and prices", "product range"]:
+        assert "catalogue_summary" not in [d.id for d, _ in r.search(q, 10)]
+
+
+def test_catalogue_agrees_with_product_pages():
+    docs = {d.id: d for d in load_docs(config.KB_PATH)}
+    cat = docs["catalogue_summary"]
+    lines = [l for l in cat.text.split("\n")[1:] if l.strip()]
+    products = [d for d in docs.values() if d.category == "product"]
+    assert len(lines) == len(products)
+    for pid, line in zip(cat.meta["sources"], lines):
+        name, _, price, _ = [x.strip() for x in line.split("|")]
+        assert name == docs[pid].title
+        assert int(price.replace("₹", "").replace(",", "")) == docs[pid].price
