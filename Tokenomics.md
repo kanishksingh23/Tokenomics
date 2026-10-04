@@ -6,7 +6,7 @@
 **Target Delivery**: 6–8 Week Core Build expanded into a full 12-Week Production-Grade Roadmap  
 **Repository**: [`kanishksingh23/Tokenomics`](https://github.com/kanishksingh23/Tokenomics)  
 **License**: MIT (see [§9](#licensing--distribution-strategy))  
-**Spec Version**: 2.7 — product catalogue for category questions; knowledge base freed of claims about real-world law  
+**Spec Version**: 2.8 — 300 questions in separate dev and frozen test sets; embedding search by default  
 
 ---
 
@@ -33,6 +33,7 @@
    - [OpenTelemetry Distributed Tracing (Jaeger)](#opentelemetry-distributed-tracing)
 7. [The Proof Engine: Benchmark & Evaluation Suite](#7-the-proof-engine-benchmark--evaluation-suite)
    - [Dual-Track Evaluation Corpora](#dual-track-evaluation-corpora)
+   - [Dev and Test Sets](#dev-and-test-sets)
    - [The Five-Arm Comparative Harness](#the-five-arm-comparative-harness)
    - [Statistical Protocol: Non-Inferiority by TOST](#statistical-protocol-non-inferiority-by-tost)
 8. [Competitive Landscape & Market Differentiation](#8-competitive-landscape--market-differentiation)
@@ -133,10 +134,10 @@ $$R = \rho\beta + (1 + \rho)\gamma + \delta$$
 
 The cost model above rests on a ~400-token prompt, and that number is **not free** — it presupposes that only the *relevant* knowledge-base documents reach the model. Earlier revisions of this specification never stated a retrieval component, which silently left the alternative open:
 
-| How the knowledge base reaches the model | Prompt tokens | Cost/req (Sol) | One 500-query arm |
+| How the knowledge base reaches the model | Prompt tokens | Cost/req (Sol) | Per 100 questions |
 |:---|---:|---:|---:|
-| **Retrieve top-3 relevant documents** | ~507 (measured) | \$0.00251 | **\$1.26** |
-| Concatenate all 85 documents into every prompt | ~7,659 (measured) | \$0.01682 | **\$8.41** |
+| **Retrieve top-3 relevant documents** | ~507 (measured) | \$0.00251 | **\$0.25** |
+| Concatenate all 85 documents into every prompt | ~7,659 (measured) | \$0.01682 | **\$1.68** |
 
 Full-context concatenation is **7× more expensive** at today's 85 documents, and the multiplier grows with every document added — a real retailer's knowledge base runs to thousands. The price ratio is unaffected, because both tiers pay the same inflated input, so the extra cost is invisible in the savings percentage and large in the absolute bill. *(Revision v2.2 stated 21×, from an unmeasured word-count estimate; 7× is measured with the real tokenizer.)*
 
@@ -657,7 +658,7 @@ Both labels come **only from prompts the router already sent to Economy**. Promp
 v1 listed `training/data/labeled_prompts.jsonl` in the repo tree but never said where it comes from — the single largest schedule risk in the plan, since Week 7 stalls without it. Decided now:
 * **Primary**: public preference data from **Chatbot Arena / RouteLLM** (~80K human preference pairs). A pair where the strong and weak models tie is a $Y=0$ (economy sufficient); a pair where the strong model wins decisively is $Y=1$. This is exactly the supervision signal RouteLLM itself uses, which also makes our numbers directly comparable to theirs.
 * **Secondary**: 2,000 synthetic domain prompts generated and labelled by a frontier model with a rubric, manually spot-checked at 10%.
-* **Tertiary**: our own 500-query benchmark corpus, held out entirely from training and used *only* for evaluation. **Training on the benchmark would invalidate every number in the report**; the corpus hash is recorded and a CI check asserts no overlap with training data.
+* **Tertiary**: our own frozen 200-question test set, held out entirely from training and from every tuning decision, and used *only* for evaluation. **Training on the benchmark would invalidate every number in the report**; the corpus hash is recorded and a CI check asserts no overlap with training data.
 
 ### Retraining Pipeline
 1. **Telemetry Collection**: every decision, uncertainty score, escalation event, exploration flag, propensity, and (if provided) user rating is written to the DuckDB ledger.
@@ -822,21 +823,40 @@ A central requirement of this project is **not just claiming, but proving** the 
 v1 evaluated exclusively on a self-authored 500-query support corpus scored by an LLM judge. That has three weaknesses a reviewer will press on: we wrote the questions *and* the reference answers *and* chose the judge (circularity); there is no external point of comparison; and "quality" is never grounded in anything objectively checkable. We therefore run **two tracks**.
 
 ### Track A — Domain Track (narrative, relatability, RAGAS)
-A fixed, reproducible corpus of **500 stratified queries** simulating real support traffic, plus a companion `knowledge_base.jsonl` of ~120 TechStore policy, product, and order documents that supplies the *reference contexts* RAGAS faithfulness requires. (v1 specified RAGAS but never specified a knowledge base — RAGAS cannot run without one.)
+**300 stratified questions in two sets that never mix** — a **frozen 200-question test set** behind every reported number, and a **100-question dev set** for finding problems and tuning ([Dev and Test Sets](#dev-and-test-sets)) — simulating real support traffic, plus a companion `knowledge_base.jsonl` of 86 TechStore policy, product, and order documents that supplies the *reference contexts* RAGAS faithfulness requires. (v1 specified RAGAS but never specified a knowledge base — RAGAS cannot run without one.)
 
-| Category | Count | Proportion | Expected Optimal Tier | Cacheable? |
+| Category | Test | Dev | Expected Optimal Tier | Cacheable? |
 |:---|:---|:---|:---|:---|
-| **Simple FAQ & Policy** | 60 | 12% | Economy / Cache | ✅ High |
-| **Order Status & Account** | 60 | 12% | Economy | ❌ **Never** (user-scoped, volatile) |
-| **Basic Product Information** | 40 | 8% | Economy | ✅ High |
-| **Product Comparison** | 50 | 10% | Economy → Escalation | ⚠ Exact only |
-| **Simple Troubleshooting** | 50 | 10% | Economy | ✅ Moderate |
-| **Complex Billing Disputes** | 70 | 14% | Frontier | ❌ Never |
-| **Technical API Support** | 70 | 14% | Frontier | ⚠ Exact only |
-| **Multi-Step Policy Edge Cases** | 60 | 12% | Frontier | ⚠ Exact only |
-| **Out of Scope / Unanswerable** | 40 | 8% | Economy | ⚠ Exact only |
+| **Simple FAQ & Policy** | 24 | 12 | Economy / Cache | ✅ High |
+| **Order Status & Account** | 24 | 12 | Economy | ❌ **Never** (user-scoped, volatile) |
+| **Basic Product Information** | 16 | 8 | Economy | ✅ High |
+| **Product Comparison** | 20 | 10 | Economy → Escalation | ⚠ Exact only |
+| **Simple Troubleshooting** | 20 | 10 | Economy | ✅ Moderate |
+| **Complex Billing Disputes** | 28 | 12 | Frontier | ❌ Never |
+| **Technical API Support** | 28 | 12 | Frontier | ⚠ Exact only |
+| **Multi-Step Policy Edge Cases** | 24 | 12 | Frontier | ⚠ Exact only |
+| **Out of Scope / Unanswerable** | 16 | 12 | Economy | ⚠ Exact only |
 
 Note the cacheability column: **26% of the corpus must never be semantically cached**. Reporting an overall $\alpha$ without that decomposition would overstate the achievable cache hit rate. A separate **multi-turn subset** of 60 conversations (3–6 turns each) exercises sticky escalation and anaphora handling.
+
+### Dev and Test Sets
+
+No model is trained in this project, but the system is still **tuned**: every change made after looking at results — document wording, tags, the prompt, search rules, the choice of search method, and later the router's thresholds — fits the system to the questions it was judged on. Reporting final numbers on those same questions overstates how it performs on new ones. Phase 0 measured this directly. The knowledge base had been adjusted while fixing failures on the 50 seed questions, including tags added in their exact wording; 14 newly written questions then showed:
+
+| Search method | 42 seed questions (tuned on) | 14 new questions |
+|:---|---:|---:|
+| Keyword | 84.5% | **57%** |
+| Embedding | 79.3% | **100%** |
+| Hybrid (both, rank-fused) | 84.5% | 86% |
+
+Keyword search had looked best only on the questions it had been fitted to; on new wording ("earphones", "blinking", "paid twice") it failed where embeddings matched by meaning. **Embedding search is therefore the default**, to be confirmed on the test set.
+
+**Rules.**
+1. **Two files that never mix.** `questions_dev.jsonl` (100 questions, ids `q…`): every tuning decision is made here. `questions_test.jsonl` (200 questions, ids `t…`): used only for reported results.
+2. **The test set is written before any router tuning and then frozen.** `validate_data.py --freeze` records its fingerprint; any later edit fails validation. A question in both files fails validation.
+3. **Sizes follow the claims.** About 200 paired questions prove the 0.25-point quality margin of the statistical protocol even if the router is truly 0.1 points worse (135 needed), and "at most 7 points fewer correct answers" (175 needed). Per-category results (16–28 test questions each) are reported as descriptive, not proven.
+
+**Reserved idea — choosing the search method per question.** Technical questions (error codes, acronyms, code) would use keyword search and the rest embeddings. Tested on the dev set it matched embedding search exactly (79.3% / 100%): on the eight technical questions both methods scored 75%, and exact product names and order numbers are already handled by rule. Kept in reserve, to be switched on if the test set shows a question type where keyword search clearly wins.
 
 ### Track B — Public Track (objective ground truth, external comparability)
 Quality measured by **verifiable correctness, not opinion**. This track is what makes the result hard to argue with:
@@ -857,7 +877,7 @@ Track B lets us report the two metrics the routing literature actually uses — 
 v1 compared the router against a single strawman ("always frontier"). Beating a strawman proves little; the interesting question is *how close to optimal* the routing is. Five arms:
 
 ```
-                    [ Track A (500)  +  Track B (1,144) ]
+                    [ Track A (200)  +  Track B (1,144) ]
                                   │
     ┌───────────┬─────────────────┼─────────────────┬───────────┐
     ▼           ▼                 ▼                 ▼           ▼
@@ -940,8 +960,8 @@ $$H_0: \mu_{\text{router}} - \mu_{\text{baseline}} \le -\delta \qquad H_1: \mu_{
 * **Test statistic** (paired, per query):
 $$t = \frac{\bar{d} + \delta}{s_d / \sqrt{n}}$$
 
-* **Power analysis, computed in advance** (this is what makes the result meaningful rather than lucky): with $n = 500$, $s_d \approx 0.7$, $\alpha = 0.05$, the minimum detectable difference at 80% power is
-$$\Delta_{\min} = 2.80 \cdot \frac{s_d}{\sqrt{n}} = 2.80 \cdot \frac{0.7}{22.36} \approx 0.088$$
+* **Power analysis, computed in advance** (this is what makes the result meaningful rather than lucky): with $n = 200$ test questions, $s_d \approx 0.7$, $\alpha = 0.05$, the minimum detectable difference at 80% power is
+$$\Delta_{\min} = 2.80 \cdot \frac{s_d}{\sqrt{n}} = 2.80 \cdot \frac{0.7}{14.14} \approx 0.14$$
   Comfortably finer than the 0.25 margin — so the study **is** powered to detect a difference that matters, and "no significant difference" is genuinely informative.
 
 * **Robustness checks**, because 1–5 judge scores are ordinal, not interval:
@@ -1024,7 +1044,7 @@ TechStore is **three text files**:
 |:---|:---|:---|:---|
 | System prompt | ~10 lines instructing the model to act as a support agent | 10 lines | 1 hour |
 | `knowledge_base.jsonl` | ~120 fabricated policy / product / order documents | ~15 KB | 1–2 days |
-| `customer_support_500.jsonl` | 500 test questions + 60 multi-turn conversations | ~80 KB | 2–3 days |
+| `questions_dev.jsonl` + `questions_test.jsonl` | 100 dev + 200 frozen test questions, plus 60 multi-turn conversations | ~50 KB | ~2 days |
 
 The deliverable of this project is the **router** — approximately 6,000 lines of Python across `app/`, `benchmarks/`, and `tests/`. TechStore is the test harness that router is measured on, in the same sense that a benchmark corpus is not the thing being benchmarked.
 
@@ -1066,7 +1086,7 @@ techstore/
 | Decision | Rationale |
 |:---|:---|
 | **Retrieval, not full-context** | Top-3 documents at ~507 tokens, versus ~7,700 for concatenating the whole knowledge base — a 7× cost difference that grows with every document added |
-| **Two retrieval backends** | `keyword` (BM25-lite, pure stdlib) makes the corpus loop runnable with zero installs and no API key; `embedding` uses the same MiniLM the router needs for Layers 1B and 2, validating that pipeline early. `auto` prefers embeddings and falls back silently |
+| **Embedding search by default** | `embedding` (MiniLM on CPU, the model the router needs for Layers 1B and 2) matches customers' own wording; on 14 new questions it found the right document 14/14 against keyword's 8/14. `keyword` (BM25-lite, pure stdlib) remains for running with no installs |
 | **OpenAI-compatible client** | The same client reaches OpenAI, Groq, Together — and, from Week 4, our own gateway |
 | **`Answer` dataclass records tokens, cost, latency, retrieved ids** | This record is the seed of the [§6](#per-request-accounting-ledger) accounting ledger |
 | **Inspector panel from day one** | It shows retrieval/tokens/cost/latency now and gains cache, tier, and escalation rows in Week 4. The response schema grows with it instead of being retrofitted during the recording week |
@@ -1116,7 +1136,7 @@ Controls re-run alongside the fixes (q001, q026, q041, q044, q050) were unchange
 | # | Dataset | Size | Purpose | Origin | May it train the model? |
 |:--|:---|:---|:---|:---|:---|
 | 1 | **Knowledge base** | ~120 docs | The facts the agent knows; the reference contexts RAGAS scores against | **We author it** | n/a |
-| 2 | **Benchmark corpus** | 500 Q + 60 conversations | The exam. Measurement only | **We author it** | ❌ **Never** — CI-enforced |
+| 2 | **Test set** (frozen) | 200 Q + 60 conversations | The exam. Measurement only | **We author it** | ❌ **Never** — CI-enforced |
 | 3 | **Training data** | ~80K preference pairs | Teaches the complexity classifier | **Downloaded** (Chatbot Arena / RouteLLM) | ✅ Yes |
 | 4 | Cache calibration pairs | 400 | Tunes the cosine threshold; CI safety gate | We author it | n/a |
 | 5 | Track B public benchmarks | 1,144 | Objective-ground-truth evaluation | Downloaded | ❌ Never |
@@ -1125,17 +1145,17 @@ Dataset 2 is the exam paper. If the classifier has seen it, every number in the 
 
 ### Category Structure, with Representative Queries
 
-| Category | n | Representative query | Expected tier | Cacheable? |
+| Category | Test / dev | Representative query | Expected tier | Cacheable? |
 |:---|--:|:---|:---|:---|
-| **Simple FAQ & Policy** | 60 | *"What's your return window?"* | Economy | ✅ High |
-| **Order Status & Account** | 60 | *"Where is my order #48213?"* | Economy | ❌ **Never** — user-scoped and volatile |
-| **Basic Product Information** | 40 | *"Does the SoundWave X200 have noise cancellation?"* | Economy | ✅ High |
-| **Product Comparison** | 50 | *"X200 vs Y500 for a noisy open-plan office — which?"* | Economy → escalation | ⚠ Exact only |
-| **Simple Troubleshooting** | 50 | *"My headphones won't pair with my phone."* | Economy | ✅ Moderate |
-| **Complex Billing Disputes** | 70 | *"I was charged ₹12,999 three times. Two were cancelled but I only received one refund. Where is my money?"* | Frontier | ❌ Never |
-| **Technical API Support** | 70 | *"Your webhook returns 403 with a valid HMAC signature — here is my Python code."* | Frontier | ⚠ Exact only |
-| **Multi-Step Policy Edge Cases** | 60 | *"I bought a laptop 35 days ago and it is faulty. Your return window is 30 days but the warranty is 2 years. What are my rights?"* | Frontier | ⚠ Exact only |
-| **Out of Scope / Unanswerable** | 40 | *"Do you offer a student discount?"* · *"What is the capital of France?"* | Economy | ⚠ Exact only |
+| **Simple FAQ & Policy** | 24 / 12 | *"What's your return window?"* | Economy | ✅ High |
+| **Order Status & Account** | 24 / 12 | *"Where is my order #48213?"* | Economy | ❌ **Never** — user-scoped and volatile |
+| **Basic Product Information** | 16 / 8 | *"Does the SoundWave X200 have noise cancellation?"* | Economy | ✅ High |
+| **Product Comparison** | 20 / 10 | *"X200 vs Y500 for a noisy open-plan office — which?"* | Economy → escalation | ⚠ Exact only |
+| **Simple Troubleshooting** | 20 / 10 | *"My headphones won't pair with my phone."* | Economy | ✅ Moderate |
+| **Complex Billing Disputes** | 28 / 12 | *"I was charged ₹12,999 three times. Two were cancelled but I only received one refund. Where is my money?"* | Frontier | ❌ Never |
+| **Technical API Support** | 28 / 12 | *"Your webhook returns 403 with a valid HMAC signature — here is my Python code."* | Frontier | ⚠ Exact only |
+| **Multi-Step Policy Edge Cases** | 24 / 12 | *"I bought a laptop 35 days ago and it is faulty. Your return window is 30 days but the warranty is 2 years. What are my rights?"* | Frontier | ⚠ Exact only |
+| **Out of Scope / Unanswerable** | 16 / 12 | *"Do you offer a student discount?"* · *"What is the capital of France?"* | Economy | ⚠ Exact only |
 
 **Out-of-scope questions test refusal, not knowledge.** Each carries an `expected_behavior`: `decline_off_topic` (unrelated to TechStore — must decline even if the model knows the answer), `admit_unknown` (about TechStore but absent from the knowledge base — must say so, never invent), `answer_from_about` (answered by the About TechStore document, e.g. *"we don't sell washing machines"*), or `partial` (answer the covered half, admit the rest). The system prompt fixes the exact refusal wording (defined once in `config.py`), so `review_results.py` grades the behaviour automatically — and also flags the opposite failure, a model that refuses questions it *can* answer. The category is taken from the two largest easy categories, so the total stays at 500 and the economy/frontier split is unchanged.
 
@@ -1252,7 +1272,7 @@ W11-W12: Packaging & Demo   ◄──── W9-W10: Learning & Proof ◄──�
 
 ### Two-Person Work Split
 
-The single largest schedule risk is not code — it is the corpus. The 500 questions and the knowledge base require no code, are therefore easy to postpone, and Week 10 then arrives with a working router and nothing to measure it on. **They are authored in Weeks 2–6, in parallel with the core build, by the person not writing the pipeline.**
+The single largest schedule risk is not code — it is the corpus. The 300 questions and the knowledge base require no code, are therefore easy to postpone, and Week 10 then arrives with a working router and nothing to measure it on. **They are authored in Weeks 2–6, in parallel with the core build, by the person not writing the pipeline.**
 
 **Phase 0 ([§9](#phase-0-the-techstore-support-agent-built-first)) occupies Weeks 1–2** and is not additional work: the knowledge base was already scheduled for Weeks 2–3, and the Streamlit UI was already scheduled for Week 12. Both simply move forward, where they are useful for eleven weeks instead of one. Net cost ≈ 3–4 days, absorbed by the Week 12 buffer.
 
@@ -1260,11 +1280,11 @@ The single largest schedule risk is not code — it is the corpus. The 500 quest
 |:--|:---|:---|:---|
 | 1 | Docker Compose, CI, repo, Ollama dev provider | **Phase 0: knowledge base, orders, system prompt** | `validate_data.py` passes |
 | 2 | **Phase 0: retriever, agent, CLI, Streamlit inspector** | **Seed questions; manual review pass** | 🎯 **Working support agent, demonstrable** |
-| 3 | FastAPI gateway skeleton, auth, idempotency, health/ready | **KB expansion; 500 questions — start** | Gateway green; **logprobs confirmed per provider** |
-| 4 | Exact + semantic cache, admission controller; provider adapters | **500 questions — continue** | Cache-safety suite passes |
+| 3 | FastAPI gateway skeleton, auth, idempotency, health/ready | **Dev set to 100; 200-question test set — start** | Gateway green; **logprobs confirmed per provider** |
+| 4 | Exact + semantic cache, admission controller; provider adapters | **Test set — continue** | Cache-safety suite passes |
 | 4b | Rate limiter, DuckDB ledger; **agent repointed at the router** | | 🎯 **Working MVP — one-line swap proven** |
 | 5 | Circuit breakers, failover | Chaos suite; 400 cache-calibration pairs | Provider outage survived |
-| 6 | SSE streaming, degradation matrix | **500 questions + 60 conversations complete** | Streaming works; **corpora done** |
+| 6 | SSE streaming, degradation matrix | **Test set complete and frozen (`validate_data.py --freeze`)** | Streaming works; **corpora done** |
 | 7 | Classifier, calibration, shared-embedding refactor | Arena bootstrap data; **`select_tier_pair.py`** | Tier pair chosen on evidence |
 | 8 | Uncertainty checker, escalation guards | Threshold Pareto sweep; **sketch demo sidebar** | 🎯 **Core system complete** |
 | 9 | Learning loop, exploration, IPW | SLA balancer, policy training pipeline | Self-improves; rollback proven |
@@ -1351,7 +1371,7 @@ The single largest schedule risk is not code — it is the corpus. The 500 quest
 * **Exit Criteria**: policy retrains and hot-swaps without restart; a deliberately-worse candidate is **rejected by the gate**; an injected regression triggers automatic rollback; exploration produces non-zero $Y=0$ labels for frontier-classified prompts.
 
 ### Week 10: Five-Arm Benchmark & Statistical Proof
-* Curate Track A: 500 support queries + ~120-document `knowledge_base.jsonl` + 60 multi-turn conversations.
+* Track A: the frozen 200-question test set (written in Weeks 3–6, before any router tuning) + the 86-document `knowledge_base.jsonl` + 60 multi-turn conversations.
 * Assemble Track B: GSM8K (300), HumanEval (164), MBPP (200), MMLU (400), MT-Bench (80).
 * **Commit `docs/evaluation_protocol.md` with the pre-registered margin $\delta$ and primary endpoint BEFORE the first run.**
 * Implement `run_baseline.py`, `run_economy.py`, `run_router.py`, `run_random.py`, `run_oracle.py`.
@@ -1398,12 +1418,13 @@ Tokenomics/
 │   ├── agent.py                        # retrieve -> context -> model -> Answer record
 │   ├── cli.py                          # single question | --dry-run | --batch
 │   ├── app.py                          # Streamlit chat + inspector panel
-│   ├── validate_data.py                # corpus integrity + progress to 500
+│   ├── validate_data.py                # corpus integrity; dev/test progress; test-set freeze
 │   ├── system_prompt.txt
 │   ├── data/
 │   │   ├── knowledge_base.jsonl        # policy / product / billing / API documents
 │   │   ├── orders.jsonl                # order fixtures incl. multi-charge dispute
-│   │   └── questions_seed.jsonl        # category exemplars -> grows to the 500
+│   │   ├── questions_dev.jsonl         # 100 dev questions: tuning only
+│   │   └── questions_test.jsonl        # 200 test questions: frozen, reported results only
 │   └── tests/test_agent.py             # no API calls; free in CI
 │
 ├── app/
@@ -1463,7 +1484,7 @@ Tokenomics/
 │
 ├── benchmarks/
 │   ├── datasets/
-│   │   ├── customer_support_500.jsonl  # Track A corpus
+│   │   ├── (techstore/data/questions_test.jsonl)  # Track A: frozen test set
 │   │   ├── knowledge_base.jsonl        # ◄ RAGAS reference contexts (~120 docs)
 │   │   ├── multiturn_60.jsonl          # ◄ multi-turn conversations
 │   │   ├── cache_adversarial_400.jsonl # ◄ threshold calibration pairs
@@ -1545,8 +1566,8 @@ Nothing user-visible. Every dependency has a declared degradation mode — cache
 ### Q12: Isn't the cheapest economy model automatically the best choice?
 **No, and this is the most counter-intuitive result in the specification.** A weaker economy model escalates more often, and every escalation pays *both* tiers. Llama 3.1 8B at a 20% escalation rate returns 49.1% savings — *worse* than GPT-6 Luna at 5% (61.9%) — despite being 3.6× cheaper per token. **Escalation rate dominates price ratio**, and escalation rate can only be measured, not looked up. Hence the Week 7 tier-pair experiment.
 
-### Q13: Is the 500-query corpus used for training?
-**No, and this is enforced.** The benchmark corpus is held out entirely; training draws from Chatbot Arena preference data and synthetic prompts. A CI check asserts zero hash overlap between training data and benchmark data. Training on the benchmark would invalidate every number in the report.
+### Q13: Is the test set used for training or tuning?
+**No, and this is enforced.** The test set is held out from training *and* from tuning: it is frozen before router tuning begins, and every adjustment is made on the separate dev set. Training draws from Chatbot Arena preference data and synthetic prompts. A CI check asserts zero hash overlap between training data and benchmark data. Training on the benchmark would invalidate every number in the report.
 
 ---
 
@@ -1642,14 +1663,14 @@ $$\text{Break-even volume} = \frac{\$130}{\$0.001378} \approx \mathbf{94{,}400 \
 
 **Available: \$50 of prepaid OpenAI credit**, with the project spend limit set to \$20/month (Settings → Project → Limits) and alerts at 50% and 100%. The judge runs on a separate Anthropic account.
 
-Cost of **one full five-arm benchmark run** (Track A 500 + Track B 1,144), OpenAI side, at official prices:
+Cost of **one full five-arm benchmark run** (Track A 200 + Track B 1,144), OpenAI side, at official prices:
 
 | Frontier model | Track A | Track B | Standard | **Batch API (−50%)** |
 |:---|---:|---:|---:|---:|
-| GPT-6 Astra | \$11.86 | \$61.37 | \$73.24 | \$36.62 |
-| **GPT-6.1 Sol (selected)** | **\$2.50** | **\$12.93** | **\$15.42** | **\$7.71** |
+| GPT-6 Astra | \$4.75 | \$61.37 | \$66.12 | \$33.06 |
+| **GPT-6.1 Sol (selected)** | **\$1.00** | **\$12.93** | **\$13.93** | **\$6.96** |
 
-Plus the judge (Claude Sonnet 5, cross-family): \$9.86 per run, **\$4.93** batched.
+Plus the judge (Claude Sonnet 5, cross-family): \$8.06 per run, **\$4.03** batched.
 
 **Why Sol, not Astra:** Astra costs 4.75× more to benchmark and buys 2.5 percentage points of headline saving (62.4% vs 59.9%). One batched Astra run would consume most of the \$50 credit.
 
@@ -1659,8 +1680,8 @@ Plus the judge (Claude Sonnet 5, cross-family): \$9.86 per run, **\$4.93** batch
 |:--|:---|:---|
 | 1 | **Mock mode** for UI work and development; Ollama local models once the gateway exists | Development spend → near \$0 |
 | 2 | **No real API calls in tests** — CI uses fakes | CI spend → \$0 |
-| 3 | **Batch API for every benchmark run** — nothing in a benchmark is latency-sensitive | \$15.42 → \$7.71 per run |
-| 4 | **50-question development subset** for iteration; full corpus only for final numbers | ~\$0.15 per iteration |
+| 3 | **Batch API for every benchmark run** — nothing in a benchmark is latency-sensitive | \$13.93 → \$6.96 per run |
+| 4 | **The 100-question dev set** for iteration; the frozen test set only for final numbers | ~\$0.25 per iteration |
 | 5 | **`check_setup.py --ping` before any large run** — catches wrong model ids, keys and request parameters for under \$0.001 | Avoids paying for failed batches |
 | 6 | **Mid-tier judge** (Claude Sonnet 5), which also gives cross-family independence | ~⅓ of an Opus-class judge |
 
@@ -1673,11 +1694,11 @@ Prompt caching is **not** counted as a saving: the only prefix shared across que
 | Phase 0: 50 seed questions, plus ~3 reruns after fixes | Week 2 | ~\$1 | — |
 | Development checks (mostly mock mode) | Weeks 3–9 | ~\$5 | — |
 | Tier-pair selection (`select_tier_pair.py`) | Week 7 | ~\$1 | — |
-| **Final benchmark: 3 full runs, batched** | Week 10 | **~\$23** | **~\$15** (judge) |
-| Reserve: failed runs, re-grades, ablations | — | ~\$20 | — |
-| **Total** | | **≈ \$50 (prepaid)** | **≈ \$15** |
+| **Final benchmark: 3 full runs, batched** | Week 10 | **~\$21** | **~\$12** (judge) |
+| Reserve: failed runs, re-grades, ablations | — | ~\$22 | — |
+| **Total** | | **≈ \$50 (prepaid)** | **≈ \$12** |
 
-**Whole project: ≈ \$65 in API spend**, against ~\$130 estimated in v2.1 at the previous generation's prices. A reduced-scope variant — Track B trimmed to 300 items, two final runs — costs ~\$6 on OpenAI and ~\$5 for the judge.
+**Whole project: ≈ \$62 in API spend**, against ~\$130 estimated in v2.1 at the previous generation's prices. A reduced-scope variant — Track B trimmed to 300 items, two final runs — costs ~\$6 on OpenAI and ~\$5 for the judge.
 
 **Batch queue limit.** At usage tier 2, OpenAI allows 1,350,000 tokens queued per model in Batch. Several arms call GPT-6.1 Sol, so submitting all five at once would exceed it. The benchmark runner submits **one arm at a time**.
 
@@ -1698,6 +1719,16 @@ This project builds a system that calls LLMs in loops, with retries, escalation,
 ---
 
 ## Appendix A: Revision History
+
+### Changes in v2.8 (dev and test sets, embedding search)
+
+| Area | v2.7 | v2.8 | Severity |
+|:---|:---|:---|:---|
+| Question count | 500, one corpus, tuning subset drawn from it | **300: 100 dev + 200 frozen test**, never mixed; sized to the claims | High |
+| Tuning hygiene | Seed questions used both to fix the system and to report on it | Test set written before router tuning and frozen by fingerprint; overlap with dev set fails validation | **Critical** |
+| Search method | Keyword default, chosen on seed questions it had been fitted to | **Embedding default**: 14/14 vs keyword's 8/14 on new questions | High |
+| Per-question search routing | — | Tested; equal to embedding alone on current data; kept in reserve | Low |
+| Budget | ≈ \\$65 | ≈ \\$62 (200 test questions instead of 500) | Low |
 
 ### Changes in v2.7 (catalogue, knowledge-base wording)
 

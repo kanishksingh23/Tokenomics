@@ -174,7 +174,12 @@ def build_retriever(docs: list[Doc], mode: str = "auto"):
     if mode == "keyword":
         return KeywordRetriever(docs)
     if mode == "embedding":
-        return EmbeddingRetriever(docs)
+        try:
+            return EmbeddingRetriever(docs)
+        except ImportError as exc:
+            raise RuntimeError(
+                "RETRIEVER=embedding needs sentence-transformers: "
+                "pip install sentence-transformers  (or set RETRIEVER=keyword in .env)") from exc
     try:
         return EmbeddingRetriever(docs)
     except Exception:

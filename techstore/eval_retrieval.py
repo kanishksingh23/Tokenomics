@@ -26,7 +26,7 @@ from retriever import KeywordRetriever, load_docs
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--k", type=int, default=config.TOP_K)
-    ap.add_argument("--questions", default=str(config.DATA_DIR / "questions_seed.jsonl"))
+    ap.add_argument("--questions", default=str(config.DEV_QUESTIONS_PATH))
     ap.add_argument("--misses", action="store_true")
     args = ap.parse_args()
 

@@ -10,22 +10,43 @@ from collections import Counter
 
 import config
 
-TARGET_QUESTIONS = 500
-CATEGORIES = {
-    "simple_faq": 60, "order_status": 60, "product_info": 40,
-    "product_comparison": 50, "troubleshooting": 50, "billing_dispute": 70,
-    "technical_api": 70, "policy_edge_case": 60,
-    # Questions the documents cannot or should not answer. Tests that the model
-    # refuses correctly instead of inventing. Taken from the two largest easy
-    # categories so the total and the economy/frontier split are unchanged.
-    "out_of_scope": 40,
+# 300 questions in two sets that never mix (see config.py). The test set is
+# sized for the claims the project makes: about 200 paired questions prove the
+# spec's 0.25-point quality margin even if the router is slightly worse, and
+# "at most 7 points fewer correct answers". Per-category results are descriptive.
+DEV_TARGETS = {
+    "simple_faq": 12, "order_status": 12, "product_info": 8, "product_comparison": 10,
+    "troubleshooting": 10, "billing_dispute": 12, "technical_api": 12,
+    "policy_edge_case": 12,
+    # Questions the documents cannot or should not answer: tests that the model
+    # refuses correctly instead of inventing.
+    "out_of_scope": 12,
 }
+TEST_TARGETS = {
+    "simple_faq": 24, "order_status": 24, "product_info": 16, "product_comparison": 20,
+    "troubleshooting": 20, "billing_dispute": 28, "technical_api": 28,
+    "policy_edge_case": 24, "out_of_scope": 16,
+}
+CATEGORIES = DEV_TARGETS
 # What a correct reply does, for out_of_scope questions (see review_results.py).
 BEHAVIORS = {"decline_off_topic", "admit_unknown", "answer_from_about", "partial"}
 
 
 def rows(path):
     return [json.loads(l) for l in open(path, encoding="utf-8") if l.strip()]
+
+
+def freeze() -> int:
+    """Record the test set's fingerprint. After this, any edit to it fails validation."""
+    import hashlib
+    if not config.TEST_QUESTIONS_PATH.exists():
+        print("no test set to freeze"); return 1
+    if main() != 0:
+        print("\nfix the errors above before freezing"); return 1
+    digest = hashlib.sha256(config.TEST_QUESTIONS_PATH.read_bytes()).hexdigest()
+    config.TEST_LOCK_PATH.write_text(digest + "  questions_test.jsonl\n")
+    print(f"\nfrozen: {config.TEST_LOCK_PATH.name} written. Commit both files.")
+    return 0
 
 
 def main() -> int:
@@ -88,43 +109,62 @@ def main() -> int:
         if got != o["total"]:
             errors.append(f"order {o['order_id']}: total {o['total']} != items {got}")
 
-    qpath = config.DATA_DIR / "questions_seed.jsonl"
-    full = config.DATA_DIR / "customer_support_500.jsonl"
-    if full.exists():
-        qpath = full
-    qs = rows(qpath)
-    qids = {q["id"] for q in qs}
-    if len(qids) != len(qs):
-        errors.append("duplicate question ids")
-    for q in qs:
-        for c in q.get("context_ids", []):
-            if c not in kb_ids:
-                errors.append(f"{q['id']}: unknown context_id {c}")
-        for o in q.get("order_ids", []):
-            if o not in order_ids:
-                errors.append(f"{q['id']}: unknown order_id {o}")
-        b = q.get("expected_behavior")
-        if q["category"] == "out_of_scope" and b not in BEHAVIORS:
-            errors.append(f"{q['id']}: out_of_scope needs expected_behavior in {sorted(BEHAVIORS)}")
-        if b is not None and b not in BEHAVIORS:
-            errors.append(f"{q['id']}: unknown expected_behavior {b!r}")
+    def check_questions(qs, label, id_prefix):
+        ids = [q["id"] for q in qs]
+        if len(set(ids)) != len(ids):
+            errors.append(f"{label}: duplicate question ids")
+        for q in qs:
+            if not q["id"].startswith(id_prefix):
+                errors.append(f"{label} {q['id']}: ids in this set start with '{id_prefix}'")
+            if q.get("category") not in DEV_TARGETS:
+                errors.append(f"{label} {q['id']}: unknown category {q.get('category')!r}")
+            for c in q.get("context_ids", []):
+                if c not in kb_ids:
+                    errors.append(f"{label} {q['id']}: unknown context_id {c}")
+            for o in q.get("order_ids", []):
+                if o not in order_ids:
+                    errors.append(f"{label} {q['id']}: unknown order_id {o}")
+            b = q.get("expected_behavior")
+            if q.get("category") == "out_of_scope" and b not in BEHAVIORS:
+                errors.append(f"{label} {q['id']}: out_of_scope needs expected_behavior in {sorted(BEHAVIORS)}")
+            if b is not None and b not in BEHAVIORS:
+                errors.append(f"{label} {q['id']}: unknown expected_behavior {b!r}")
 
-    counts = Counter(q["category"] for q in qs)
-    unknown = set(counts) - set(CATEGORIES)
-    if unknown:
-        errors.append(f"unknown categories: {sorted(unknown)}")
+    dev = rows(config.DEV_QUESTIONS_PATH)
+    check_questions(dev, "dev", "q")
+    test = rows(config.TEST_QUESTIONS_PATH) if config.TEST_QUESTIONS_PATH.exists() else []
+    check_questions(test, "test", "t")
+
+    # The test set must contain nothing the system was tuned on.
+    norm = lambda t: " ".join(t.lower().split())
+    overlap = {norm(q["question"]) for q in dev} & {norm(q["question"]) for q in test}
+    for t in sorted(overlap):
+        errors.append(f"question appears in both dev and test sets: {t[:70]!r}")
+
+    # Frozen means frozen: once the lock exists, any edit to the test set fails.
+    import hashlib
+    if test:
+        digest = hashlib.sha256(config.TEST_QUESTIONS_PATH.read_bytes()).hexdigest()
+        if config.TEST_LOCK_PATH.exists():
+            if config.TEST_LOCK_PATH.read_text().split()[0] != digest:
+                errors.append("questions_test.jsonl changed after it was frozen "
+                              "(questions_test.sha256 no longer matches)")
+        else:
+            warnings.append("test set is not frozen yet: when it is complete, run "
+                            "`python validate_data.py --freeze`")
 
     print(f"knowledge base : {len(kb)} documents")
     print(f"orders         : {len(orders)}")
-    print(f"questions      : {len(qs)} / {TARGET_QUESTIONS}  ({qpath.name})")
-    print()
-    print(f"{'category':22s} {'have':>5s} {'target':>7s}  progress")
-    for cat, target in CATEGORIES.items():
-        have = counts.get(cat, 0)
-        bar = "#" * int(20 * min(have / target, 1.0))
-        print(f"{cat:22s} {have:5d} {target:7d}  {bar:<20s} {100*have/target:5.1f}%")
-    print(f"\n{'TOTAL':22s} {len(qs):5d} {TARGET_QUESTIONS:7d}"
-          f"{'':>23s}{100*len(qs)/TARGET_QUESTIONS:5.1f}%")
+    for label, qs, targets, fname in (("dev set", dev, DEV_TARGETS, config.DEV_QUESTIONS_PATH.name),
+                                      ("test set", test, TEST_TARGETS, config.TEST_QUESTIONS_PATH.name)):
+        total = sum(targets.values()); counts = Counter(q["category"] for q in qs)
+        frozen = " · FROZEN" if label == "test set" and config.TEST_LOCK_PATH.exists() else ""
+        print(f"\n{label:9s}: {len(qs)} / {total}  ({fname}{frozen})")
+        print(f"  {'category':22s} {'have':>5s} {'target':>7s}  progress")
+        for cat, target in targets.items():
+            have = counts.get(cat, 0)
+            bar = "#" * int(20 * min(have / target, 1.0))
+            print(f"  {cat:22s} {have:5d} {target:7d}  {bar:<20s} {100*have/target:5.1f}%")
 
     if warnings:
         print("\nwarnings:")
@@ -140,4 +180,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(freeze() if "--freeze" in sys.argv else main())

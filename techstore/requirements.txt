@@ -4,5 +4,5 @@ brotli>=1.2                    # required by openai 3.x (httpx2): with only an o
                                # installed, decompressing API replies crashes
 python-dotenv>=1.0.0
 streamlit>=1.38.0         # demo UI
-sentence-transformers>=3.0.0   # optional: embedding retrieval; agent falls back to keyword search
+sentence-transformers>=3.0.0   # embedding search (the default retriever)
 tiktoken>=0.7.0                # optional: exact token counts in mock mode; falls back to a heuristic

@@ -28,7 +28,7 @@ python check_setup.py --ping                         # plus one tiny real call (
 
 python cli.py --mock "Can I return opened headphones?"   # full pipeline, no key, no spend
 python cli.py "Can I return opened headphones?"          # calls the model
-python cli.py --batch data/questions_seed.jsonl --out results_real.jsonl
+python cli.py --batch data/questions_dev.jsonl --out results_real.jsonl
 python review_results.py results_real.jsonl --sheet review.csv   # read, grade, calibrate
 streamlit run app.py                                     # the demo
 ```
@@ -47,7 +47,7 @@ techstore/
 ├── agent.py             retrieve -> assemble context -> call model -> Answer record
 ├── cli.py               single question, --dry-run, or --batch over JSONL
 ├── app.py               Streamlit chat + inspector panel
-├── validate_data.py     corpus integrity + progress against the 500 target
+├── validate_data.py     corpus integrity; dev/test progress; --freeze locks the test set
 ├── check_setup.py       pre-flight: packages, key, model ids exist, prices present
 ├── review_results.py    batch review: cost, output length, flags, grading sheet
 ├── eval_retrieval.py    keyword vs embedding vs hybrid, per-category recall
@@ -55,7 +55,8 @@ techstore/
 ├── data/
 │   ├── knowledge_base.jsonl    84 policy / product / billing / API documents
 │   ├── orders.jsonl            40 orders incl. the multi-charge dispute case
-│   └── questions_seed.jsonl    40 seed questions, 5 per category
+│   ├── questions_dev.jsonl     dev set (target 100): tuning only
+│   └── questions_test.jsonl    test set (target 200): frozen, final results only
 └── tests/test_agent.py  12 tests, no API calls, free to run in CI
 ```
 
@@ -66,16 +67,16 @@ techstore/
 tokenizer), growing with every document added. `test_prompt_stays_within_budget`
 guards this.
 
-**Measured prompt size is ~451 tokens** (max 613), against the 400 the spec
-assumes. Per-request cost on Sol is \$0.00480 rather than \$0.00460. Re-measure
-once the full 500 questions exist.
+**Measured prompt size**: the first real run averaged 639 prompt and 93 output
+tokens per question, \$0.0022 on GPT-6.1 Sol. Re-measure on the test set.
 
-**Keyword is the default retriever, on measurement.** `python eval_retrieval.py`
-reports context recall@3 on the labelled seed questions: keyword 81.8%, hybrid
-80.0%, embedding 76.4%. Keyword is also ~150x faster (0.05 ms vs 7.9 ms).
-Caveat: some KB tags were tuned while diagnosing seed questions, which favours
-keyword on this set. Re-run on the full 500, and report absolute retrieval
-numbers only from questions not used for tuning.
+**Embedding search is the default.** On 14 questions the system had never seen,
+embedding search found the right document 14/14 and keyword search 8/14:
+customers say "earphones", "blinking" or "paid twice" where the documents say
+earbuds, flicker and duplicate charge. Keyword search had looked better on the
+first 50 questions only because document tags had been written in their exact
+wording. Choosing the method per question (keyword for technical questions)
+was tested and matched embedding alone, so it is kept in reserve.
 
 **Embeddings are pinned to CPU.** On Apple Silicon the library defaults to the
 MPS GPU, which recompiles per input length: p95 144 ms on unseen queries versus
@@ -122,31 +123,41 @@ rather than being retrofitted during the recording week.
 | 1 | Knowledge base + system prompt + order fixtures | `validate_data.py` passes; 84 docs, 40 orders |
 | 2 | Retriever + agent + context assembly | `--dry-run` shows correct docs; recall tests pass |
 | 3 | Model call, cost accounting, CLI, Streamlit | Real answers with cost and latency logged |
-| 4 | Seed questions, manual review, mentor demo | 40 seeds validate; agent answers all 8 categories sensibly |
+| 4 | Seed questions, manual review, mentor demo | 50 seeds answered for real and graded by two people |
 
 **Status: days 1–3 complete.** Day 4 is the manual review pass, which needs an
 API key and human judgement.
 
-The corpus now carries 84 documents and 40 orders — enough breadth to support all
-500 questions. Products hold a canonical `price` field and every order is checked
+The corpus carries 86 documents (including the catalogue and About TechStore)
+and 40 orders — enough breadth for all 300 questions. Products hold a canonical `price` field and every order is checked
 against it, so a billing answer can never cite a price the catalogue contradicts.
 
-## Expanding to 500 questions (Weeks 3–6)
+## Writing the remaining questions (Weeks 3–6)
 
-The 40 seeds are the exemplars — 5 per category, fixing tone and difficulty.
-Generate ~55 more per category from those plus the knowledge base, then **review
-every one by hand** against the KB for answer correctness and category label.
-The 84 documents and 40 orders are sized to support this without further
-authoring; if a generated question has no supporting document, add the document
-rather than dropping the question.
-That review is the step that decides whether the benchmark measures anything.
+There are two sets, and they must never mix:
 
-Run `python validate_data.py` after each batch; it reports per-category progress
-against the 500 target and fails on any dangling `context_ids` or `order_ids`.
+| Set | File | Target | Use |
+|:---|:---|---:|:---|
+| Dev | `data/questions_dev.jsonl` (ids `q…`) | 100 | Finding problems and tuning anything |
+| Test | `data/questions_test.jsonl` (ids `t…`) | 200 | Final results only |
 
-Deliberately include: questions with no answer in the knowledge base (does the
-model hallucinate or admit it?), two questions in one message, and hostile
-phrasing.
+**Why:** every fix made after looking at results fits the system to those
+questions, training or not. On 14 new questions keyword search found the right
+document 8 times out of 14, against 100% on the questions it had been tuned on.
+
+**Write the test set first**, before any more tuning, then freeze it:
+
+    python validate_data.py --freeze     # writes questions_test.sha256; commit both
+
+After that, any edit to the test set fails validation, and so does any question
+that appears in both files. Use the current dev questions as examples of tone and
+difficulty, and **check every question by hand** against the knowledge base for
+answer correctness and category label: that review decides whether the benchmark
+measures anything. Include questions the knowledge base cannot answer, two
+questions in one message, hostile phrasing, and the customer's own words rather
+than the documents' wording.
+
+`python validate_data.py` shows progress against both targets per category.
 
 ## Handover to the router
 

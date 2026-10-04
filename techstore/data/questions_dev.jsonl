@@ -48,3 +48,17 @@
 {"id":"q048","category":"out_of_scope","question":"Do you sell washing machines?","context_ids":["about_techstore"],"expected_tier":"economy","expected_behavior":"answer_from_about"}
 {"id":"q049","category":"out_of_scope","question":"What time does your Bangalore store open?","context_ids":["about_techstore"],"expected_tier":"economy","expected_behavior":"answer_from_about"}
 {"id":"q050","category":"out_of_scope","question":"What is the battery life of the X200, and do you offer a student discount?","context_ids":["prod_x200"],"expected_tier":"economy","expected_behavior":"partial"}
+{"id":"q051","category":"simple_faq","question":"What's the last day I can send an item back?","context_ids":["pol_return_window"],"expected_tier":"economy"}
+{"id":"q052","category":"simple_faq","question":"I broke the seal on my earphones, can I still send them back?","context_ids":["pol_return_exclusions"],"expected_tier":"economy"}
+{"id":"q053","category":"simple_faq","question":"Can I pay with my Paytm wallet?","context_ids":["bill_payment_methods"],"expected_tier":"economy"}
+{"id":"q054","category":"simple_faq","question":"How much is shipping on a ₹500 order?","context_ids":["ship_charges"],"expected_tier":"economy"}
+{"id":"q055","category":"troubleshooting","question":"My smartwatch shows the wrong pulse readings","context_ids":["tsg_watch_inaccurate_hr"],"expected_tier":"economy"}
+{"id":"q056","category":"troubleshooting","question":"The screen on my monitor keeps blinking","context_ids":["tsg_monitor_flicker"],"expected_tier":"economy"}
+{"id":"q057","category":"billing_dispute","question":"I paid twice by mistake for the same thing","context_ids":["bill_duplicate_charge"],"expected_tier":"frontier"}
+{"id":"q058","category":"billing_dispute","question":"Can my company's tax number be added to the bill later?","context_ids":["bill_invoice_gst"],"expected_tier":"frontier"}
+{"id":"q059","category":"simple_faq","question":"Do you deliver to Dubai?","context_ids":["ship_international"],"expected_tier":"economy"}
+{"id":"q060","category":"troubleshooting","question":"My laptop gets really hot and switches itself off","context_ids":["tsg_laptop_overheating"],"expected_tier":"economy"}
+{"id":"q061","category":"simple_faq","question":"How can I make my login safer with a code on my phone?","context_ids":["acc_two_factor"],"expected_tier":"economy"}
+{"id":"q062","category":"policy_edge_case","question":"If my headphones get replaced, does the 2 year cover restart?","context_ids":["pol_replacement_warranty"],"expected_tier":"frontier"}
+{"id":"q063","category":"technical_api","question":"The API keeps telling me I'm sending too many requests","context_ids":["api_rate_limits"],"expected_tier":"frontier"}
+{"id":"q064","category":"simple_faq","question":"Can I change where my parcel goes after it has left?","context_ids":["acc_address"],"expected_tier":"economy"}

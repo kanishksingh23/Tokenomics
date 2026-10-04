@@ -44,7 +44,7 @@ with st.sidebar:
     st.divider()
     st.subheader("⚙️ Configuration")
     model = st.selectbox("Model", [config.FRONTIER_MODEL, config.ECONOMY_MODEL])
-    retriever = st.selectbox("Retriever", ["keyword", "embedding", "auto"],
+    retriever = st.selectbox("Retriever", ["embedding", "keyword", "auto"],
                              help="keyword: BM25, no dependencies. embedding: MiniLM on CPU. "
                                   "auto: embedding if installed, else keyword.")
     top_k = st.slider("Documents retrieved", 1, 6, config.TOP_K)

@@ -14,6 +14,14 @@ KB_PATH = DATA_DIR / "knowledge_base.jsonl"
 ORDERS_PATH = DATA_DIR / "orders.jsonl"
 SYSTEM_PROMPT_PATH = BASE_DIR / "system_prompt.txt"
 
+# Two question sets that must never mix. DEV is for finding problems and tuning
+# anything (prompt, documents, search, thresholds). TEST is written once, frozen
+# (see TEST_LOCK_PATH) and used only for final claims: results on questions the
+# system was tuned on overstate how it does on new ones.
+DEV_QUESTIONS_PATH = DATA_DIR / "questions_dev.jsonl"
+TEST_QUESTIONS_PATH = DATA_DIR / "questions_test.jsonl"
+TEST_LOCK_PATH = DATA_DIR / "questions_test.sha256"
+
 API_KEY = os.getenv("OPENAI_API_KEY", "")
 BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 
@@ -38,9 +46,11 @@ PRICING = {
 }
 PRICING_AS_OF = "2026-10-03"
 
-# keyword measured 81.8% context recall@3 vs 76.4% for embeddings on the labelled
-# seed set (see eval_retrieval.py). Re-evaluate on the full 500 questions.
-RETRIEVER = os.getenv("RETRIEVER", "keyword")   # keyword | embedding | auto
+# Embeddings: on 14 questions the system had never seen, embedding search found the
+# right document 14/14 and keyword search 8/14. Keyword had looked better on the
+# 50 seed questions only because document tags had been fitted to their wording.
+# Re-check on the frozen test set.
+RETRIEVER = os.getenv("RETRIEVER", "embedding")   # embedding | keyword | auto
 TOP_K = int(os.getenv("TOP_K", "3"))
 # Upper bound on output tokens, including any hidden reasoning tokens. Reasoning
 # models can spend hundreds of tokens thinking before writing; a low cap yields an

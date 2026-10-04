@@ -18,7 +18,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("question", nargs="?")
     ap.add_argument("--model", default=None)
-    ap.add_argument("--retriever", default=None, choices=["keyword", "embedding", "auto"])
+    ap.add_argument("--retriever", default=None, choices=["embedding", "keyword", "auto"])
     ap.add_argument("--top-k", type=int, default=None)
     ap.add_argument("--dry-run", action="store_true",
                     help="assemble and print the prompt context without calling the API")

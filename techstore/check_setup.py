@@ -58,8 +58,11 @@ def check_python() -> None:
 
 def check_packages() -> bool:
     required = {"openai": "real model calls", "dotenv": "loading .env"}
-    optional = {"streamlit": "the UI", "tiktoken": "exact token counts in mock mode",
-                "sentence_transformers": "the embedding retriever"}
+    if config.RETRIEVER in ("embedding", "auto"):
+        required["sentence_transformers"] = f"RETRIEVER={config.RETRIEVER}, the default search"
+    optional = {"streamlit": "the UI", "tiktoken": "exact token counts in mock mode"}
+    if "sentence_transformers" not in required:
+        optional["sentence_transformers"] = "the embedding retriever"
     have_openai = True
     for mod, why in required.items():
         try:
@@ -67,7 +70,7 @@ def check_packages() -> bool:
             report(OK, f"{mod} installed")
         except ImportError:
             have_openai = have_openai and mod != "openai"
-            pip = "python-dotenv" if mod == "dotenv" else mod
+            pip = {"dotenv": "python-dotenv", "sentence_transformers": "sentence-transformers"}.get(mod, mod)
             report(FAIL, f"{mod} missing (needed for {why})",
                    f"{sys.executable} -m pip install {pip}")
     for mod, why in optional.items():

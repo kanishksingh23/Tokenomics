@@ -117,7 +117,7 @@ def pct(xs: list[float], p: float) -> float:
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("results")
-    ap.add_argument("--questions", default=str(config.DATA_DIR / "questions_seed.jsonl"))
+    ap.add_argument("--questions", default=str(config.DEV_QUESTIONS_PATH))
     ap.add_argument("--flagged", action="store_true", help="print only rows with flags")
     ap.add_argument("--sheet", help="write a CSV grading sheet")
     ap.add_argument("--no-answers", action="store_true", help="summary only")

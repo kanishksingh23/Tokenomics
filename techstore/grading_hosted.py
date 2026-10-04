@@ -302,7 +302,7 @@ button.go { background: var(--pen); border-color: var(--pen); color: var(--sheet
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("results")
-    ap.add_argument("--questions", default=str(config.DATA_DIR / "questions_seed.jsonl"))
+    ap.add_argument("--questions", default=str(config.DEV_QUESTIONS_PATH))
     ap.add_argument("--out", required=True)
     args = ap.parse_args()
     results = Path(args.results)
