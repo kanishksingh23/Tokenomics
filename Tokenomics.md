@@ -1085,7 +1085,7 @@ techstore/
 
 | Decision | Rationale |
 |:---|:---|
-| **Retrieval, not full-context** | Top-3 documents at ~507 tokens, versus ~7,700 for concatenating the whole knowledge base — a 7× cost difference that grows with every document added |
+| **Retrieval, not full-context; 4 documents per question** | Retrieval keeps prompts near 860 tokens, versus ~7,700 for concatenating the whole knowledge base. Four documents rather than three: a needed document ranked 4th by a hair was being cut (q036), and dev-set recall rises from 83.3% to 87.5% for about 7% more cost per question, paid equally by every arm |
 | **Embedding search by default** | `embedding` (MiniLM on CPU, the model the router needs for Layers 1B and 2) matches customers' own wording; on 14 new questions it found the right document 14/14 against keyword's 8/14. `keyword` (BM25-lite, pure stdlib) remains for running with no installs |
 | **OpenAI-compatible client** | The same client reaches OpenAI, Groq, Together — and, from Week 4, our own gateway |
 | **`Answer` dataclass records tokens, cost, latency, retrieved ids** | This record is the seed of the [§6](#per-request-accounting-ledger) accounting ledger |
@@ -1728,7 +1728,8 @@ This project builds a system that calls LLMs in loops, with retries, escalation,
 | Tuning hygiene | Seed questions used both to fix the system and to report on it | Test set written before router tuning and frozen by fingerprint; overlap with dev set fails validation | **Critical** |
 | Search method | Keyword default, chosen on seed questions it had been fitted to | **Embedding default**: 14/14 vs keyword's 8/14 on new questions | High |
 | Per-question search routing | — | Tested; equal to embedding alone on current data; kept in reserve | Low |
-| Budget | ≈ \\$65 | ≈ \\$62 (200 test questions instead of 500) | Low |
+| Budget | ≈ \$65 | ≈ \$62 (200 test questions instead of 500) | Low |
+| Documents per question | 3 | **4**: fixes q036 (warranty page ranked 4th); dev recall 83.3% → 87.5%; ~7% more cost per question, equal across arms | Medium |
 
 ### Changes in v2.7 (catalogue, knowledge-base wording)
 
@@ -1787,7 +1788,7 @@ This project builds a system that calls LLMs in loops, with retries, escalation,
 
 | Area | v2.1 | v2.2 | Severity |
 |:---|:---|:---|:---|
-| Retrieval | **Absent.** §2's 400-token assumption had no mechanism behind it | Specified and required; full-context concatenation shown to cost 21× (\\$49.50 vs \\$2.43 per benchmark arm) and is CI-guarded | **Critical** |
+| Retrieval | **Absent.** §2's 400-token assumption had no mechanism behind it | Specified and required; full-context concatenation shown to cost 21× (\$49.50 vs \$2.43 per benchmark arm) and is CI-guarded | **Critical** |
 | Application layer | "TechStore is not software" — overstated | A ~660-line agent **is** built, in Weeks 1–2; the *retailer* still is not | **Critical** |
 | Build order | Router first, baseline as a Week 10 script | Phase 0 first; the baseline arm exists from Week 2 and validates the corpus while correction is cheap | High |
 | Prompt size | 400 tokens assumed | ~470 measured on the seed set; ρ 0.0565 → 0.0561 (immaterial), absolute cost +6% | Medium |
