@@ -46,7 +46,9 @@ def main() -> int:
         happened = [o.get(k) for k in ("placed_at", "delivered_at", "cancelled_at")]
         due = [o.get("eta")]
         for c in o["charges"]:
-            happened += [c["date"], c.get("refunded_at")]
+            happened += [c["date"], c.get("refunded_at"), c.get("reversed_at")]
+            if c.get("status") == "reversed" and not c.get("reversed_at"):
+                errors.append(f"order {o['order_id']}: reversed charge has no reversed_at date")
             due.append(c.get("refund_eta"))
             if "reverses by " in c.get("note", ""):
                 due.append(c["note"].split("reverses by ")[1])

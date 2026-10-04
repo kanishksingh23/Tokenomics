@@ -6,7 +6,7 @@
 **Target Delivery**: 6–8 Week Core Build expanded into a full 12-Week Production-Grade Roadmap  
 **Repository**: [`kanishksingh23/Tokenomics`](https://github.com/kanishksingh23/Tokenomics)  
 **License**: MIT (see [§9](#licensing--distribution-strategy))  
-**Spec Version**: 2.5 — Phase 0 measured against the real model; latency and reproducibility assumptions corrected  
+**Spec Version**: 2.6 — Phase 0 graded by humans; grading rubric made precise; AI judge calibration required  
 
 ---
 
@@ -894,6 +894,22 @@ v1 used **GPT-4o as the judge while GPT-4o was also the baseline arm** — textb
 * **Two independent judges** on a 150-item subsample, reporting Cohen's $\kappa$; $\kappa < 0.6$ invalidates the judged results and we fall back to Track B's objective metrics.
 * **Position randomisation** per item, plus an order-swap replication on 100 items to measure position bias directly.
 * The judge never sees which arm produced which response, and never sees routing metadata.
+* **The AI judge is calibrated against humans before it is trusted.** It grades a human-graded set first, and is used for the benchmark only if its agreement with the humans reaches $\kappa \ge 0.6$. Phase 0 showed why: an AI grader and two humans, grading the same 50 answers, agreed 88% of the time but reached only $\kappa = 0.50$, with the humans consistently stricter.
+
+### Grading Rubric
+
+Every judge, human or AI, applies the same four verdicts and three rules. They were tightened after Phase 0, where each disagreement between graders traced back to a case the original one-line definitions did not settle.
+
+| Verdict | Meaning |
+|:---|:---|
+| `correct` | Answers the question fully; every fact matches the evidence the model was given |
+| `partial` | Right but incomplete; **or** says information is unavailable when the evidence contained it; **or** makes an inference the evidence does not state |
+| `wrong` | Contradicts the evidence, or gets the arithmetic wrong |
+| `hallucinated` | States a fact the evidence does not contain and that is not a correct calculation |
+
+1. Extra detail that the evidence supports does not lower the verdict.
+2. Style and formatting are recorded in notes and do not change the verdict.
+3. If the evidence lacks something and the answer says so, that is the correct behaviour — the gap belongs to the knowledge base or the retriever, not the model.
 
 ---
 
@@ -1076,7 +1092,9 @@ techstore/
 | Out-of-scope behaviour | **10/10** — declined off-topic, admitted unknowns, answered catalogue questions from About TechStore, split the half-answerable question |
 | Answerable questions refused outright | **0 / 40** |
 | Invented prices | **0** — all three flagged ₹ amounts were correct arithmetic |
-| Author's provisional grading | **44 correct · 6 partial · 0 wrong · 0 hallucinated** (pending the co-author's independent grading in `review.csv`) |
+| **Human grading** (Rahul 46 questions, Kanishk 4) | **42 correct · 8 partial · 0 wrong · 0 hallucinated** |
+| Claude's grading (provisional; not independent — Claude wrote the knowledge base and questions) | 44 correct · 6 partial · 0 wrong · 0 hallucinated |
+| Agreement, humans vs Claude | 44/50 = 88% · Cohen's $\kappa$ = **0.50**, below the 0.6 reliability threshold of [§7](#judge-independence) |
 
 **What the run exposed, and what was done:**
 
@@ -1088,6 +1106,8 @@ techstore/
 | Comparisons naming two products retrieved only one | Named-product rule: product pages carry aliases and are always included when named | ✅ q017, q018 · retrieval 82.8% → 84.5%, comparisons 70% → 80% |
 | Complete answers ending with a needless hand-off | Prompt: offer a human only for actions (e.g. investigating an overdue refund); one fixed partial-answer phrasing | ✅ two of four resolved; two remaining were judged legitimate |
 | Grader counted every partial answer as a refusal | Grader separates outright refusals, partial answers caused by retrieval misses, and possible hedges to check | — |
+
+**Grading.** Two human graders independently found no wrong or hallucinated answer. Their 8 `partial` verdicts and Claude's 6 overlapped on 4 (q017, q019, q020, q036). The six disagreements split into two patterns: humans marked down unnecessary hand-offs (q008, q028) and answers they judged incomplete or awkward (q026, q031); Claude marked down claims the evidence did not support (q037, q039). Each pattern is now a written rule in the [grading rubric](#grading-rubric). Human grading also exposed one gap in the test data — order #48712's reversed hold had no date, so the model rightly said it could not give one — and one style rule (write "order #48712"). Both were fixed and verified on a real re-run. Grades are archived in `techstore/runs/2026-10-03_phase0/`.
 
 Controls re-run alongside the fixes (q001, q026, q041, q044, q050) were unchanged — no regressions. **Known remaining gap:** questions naming a *category* rather than a product ("which of your headphones is lighter", "a laptop for college") still miss product pages (q019, q020); the model then answers honestly in part.
 
@@ -1678,6 +1698,16 @@ This project builds a system that calls LLMs in loops, with retries, escalation,
 ---
 
 ## Appendix A: Revision History
+
+### Changes in v2.6 (Phase 0 graded)
+
+| Area | v2.5 | v2.6 | Severity |
+|:---|:---|:---|:---|
+| Phase 0 quality | Provisional, author-graded (44/6/0/0) | **Human-graded: 42 correct · 8 partial · 0 wrong · 0 hallucinated** | — |
+| Grading rubric | One-line definitions per verdict | Precise definitions plus three rules; each traces to a real Phase 0 disagreement | High |
+| AI judge | Trusted once two judges agree at κ ≥ 0.6 | Must first match **human** grades at κ ≥ 0.6; Phase 0 human-vs-AI agreement was κ = 0.50 | High |
+| Test data | Order #48712's reversed hold undated | Dated; `validate_data.py` now requires a date on every reversed charge | Low |
+| Answer style | — | Orders written as "order #48712" | Low |
 
 ### Changes in v2.5 (Phase 0 measured)
 
