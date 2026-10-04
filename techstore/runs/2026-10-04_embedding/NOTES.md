@@ -18,3 +18,7 @@ q036, q038) and 4 where they find more (q052, q056, q057, q061). Cost $0.0253.
 For q036 the warranty document ranks 4th (0.481) just behind 3rd (0.487).
 Retrieving 4 documents instead of 3 raises dev-set recall from 83.3% to 87.5% for
 about 7% more cost per question. Decision pending.
+
+**Decision (same day): 4 documents per question.** Re-run of q036 with top_k=4: the
+warranty document is retrieved and the answer explains that warranty is independent
+of the return window. Cost $0.0036.

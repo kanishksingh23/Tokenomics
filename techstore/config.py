@@ -51,7 +51,10 @@ PRICING_AS_OF = "2026-10-03"
 # 50 seed questions only because document tags had been fitted to their wording.
 # Re-check on the frozen test set.
 RETRIEVER = os.getenv("RETRIEVER", "embedding")   # embedding | keyword | auto
-TOP_K = int(os.getenv("TOP_K", "3"))
+# 4 documents per question. With 3, a needed document ranked 4th by a hair was
+# cut (q036: Standard Warranty Terms 0.481 vs 0.487). Dev-set recall 83.3% -> 87.5%
+# for ~7% more cost per question, paid equally by every arm of the benchmark.
+TOP_K = int(os.getenv("TOP_K", "4"))
 # Upper bound on output tokens, including any hidden reasoning tokens. Reasoning
 # models can spend hundreds of tokens thinking before writing; a low cap yields an
 # EMPTY answer that is still billed. You pay only for tokens actually produced,
