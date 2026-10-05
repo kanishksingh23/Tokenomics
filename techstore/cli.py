@@ -10,7 +10,6 @@ import argparse
 import json
 import sys
 
-import config
 from agent import SupportAgent
 
 
@@ -35,7 +34,7 @@ def main() -> int:
           f"top_k={agent.top_k}", file=sys.stderr)
 
     if args.batch:
-        rows = [json.loads(l) for l in open(args.batch, encoding="utf-8") if l.strip()]
+        rows = [json.loads(line) for line in open(args.batch, encoding="utf-8") if line.strip()]
         out = open(args.out, "w", encoding="utf-8") if args.out else None
         total = 0.0
         for i, row in enumerate(rows, 1):

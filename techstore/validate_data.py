@@ -33,16 +33,18 @@ BEHAVIORS = {"decline_off_topic", "admit_unknown", "answer_from_about", "partial
 
 
 def rows(path):
-    return [json.loads(l) for l in open(path, encoding="utf-8") if l.strip()]
+    return [json.loads(line) for line in open(path, encoding="utf-8") if line.strip()]
 
 
 def freeze() -> int:
     """Record the test set's fingerprint. After this, any edit to it fails validation."""
     import hashlib
     if not config.TEST_QUESTIONS_PATH.exists():
-        print("no test set to freeze"); return 1
+        print("no test set to freeze")
+        return 1
     if main() != 0:
-        print("\nfix the errors above before freezing"); return 1
+        print("\nfix the errors above before freezing")
+        return 1
     digest = hashlib.sha256(config.TEST_QUESTIONS_PATH.read_bytes()).hexdigest()
     config.TEST_LOCK_PATH.write_text(digest + "  questions_test.jsonl\n")
     print(f"\nfrozen: {config.TEST_LOCK_PATH.name} written. Commit both files.")
@@ -69,10 +71,10 @@ def main() -> int:
     if cat is None:
         errors.append("catalogue_summary is missing")
     else:
-        lines = [l for l in cat["text"].split("\n")[1:] if l.strip()]
+        lines = [line for line in cat["text"].split("\n")[1:] if line.strip()]
         if sorted(cat.get("sources", [])) != sorted(products) or len(lines) != len(products):
             errors.append("catalogue must list every product exactly once")
-        for pid, line in zip(cat.get("sources", []), lines):
+        for pid, line in zip(cat.get("sources", []), lines, strict=False):
             p = products.get(pid)
             name, _, price, specs = [x.strip() for x in line.split("|")]
             if not p or name != p["title"]:
@@ -126,7 +128,8 @@ def main() -> int:
                     errors.append(f"{label} {q['id']}: unknown order_id {o}")
             b = q.get("expected_behavior")
             if q.get("category") == "out_of_scope" and b not in BEHAVIORS:
-                errors.append(f"{label} {q['id']}: out_of_scope needs expected_behavior in {sorted(BEHAVIORS)}")
+                errors.append(f"{label} {q['id']}: out_of_scope needs expected_behavior "
+                              f"in {sorted(BEHAVIORS)}")
             if b is not None and b not in BEHAVIORS:
                 errors.append(f"{label} {q['id']}: unknown expected_behavior {b!r}")
 
@@ -171,7 +174,8 @@ def main() -> int:
     print(f"orders         : {len(orders)}")
     for label, qs, targets, fname in (("dev set", dev, DEV_TARGETS, config.DEV_QUESTIONS_PATH.name),
                                       ("test set", test, TEST_TARGETS, config.TEST_QUESTIONS_PATH.name)):
-        total = sum(targets.values()); counts = Counter(q["category"] for q in qs)
+        total = sum(targets.values())
+        counts = Counter(q["category"] for q in qs)
         frozen = " · FROZEN" if label == "test set" and config.TEST_LOCK_PATH.exists() else ""
         print(f"\n{label:9s}: {len(qs)} / {total}  ({fname}{frozen})")
         print(f"  {'category':22s} {'have':>5s} {'target':>7s}  progress")

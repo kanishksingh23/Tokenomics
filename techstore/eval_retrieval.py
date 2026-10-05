@@ -31,17 +31,16 @@ def main() -> int:
     args = ap.parse_args()
 
     docs = load_docs(config.KB_PATH)
-    ids = [d.id for d in docs]
     titles = {d.id: d.title for d in docs}
-    qs = [json.loads(l) for l in open(args.questions, encoding="utf-8") if l.strip()]
+    qs = [json.loads(line) for line in open(args.questions, encoding="utf-8") if line.strip()]
     qs = [q for q in qs if q.get("context_ids")]
 
-    from retriever import searchable                    # noqa: PLC0415
+    from retriever import searchable  # noqa: PLC0415
     kw = KeywordRetriever(searchable(docs))
     methods = {"keyword": lambda q, n: [d.id for d, _ in kw.search(q, n)]}
 
     # What the agent actually sends: named product pages first, then keyword search.
-    from agent import SupportAgent                      # noqa: PLC0415
+    from agent import SupportAgent  # noqa: PLC0415
     agent = SupportAgent(retriever_mode="keyword", top_k=args.k)
     methods["keyword+names"] = lambda q, n: agent.build_context(q)[1]
 

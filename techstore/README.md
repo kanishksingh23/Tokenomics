@@ -38,6 +38,34 @@ streamlit run app.py                                     # the demo
 Retrieval and context assembly work with **zero dependencies and no API key** —
 `--dry-run` and `validate_data.py` are the loop to iterate on the corpus in.
 
+### With Docker
+
+From the repo root:
+
+```bash
+docker compose up --build                 # demo at http://localhost:8501
+docker compose run --rm techstore python cli.py --mock "Can I return opened headphones?"
+docker compose run --rm techstore python cli.py --batch data/questions_dev.jsonl --out runs/docker_check.jsonl
+```
+
+The key is read from `techstore/.env` when the container runs. It is never copied
+into the image (`.dockerignore` excludes it), so the image is safe to share. Without
+a `.env` the app still runs in mock mode. `runs/` is mounted, so batch results land on
+your disk. The first build takes a few minutes (CPU torch, then the MiniLM model,
+downloaded once so the container starts offline).
+
+### Lint and tests (what CI runs)
+
+```bash
+pip install -r requirements-dev.txt
+ruff check .              # add --fix for import order and similar
+python -m pytest          # 26 tests, no key, no network, < 1 s
+python validate_data.py
+```
+
+GitHub Actions runs these on Python 3.10 and 3.13 for every push and pull request,
+then builds the Docker image and checks the demo responds (`.github/workflows/ci.yml`).
+
 ## Layout
 
 ```
@@ -53,11 +81,14 @@ techstore/
 ├── eval_retrieval.py    keyword vs embedding vs hybrid, per-category recall
 ├── system_prompt.txt
 ├── data/
-│   ├── knowledge_base.jsonl    84 policy / product / billing / API documents
+│   ├── knowledge_base.jsonl    86 policy / product / billing / API documents
 │   ├── orders.jsonl            40 orders incl. the multi-charge dispute case
 │   ├── questions_dev.jsonl     dev set (target 100): tuning only
 │   └── questions_test.jsonl    test set (target 200): frozen, final results only
-└── tests/test_agent.py  12 tests, no API calls, free to run in CI
+├── tests/test_agent.py  26 tests, no API calls, run by CI on every push
+├── Dockerfile           Streamlit demo image (CPU torch, MiniLM baked in)
+├── pyproject.toml       ruff + pytest settings
+└── requirements-dev.txt pytest, ruff (all CI needs)
 ```
 
 ## Design decisions worth knowing

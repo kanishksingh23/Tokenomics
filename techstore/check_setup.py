@@ -136,7 +136,7 @@ def check_pricing() -> None:
 
 def check_models() -> list[str]:
     """Returns the model ids that are usable."""
-    import openai                                       # noqa: PLC0415
+    import openai  # noqa: PLC0415
     client = openai.OpenAI(api_key=config.API_KEY, base_url=config.BASE_URL)
     try:
         available = sorted(m.id for m in client.models.list())
@@ -174,9 +174,9 @@ def check_models() -> list[str]:
 
 
 def ping(model: str) -> None:
-    import openai                                       # noqa: PLC0415
+    import openai  # noqa: PLC0415
     client = openai.OpenAI(api_key=config.API_KEY, base_url=config.BASE_URL)
-    from agent import _QUIRKS, chat_completion           # noqa: PLC0415
+    from agent import _QUIRKS, chat_completion  # noqa: PLC0415
     try:
         # Same call path as the agent, so a pass here means the agent will work.
         r, temp = chat_completion(client, model,
@@ -210,9 +210,10 @@ def ping(model: str) -> None:
 
 
 def check_data() -> None:
-    import validate_data                                # noqa: PLC0415
     import contextlib
     import io
+
+    import validate_data  # noqa: PLC0415
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         rc = validate_data.main()
@@ -226,10 +227,16 @@ def main() -> int:
                     help="make one tiny real call per configured model (< $0.001 total)")
     args = ap.parse_args()
 
-    print("== environment"); check_python(); have_openai = check_packages()
-    print("\n== credentials"); key_ok = check_env(); check_gitignore()
-    print("\n== pricing"); check_pricing()
-    print("\n== data"); check_data()
+    print("== environment")
+    check_python()
+    have_openai = check_packages()
+    print("\n== credentials")
+    key_ok = check_env()
+    check_gitignore()
+    print("\n== pricing")
+    check_pricing()
+    print("\n== data")
+    check_data()
 
     usable: list[str] = []
     print("\n== provider")

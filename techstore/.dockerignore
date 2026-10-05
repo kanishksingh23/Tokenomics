@@ -1,0 +1,14 @@
+# Never bake secrets or local results into the image.
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+results/
+results_*.jsonl
+review*.csv
+runs/
+tests/
+.DS_Store

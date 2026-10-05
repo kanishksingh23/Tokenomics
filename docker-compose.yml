@@ -1,0 +1,13 @@
+# docker compose up --build   ->  http://localhost:8501
+# The API key is read from techstore/.env when the container runs; it is never copied into the image.
+services:
+  techstore:
+    build: ./techstore
+    image: tokenomics-techstore
+    ports:
+      - "8501:8501"
+    env_file:
+      - path: techstore/.env
+        required: false   # without it the app still runs in mock mode
+    volumes:
+      - ./techstore/runs:/app/runs   # batch results written in the container land on your disk

@@ -26,7 +26,7 @@ LONG_ANSWER_TOKENS = 400
 
 def load_jsonl(path) -> list[dict]:
     with open(path, encoding="utf-8") as fh:
-        return [json.loads(l) for l in fh if l.strip()]
+        return [json.loads(line) for line in fh if line.strip()]
 
 
 def _amount(text: str) -> float:
@@ -239,12 +239,14 @@ def main() -> int:
 
     # -------------------------------------------------------------- read-through
     if not args.no_answers:
-        for r, q, gold, missing, flags in graded:
+        for r, q, gold, _missing, flags in graded:
             if args.flagged and not flags:
                 continue
             print("\n" + "=" * 78)
-            print(f"{r.get('id') or q.get('id', '?')}  [{r.get('category') or q.get('category', '?')}]"
-                  f"  ${r.get('cost_usd', 0):.6f}  {r.get('prompt_tokens', 0)}+{r.get('completion_tokens', 0)} tok")
+            qid = r.get("id") or q.get("id", "?")
+            cat = r.get("category") or q.get("category", "?")
+            print(f"{qid}  [{cat}]  ${r.get('cost_usd', 0):.6f}  "
+                  f"{r.get('prompt_tokens', 0)}+{r.get('completion_tokens', 0)} tok")
             print("Q:", r["question"])
             marks = [("✓ " if d in gold else "  ") + titles.get(d, d) for d in r.get("retrieved", [])]
             print("retrieved:", " | ".join(marks) or "(none)")
@@ -259,14 +261,15 @@ def main() -> int:
             w = csv.writer(fh)
             w.writerow(["id", "category", "expected_behavior", "question", "answer", "retrieved",
                         "missing_gold", "flags", "cost_usd", "completion_tokens", "verdict", "notes"])
-            for r, q, gold, missing, flags in graded:
+            for r, q, _gold, missing, flags in graded:
                 w.writerow([r.get("id") or q.get("id", ""), r.get("category") or q.get("category", ""),
                             q.get("expected_behavior", ""),
                             r["question"], r.get("error") or r.get("answer", ""),
                             "; ".join(r.get("retrieved", [])), "; ".join(missing),
                             " | ".join(flags), r.get("cost_usd", 0), r.get("completion_tokens", 0),
                             "", ""])
-        print(f"\ngrading sheet written to {args.sheet}  (fill 'verdict': correct / partial / wrong / hallucinated)")
+        print(f"\ngrading sheet written to {args.sheet}  "
+              "(fill 'verdict': correct / partial / wrong / hallucinated)")
     return 0
 
 

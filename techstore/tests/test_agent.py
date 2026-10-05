@@ -7,8 +7,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-import config                                    # noqa: E402
-from agent import SupportAgent                   # noqa: E402
+import config  # noqa: E402
+from agent import SupportAgent  # noqa: E402
 from retriever import build_retriever, load_docs  # noqa: E402
 
 RECALL_CASES = [
@@ -50,7 +50,7 @@ def test_kb_wellformed():
 
 
 def test_orders_wellformed():
-    rows = [json.loads(l) for l in open(config.ORDERS_PATH, encoding="utf-8") if l.strip()]
+    rows = [json.loads(line) for line in open(config.ORDERS_PATH, encoding="utf-8") if line.strip()]
     assert len(rows) >= 40
     assert len({r["order_id"] for r in rows}) == len(rows)
     for r in rows:
@@ -61,7 +61,7 @@ def test_order_prices_match_catalogue():
     """An order quoting a price the product document does not state would make
     every billing-dispute answer unverifiable."""
     catalogue = {d.id: d.price for d in load_docs(config.KB_PATH) if d.price}
-    rows = [json.loads(l) for l in open(config.ORDERS_PATH, encoding="utf-8") if l.strip()]
+    rows = [json.loads(line) for line in open(config.ORDERS_PATH, encoding="utf-8") if line.strip()]
     for r in rows:
         for item in r["items"]:
             assert catalogue.get(item["sku"]) == item["unit_price"], (
@@ -73,7 +73,7 @@ def test_order_prices_match_catalogue():
 def test_orders_respect_stated_business_rules():
     """Fixtures must not contradict the knowledge base, or the agent is being
     graded against an inconsistent world."""
-    rows = [json.loads(l) for l in open(config.ORDERS_PATH, encoding="utf-8") if l.strip()]
+    rows = [json.loads(line) for line in open(config.ORDERS_PATH, encoding="utf-8") if line.strip()]
     for r in rows:
         if r["payment_method"] == "Cash on Delivery":
             assert r["total"] <= 20000, f"{r['order_id']}: COD above the stated cap"
@@ -292,7 +292,8 @@ def test_simulated_date_reaches_the_model_and_fits_the_fixtures():
 
 def test_rupee_amounts_with_paise_parse():
     from review_results import RUPEES, _amount
-    assert [_amount(m) for m in RUPEES.findall("contribution is ₹6,499.90, total ₹1,34,999")] == [6499.90, 134999.0]
+    found = RUPEES.findall("contribution is ₹6,499.90, total ₹1,34,999")
+    assert [_amount(m) for m in found] == [6499.90, 134999.0]
 
 
 def test_catalogue_only_for_category_comparisons():
@@ -318,10 +319,10 @@ def test_catalogue_is_never_returned_by_search():
 def test_catalogue_agrees_with_product_pages():
     docs = {d.id: d for d in load_docs(config.KB_PATH)}
     cat = docs["catalogue_summary"]
-    lines = [l for l in cat.text.split("\n")[1:] if l.strip()]
+    lines = [line for line in cat.text.split("\n")[1:] if line.strip()]
     products = [d for d in docs.values() if d.category == "product"]
     assert len(lines) == len(products)
-    for pid, line in zip(cat.meta["sources"], lines):
+    for pid, line in zip(cat.meta["sources"], lines, strict=False):
         name, _, price, _ = [x.strip() for x in line.split("|")]
         assert name == docs[pid].title
         assert int(price.replace("₹", "").replace(",", "")) == docs[pid].price

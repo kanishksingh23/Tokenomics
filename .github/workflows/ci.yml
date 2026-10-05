@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: lint, tests, data (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.13"]
+    defaults:
+      run:
+        working-directory: techstore
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install -r requirements-dev.txt
+      - name: Lint
+        run: ruff check .
+      - name: Unit tests (no API calls)
+        run: python -m pytest
+      - name: Data integrity
+        run: python validate_data.py
+
+  docker:
+    name: docker build + health check
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t techstore ./techstore
+      - name: Container answers a question (mock mode, no key)
+        run: |
+          docker run --rm techstore python cli.py --mock "Can I return opened headphones?" | tail -6
+      - name: Streamlit health check
+        run: |
+          docker run -d --name ts -p 8501:8501 techstore
+          for i in $(seq 1 30); do
+            curl -fs http://localhost:8501/_stcore/health && exit 0
+            sleep 2
+          done
+          docker logs ts
+          exit 1

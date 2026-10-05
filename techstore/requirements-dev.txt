@@ -1,0 +1,4 @@
+# Tools for linting and tests (what CI runs). The tests need no API key and none of
+# the heavy runtime packages, so this is all CI installs.
+pytest>=8.0
+ruff>=0.12
