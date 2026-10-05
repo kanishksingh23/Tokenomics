@@ -134,6 +134,20 @@ def main() -> int:
     check_questions(dev, "dev", "q")
     test = rows(config.TEST_QUESTIONS_PATH) if config.TEST_QUESTIONS_PATH.exists() else []
     check_questions(test, "test", "t")
+    # Test questions also carry what a correct answer must contain, and who wrote them
+    # (see WRITING_TEST_QUESTIONS.md). Graders and the AI judge check against key_points.
+    for q in test:
+        kp = q.get("key_points")
+        if not (isinstance(kp, list) and kp and all(isinstance(k, str) and k.strip() for k in kp)):
+            errors.append(f"test {q['id']}: key_points must be a list of 1-3 non-empty strings")
+        elif len(kp) > 3:
+            warnings.append(f"test {q['id']}: {len(kp)} key points; keep to the 1-3 that matter")
+        if q.get("source") not in ("human", "ai_assisted"):
+            errors.append(f"test {q['id']}: source must be 'human' or 'ai_assisted'")
+        if q.get("expected_tier") not in ("economy", "economy_escalation", "frontier"):
+            errors.append(f"test {q['id']}: expected_tier must be economy, economy_escalation or frontier")
+        if q.get("category") != "out_of_scope" and not q.get("context_ids"):
+            errors.append(f"test {q['id']}: list the document(s) that answer it in context_ids")
 
     # The test set must contain nothing the system was tuned on.
     norm = lambda t: " ".join(t.lower().split())

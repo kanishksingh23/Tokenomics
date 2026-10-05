@@ -134,6 +134,8 @@ against it, so a billing answer can never cite a price the catalogue contradicts
 
 ## Writing the remaining questions (Weeks 3–6)
 
+**Full guide for writers: [WRITING_TEST_QUESTIONS.md](WRITING_TEST_QUESTIONS.md)** — categories, question types, key points, using AI, the format, and every document and order id.
+
 There are two sets, and they must never mix:
 
 | Set | File | Target | Use |
