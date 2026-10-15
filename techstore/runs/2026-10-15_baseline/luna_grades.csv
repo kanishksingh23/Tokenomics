@@ -1,0 +1,159 @@
+id,category,expected_behavior,question,answer,retrieved,missing_gold,flags,cost_usd,completion_tokens,verdict,notes
+q001,simple_faq,,How long do I have to return something?,"You can return an item within the **30-day return window**, counted from the delivery date shown on the tracking record. It must be in its original packaging with all accessories, manuals, and free gifts included. A return raised on day 31 or later is rejected automatically.",pol_return_window; pol_refund_timeline; pol_damaged_in_transit; ship_failed_delivery,,,0.000107,58,,
+q002,simple_faq,,Is delivery free?,Delivery is free on orders above ₹999. Orders below that have a flat ₹79 delivery charge. Express next-day delivery costs ₹149 where available.,ship_charges; ship_open_box; pol_damaged_in_transit; bill_payment_methods,,,0.000129,106,,
+q003,simple_faq,,What payment methods do you accept?,"TechStore accepts UPI, credit and debit cards from major Indian issuers, net banking from 40 partner banks, and cash on delivery for orders up to ₹20,000. Cash on delivery has a ₹49 handling fee. Wallet payments and international cards aren’t accepted.",bill_payment_methods; bill_emi; bill_gift_card; bill_cod_refund,,,0.000111,59,,
+q004,simple_faq,,Do you ship outside India?,TechStore ships within India only. We do not ship to international addresses or APO or diplomatic addresses.,ship_international; ship_open_box; ship_charges; bill_payment_methods,,,8.4e-05,23,,
+q005,simple_faq,,Can I return earbuds I already opened?,"No. Under the **non-returnable once the seal is broken** hygiene policy, opened earbuds can’t be returned. If they’re faulty, they remain covered by warranty.",pol_return_exclusions; tsg_earbuds_one_side; prod_studiobuds; tsg_earbuds_case_charge,,,0.000129,86,,
+q006,order_status,,Where is my order #48213?,"Order #48213 has shipped with BlueDart and is estimated to arrive today, 30 September 2026. Your tracking ID is **BD4471920381**; you can check the tracking link sent by email or SMS, or view tracking under **Orders** in your account. Tracking can take up to 12 hours after dispatch to become active.
+
+I don't have information about its current courier location.",pol_damaged_in_transit; ship_tracking; pol_bulk_orders; svc_centres,,"BEHAVIOUR: possible unnecessary hedge (check): the needed documents were retrieved, yet it says something is missing",0.000236,277,,
+q007,order_status,,Has order 48390 shipped yet?,"No—order #48390 is still Processing. No courier or tracking ID is listed yet. Its estimated delivery date is October 2, 2026.",pol_damaged_in_transit; ship_tracking; pol_bulk_orders; ship_charges,,,0.000152,110,,
+q008,order_status,,When will order 48677 arrive?,"Order #48677 is estimated to arrive today, 30 September 2026.",pol_damaged_in_transit; ship_tracking; pol_preorder; pol_bulk_orders,ship_delivery_times,missing gold doc: Delivery Timelines,0.000148,91,,
+q009,order_status,,"I cancelled order 48455, when do I get my refund?","For order #48455, the ₹2,499 refund has been initiated. The record lists an estimated refund date of **1 October 2026**. Cancelled orders are refunded within **5 to 7 business days**.",pol_cancellation; bill_cod_refund; pol_refund_timeline; ship_failed_delivery,,,0.000184,166,,
+q010,order_status,,What did I order in 48501?,"Order #48501 contains one SoundWave Y500 Premium Headphones, priced at ₹24,999.",prod_clearview32; prod_clearview27; pol_damaged_in_transit; api_error_codes,,,0.000117,24,,
+q011,product_info,,Does the SoundWave X200 have noise cancellation?,Yes. The SoundWave X200 has hybrid active noise cancellation rated at 35 dB.,prod_x200; prod_y500; prod_m100; prod_studiobuds,,,9.9e-05,22,,
+q012,product_info,,How much is the PulseBook 14?,"The PulseBook 14 costs ₹64,999.",prod_pulsebook14; prod_pulsebook_pro16; prod_pulsebook_air13; prod_novatab11,,,9.7e-05,14,,
+q013,product_info,,What is the battery life of the AuraWatch 3?,The AuraWatch 3 has a battery life of up to 14 days.,prod_aurawatch3; tsg_watch_battery; prod_aurawatch_pro; tsg_watch_sync,,,9.3e-05,19,,
+q014,product_info,,Does the ClearView 27 support USB-C?,Yes. The ClearView 27 has USB-C with 90 W power delivery.,prod_clearview27; tsg_monitor_usbc_power; tsg_monitor_no_signal; prod_clearview32,,,9.8e-05,20,,
+q015,product_info,,Is the NovaTab 11 stylus included?,"No. The NovaTab 11 stylus is sold separately for ₹4,999.",prod_novatab11; prod_novatab_mini8; prod_aurawatch3; prod_m100,,,9.5e-05,21,,
+q016,product_comparison,,X200 or Y500 for a noisy open-plan office?,"The SoundWave Y500 is the better choice for a noisy open-plan office. It’s recommended for noisy environments and has adaptive noise cancellation rated at 45 dB, compared with 35 dB on the X200.",prod_x200; prod_y500; prod_m100; prod_studiobuds,,,0.000128,79,,
+q017,product_comparison,,Is the PulseBook Pro 16 worth twice the price of the PulseBook 14 for video editing?,"On specs, the PulseBook Pro 16 is better equipped for video editing: it has an Intel Core Ultra 9, 32 GB RAM, a discrete RTX 4060, and a larger 1 TB SSD. The PulseBook 14 has an Intel Core Ultra 5, 16 GB RAM, and a 512 GB SSD. The Pro 16 costs ₹1,34,999—₹70,000 more, and slightly more than twice the PulseBook 14’s ₹64,999 price.
+
+I don't have information about real-world editing performance or whether that extra cost is worth it for your specific editing needs.",prod_pulsebook14; prod_pulsebook_pro16; prod_pulsebook_air13; svc_accidental_damage,,"rupee amount not in KB/orders (invented, or computed -- check): ₹70,000 | BEHAVIOUR: possible unnecessary hedge (check): the needed documents were retrieved, yet it says something is missing",0.000259,337,,
+q018,product_comparison,,Will the VoltCharge 65W charge my PulseBook Pro 16 properly?,No. The VoltCharge 65W is not sufficient to charge the PulseBook Pro 16 at full speed; the laptop requires 100 W. The VoltCharge 100W is listed as the required charger for full-speed charging.,prod_pulsebook_pro16; prod_voltcharge65; tsg_laptop_not_charging; prod_voltcharge100,,,0.000114,50,,
+q019,product_comparison,,Which of your headphones is lighter and does it matter for long flights?,"The SoundWave X200 is lighter at 250 g, compared with 268 g for the Y500. For noisy flights, the Y500 is recommended and has stronger adaptive noise cancellation (45 dB vs. 35 dB).
+
+I don't have information about whether the 18 g weight difference affects comfort on long flights.",prod_y500; tsg_headphone_battery; prod_x200; prod_m100; catalogue_summary,,"BEHAVIOUR: possible unnecessary hedge (check): the needed documents were retrieved, yet it says something is missing",0.000311,321,,
+q020,product_comparison,,I want a tablet for reading and a laptop for college. What should I buy under 1 lakh total?,"For a light college setup that stays comfortably under budget, I’d choose:
+
+- **PulseBook Air 13** — ₹44,999; 1.12 kg, with 8 GB RAM and a 256 GB SSD.
+- **NovaTab Mini 8** — ₹17,999; compact 8.4-inch display, suitable if you want a smaller tablet for reading.
+
+**Total: ₹62,998.**
+
+If you’d prefer a larger tablet screen for reading, swap in the **NovaTab 11** for ₹29,999. The Air 13 + NovaTab 11 would total **₹74,998**.",prod_novatab11; prod_novatab_mini8; prod_pulsebook_pro16; prod_pulsebook_air13; catalogue_summary,prod_pulsebook14,"missing gold doc: PulseBook 14 Laptop | rupee amount not in KB/orders (invented, or computed -- check): ₹62,998, ₹74,998 | long answer (653 tokens)",0.000476,653,,
+q021,troubleshooting,,My headphones will not pair with my phone.,"If these are SoundWave headphones, try these steps:
+
+1. Hold the power button for 7 seconds until the LED flashes blue and white.
+2. Forget the existing SoundWave entry in your phone’s Bluetooth settings.
+3. Turn Bluetooth off for 10 seconds, turn it back on, then select the headphones.
+4. If multipoint is active, disconnect the headphones from the other device first.
+5. If the LED doesn’t flash, charge the headphones for 30 minutes and retry.
+
+I don't have information about pairing other headphone brands or models.",tsg_headphone_pairing; tsg_earbuds_one_side; prod_x200; tsg_headphone_battery,,"BEHAVIOUR: possible unnecessary hedge (check): the needed documents were retrieved, yet it says something is missing",0.00021,236,,
+q022,troubleshooting,,My PulseBook is not charging.,"Try these steps:
+
+1. Confirm the charger wattage matches your PulseBook model. The PulseBook Pro 16 needs 100 W and may charge very slowly or not at all with a 65 W charger.
+2. Try the other Thunderbolt port. On the PulseBook 14, the right-hand port supports charging.
+3. Check the cable for damage.
+4. Hold the power button for 15 seconds to reset the embedded controller.
+5. If the charging LED still doesn’t illuminate with a known-good charger, raise a warranty service request.",tsg_laptop_not_charging; tsg_earbuds_case_charge; tsg_monitor_usbc_power; tsg_powerbank_not_charging,,,0.000205,236,,
+q023,troubleshooting,,My AuraWatch will not sync with the app.,"If you have an AuraWatch 3, try these steps:
+
+1. Check that the companion app has Bluetooth and background-activity permissions.
+2. Confirm your phone runs Android 9 or later, or iOS 14 or later.
+3. Force-close and reopen the app.
+4. Make sure the watch firmware is up to date.
+5. If you use Android, exclude the app from battery optimisation; it’s the most common cause of syncing issues.
+
+I don't have information about syncing other AuraWatch models.",tsg_watch_sync; tsg_watch_inaccurate_hr; prod_aurawatch3; prod_aurawatch_pro,,"BEHAVIOUR: possible unnecessary hedge (check): the needed documents were retrieved, yet it says something is missing",0.000208,250,,
+q024,troubleshooting,,My monitor says no signal.,"If you have a ClearView 27, try these steps:
+
+1. Check that the monitor’s selected input matches the cable you’re using.
+2. If connecting by USB-C, confirm your laptop’s USB-C port supports DisplayPort Alt Mode. The PulseBook USB-A port does not.
+3. Try a different cable; some USB-C cables carry power but not video.
+4. For 4K at 144 Hz, use a DisplayPort 1.4 or HDMI 2.1 cable.
+5. Reset the monitor to factory defaults from its on-screen menu.
+
+I don't have information about troubleshooting other monitor models; tell me your monitor’s model for specific steps.",tsg_monitor_no_signal; tsg_monitor_flicker; prod_clearview27; prod_clearview32,,"BEHAVIOUR: possible unnecessary hedge (check): the needed documents were retrieved, yet it says something is missing",0.000246,321,,
+q025,troubleshooting,,My headphone battery drains much faster than advertised.,"For SoundWave headphones, try these steps:
+
+1. Turn off active noise cancellation (ANC) and lower the volume; ANC can reduce rated battery life by roughly 30%.
+2. Check for firmware updates in the SoundWave app.
+3. Disable multipoint pairing if you don’t need two devices connected.
+4. Make sure the headphones power off when removed rather than remaining idle.
+5. If runtime is below 50% of the rated figure with ANC off, the battery is considered defective and covered under warranty.
+
+I don't have information about your headphone’s brand or model, so I can’t confirm its rated battery life or warranty coverage.",tsg_headphone_battery; tsg_watch_battery; prod_x200; prod_y500,pol_warranty_terms,missing gold doc: Standard Warranty Terms,0.000268,359,,
+q026,billing_dispute,,"I was charged 12,999 three times for order 48712. Two were supposed to be cancelled but I only see one refund. Where is my money?","I can see three charge entries, all dated 27 September 2026:
+
+- **₹12,999 settled capture:** This is the charge for order #48712 and is the one that remains.
+- **₹12,999 authorization:** This duplicate hold was reversed on 29 September 2026.
+- **₹12,999 authorization:** This duplicate hold is still pending reversal, with reversal expected by 4 October 2026.
+
+The two extra entries are authorisation holds, not separate order charges requiring refunds. Under the duplicate-charge process, these holds reverse automatically; the remaining hold is not overdue as of 30 September.",pol_cancellation; bill_duplicate_charge; bill_chargeback; bill_cod_refund,pol_refund_timeline,missing gold doc: Refund Processing Time | long answer (416 tokens),0.000326,416,,
+q027,billing_dispute,,My payment failed but the money was debited. No order was created. What happens now?,"I’m sorry—that’s frustrating. Since no order was created, there’s nothing to cancel. The debit is a temporary bank hold that should reverse automatically: within **5–7 business days** for card or UPI, or up to **10 business days** for net banking. If it hasn’t reversed after that period, contact support with your bank reference number so we can raise a chargeback trace with the payment gateway.",bill_failed_payment; acc_order_history; bill_payment_methods; ship_failed_delivery,,,0.000154,151,,
+q028,billing_dispute,,I returned one item from a two-item order but my refund is less than the item price. Why?,"For a partial return, the refund covers the returned item’s value, but the delivery charge is refunded only if you return the entire order. Also, if your order had a promotional discount requiring a minimum basket value and the remaining item falls below that threshold, the discount is recalculated and the difference is deducted from your refund.
+
+I don't have information about your order’s discount or refund breakdown, so I can’t confirm which applies.",bill_refund_partial; bill_price_drop; bill_duplicate_charge; pol_price_match,,"BEHAVIOUR: possible unnecessary hedge (check): the needed documents were retrieved, yet it says something is missing",0.000229,295,,
+q029,billing_dispute,,I bought on no-cost EMI and returned the product. The bank is still charging me interest. Who pays that?,"With no-cost EMI, TechStore provides the interest as an upfront discount. When you return the product, that discount is deducted from your refund, and the bank may still charge interest it has already levied. Contact your bank to cancel the EMI plan; the policy doesn’t say TechStore reimburses interest charged by the bank.",bill_emi; bill_payment_methods; bill_chargeback; prod_voltbank20k,pol_refund_timeline,missing gold doc: Refund Processing Time,0.000159,147,,
+q030,billing_dispute,,I forgot to add my GSTIN at checkout on order 48750. Can you reissue the invoice so I can claim input credit?,"I’m sorry, but TechStore cannot add a GSTIN to an invoice after checkout or issue a fresh invoice for a completed order. GSTINs must be entered before placing the order. Your invoice remains downloadable from Orders for 8 years.",bill_invoice_gst; pol_bulk_orders; pol_warranty_claim; bill_payment_methods,,,0.000163,119,,
+q031,technical_api,,"Your webhook returns 403 even though my HMAC signature is valid. Here is my Python: sig = hmac.new(secret, json.dumps(request.json).encode(), 'sha256').hexdigest()","Your code signs a parsed and re-serialized JSON body. That can change key order or whitespace, so the HMAC may not match the signature TechStore sent. Compute it over the **exact raw request-body bytes before parsing JSON**:
+
+```python
+sig = hmac.new(webhook_secret, raw_body, ""sha256"").hexdigest()
+```
+
+Also make sure `webhook_secret` is your webhook secret, not your API token. If the 403 includes `insufficient_scope`, it indicates a token-scope issue rather than a signature failure.",api_webhook_signature; api_scopes; api_error_codes; api_webhook_retries,,,0.000247,308,,
+q032,technical_api,,I am getting 409 on order creation when I retry after a timeout. What am I doing wrong?,"A 409 means the same `Idempotency-Key` was reused with a different request payload. After a timeout, the request may have completed, so retry the POST with the **same key and exactly the same payload** to avoid creating a duplicate. Use exponential backoff with jitter rather than retrying immediately in a tight loop.",api_timeouts; api_rate_limits; api_error_codes; ship_failed_delivery,api_idempotency,missing gold doc: API Idempotency,0.000161,156,,
+q033,technical_api,,My integration worked in sandbox but returns 401 in production with the same code. Why?,"Sandbox uses separate credentials, so a sandbox token is rejected in production—the most common cause of this 401. Production requests need a bearer token issued in the partner dashboard for production.
+
+Also check that the token is present and correctly formatted; tokens expire 90 days after issue.",api_auth; api_sandbox; api_error_codes; api_overview,,,0.000132,100,,
+q034,technical_api,,I am hitting 429 on the bulk export endpoint at 100 requests per minute. The docs say 600. Explain.,"The 600-requests-per-minute limit applies to the Partner API generally. Bulk export endpoints have a separate limit of **60 requests per minute per token**, so 100 per minute exceeds that limit and can trigger 429 responses.
+
+Honor the `Retry-After` header and retry using exponential backoff with jitter. Sustained violations for more than 15 minutes result in a temporary 1-hour block.",api_rate_limits; pol_bulk_orders; api_timeouts; api_idempotency,,,0.000149,136,,
+q035,technical_api,,A valid order ID returns 404 for my token but works in the dashboard. What is happening?,A 404 can mean the order ID is valid but belongs to a different partner. The dashboard showing it doesn’t rule that out; check that your API request is using the correct partner context. I don't have information about why the dashboard and API contexts differ.,api_error_codes; api_scopes; api_auth; api_webhook_signature,,"BEHAVIOUR: possible unnecessary hedge (check): the needed documents were retrieved, yet it says something is missing",0.000211,245,,
+q036,policy_edge_case,,I bought a PulseBook 35 days ago and it is faulty. Your return window is 30 days but the warranty is 2 years. What are my rights?,"The **30-day return window** is counted from the delivery date shown in tracking, not the order date. If the PulseBook was delivered 35 days ago, a return would be rejected automatically. But the **manufacturer warranty is independent of the return window** and may still cover a manufacturing defect or component failure under normal use; it excludes physical damage, liquid ingress, unauthorised repair, and normal battery capacity decline above 80% of rated capacity.
+
+I don't have information about whether this PulseBook’s warranty is 2 years; the warranty duration is the one stated on its product page.",svc_accidental_damage; pol_damaged_in_transit; pol_return_window; pol_warranty_terms,pol_warranty_claim,missing gold doc: How to Raise a Warranty Claim,0.000274,383,,
+q037,policy_edge_case,,I opened my Y500 headphones and they are defective. You say opened headphones are non-returnable. Am I stuck with broken headphones?,"No—you’re not stuck with them. The opened-headphones hygiene exclusion makes them non-returnable, but it does not remove warranty rights for faulty items. The Y500 has a 2-year manufacturer warranty.
+
+I don't have information about how to file a warranty claim.",prod_y500; pol_return_exclusions; tsg_headphone_pairing; tsg_earbuds_one_side,pol_warranty_terms,missing gold doc: Standard Warranty Terms,0.000229,267,,
+q038,policy_edge_case,,I spilled coffee on my PulseBook 14 four months after delivery. Warranty excludes liquid damage. Is there anything that covers me?,"Yes. The PulseBook 14 includes **one year of accidental damage protection from the delivery date**, which covers liquid spills. Since the spill happened four months after delivery, it falls within that coverage period, assuming you haven’t already used the one permitted claim for the coverage year.
+
+The customer contribution is **10% of the product price**, which is **₹6,499.90**.",prod_pulsebook14; svc_accidental_damage; prod_pulsebook_pro16; tsg_laptop_not_charging,pol_warranty_terms,"missing gold doc: Standard Warranty Terms | rupee amount not in KB/orders (invented, or computed -- check): ₹6,499.90",0.000176,171,,
+q039,policy_edge_case,,The courier failed three delivery attempts while I was travelling and the order was returned. I was not told. Do I get a full refund including the delivery charge?,"Yes. Under the **Failed Delivery Attempts** policy, after the third failed attempt the parcel is returned to the warehouse and the order is refunded in full, including any delivery charge paid, within **7 business days** of the parcel being received back.",ship_failed_delivery; pol_damaged_in_transit; bill_cod_refund; ship_charges,,,0.000154,150,,
+q040,policy_edge_case,,"I found the X200 cheaper elsewhere 6 days after buying, but it was during their clearance sale. Does your price match apply?","No. The **Price Match Guarantee** excludes purchases made during clearance events, even if you find the identical product cheaper within the 7-day window.",prod_x200; pol_price_match; bill_price_drop; pol_exchange,,,0.000118,78,,
+q041,out_of_scope,decline_off_topic,What is the capital of France?,"I can only help with TechStore orders, products, and support.",prod_clearview27; prod_novatab11; ship_international; prod_novatab_mini8,,,8.7e-05,17,,
+q042,out_of_scope,decline_off_topic,Can you write me a short poem about the monsoon?,"I can only help with TechStore orders, products, and support. I can help with product questions, order tracking, billing, or troubleshooting.",tsg_laptop_overheating; acc_create; prod_novatab_mini8; ship_international,,,0.000115,77,,
+q043,out_of_scope,decline_off_topic,Who won the last cricket World Cup?,"I can only help with TechStore orders, products, and support.",prod_aurawatch_pro; prod_aurawatch3; svc_centres; prod_pulsebook_pro16,,,0.000101,37,,
+q044,out_of_scope,admit_unknown,Do you offer a student discount?,I don't have that information. I can connect you with a human agent who can help. I can also help with product details and order support.,bill_promo_codes; bill_emi; prod_voltcharge100; prod_pulsebook_pro16,,,0.000116,64,,
+q045,out_of_scope,admit_unknown,Can I collect my order from your warehouse instead of waiting for delivery?,I don't have that information. I can connect you with a human agent who can help. I can help with order tracking and delivery questions.,ship_open_box; pol_bulk_orders; pol_preorder; pol_damaged_in_transit,,,0.000106,58,,
+q046,out_of_scope,admit_unknown,Do I earn loyalty points on my purchases?,I don't have that information. I can connect you with a human agent who can help. The available documents don’t cover loyalty points.,pol_price_match; bill_emi; bill_promo_codes; bill_payment_methods,,,0.000123,85,,
+q047,out_of_scope,admit_unknown,Who is the CEO of TechStore?,I don't have that information. I can connect you with a human agent who can help.,about_techstore; api_overview; pol_privacy_data; svc_centres,,,9.6e-05,21,,
+q048,out_of_scope,answer_from_about,Do you sell washing machines?,"I can only help with TechStore orders, products, and support.",about_techstore; pol_return_exclusions; pol_bulk_orders; svc_centres,,"BEHAVIOUR: refused, but the About TechStore document answers this",9.4e-05,17,,
+q049,out_of_scope,answer_from_about,What time does your Bangalore store open?,"I can only help with TechStore orders, products, and support. TechStore is online-only and has no physical stores or showrooms.",about_techstore; pol_bulk_orders; ship_open_box; svc_centres,,"BEHAVIOUR: refused, but the About TechStore document answers this",0.0001,31,,
+q050,out_of_scope,partial,"What is the battery life of the X200, and do you offer a student discount?",The SoundWave X200 has a 40-hour battery life. I don't have information about whether TechStore offers a student discount.,prod_x200; prod_voltbank20k; tsg_watch_battery; prod_aurawatch_pro,,,0.000139,107,,
+q051,simple_faq,,What's the last day I can send an item back?,"Returns are accepted within the **30-day return window**, counted from the delivery date shown in the tracking record. I don't have information about your delivery date to calculate the exact last day.",pol_damaged_in_transit; pol_return_window; ship_failed_delivery; pol_preorder,,"BEHAVIOUR: possible unnecessary hedge (check): the needed documents were retrieved, yet it says something is missing",0.000144,135,,
+q052,simple_faq,,"I broke the seal on my earphones, can I still send them back?","No. Earphones are non-returnable once the seal is broken under the hygiene policy. If they’re faulty, they remain covered by the applicable warranty.",pol_return_exclusions; pol_damaged_in_transit; prod_studiobuds; prod_x200,,,0.000138,110,,
+q053,simple_faq,,Can I pay with my Paytm wallet?,"I can only help with TechStore orders, products, and support. Paytm wallet payments are not accepted.",bill_payment_methods; bill_emi; acc_create; bill_refund_to_closed_card,,BEHAVIOUR: REFUSED an answerable question outright,9.4e-05,25,,
+q054,simple_faq,,How much is shipping on a ₹500 order?,Shipping is ₹79 on a ₹500 order.,ship_charges; bill_payment_methods; ship_open_box; ship_international,,"rupee amount not in KB/orders (invented, or computed -- check): ₹500",8e-05,13,,
+q055,troubleshooting,,My smartwatch shows the wrong pulse readings,"I’m sorry the readings seem off. Try these steps:
+
+1. Wear the watch snugly, but not tightly, about one finger-width above your wrist bone.
+2. Check whether tattoos or very cold skin may be affecting the sensor.
+3. Stay still and check whether the readings remain implausible after adjusting the fit.
+4. If they do, the sensor may be a warranty defect.",tsg_watch_inaccurate_hr; prod_aurawatch_pro; prod_aurawatch3; tsg_watch_sync,,,0.000157,149,,
+q056,troubleshooting,,The screen on my monitor keeps blinking,"1. If you’re using 4K at 144 Hz or above, try a certified DisplayPort 1.4 or HDMI 2.1 cable under 2 metres.
+2. Temporarily disable adaptive sync and check whether the blinking stops.
+3. Test at 60 Hz with a known-good cable. If it still blinks, the panel may have a warranty defect.",tsg_monitor_flicker; tsg_monitor_no_signal; prod_clearview27; prod_clearview32,,,0.000186,201,,
+q057,billing_dispute,,I paid twice by mistake for the same thing,"If the payment page was submitted twice, only one order is created; the extra authorisation is a hold that should reverse automatically within 5 to 7 business days. If two separate orders were created, they must be cancelled separately and refunded separately.
+
+I don't have information about the charge dates, amounts, or your order; please share those details so I can identify which charge corresponds to the order.",bill_duplicate_charge; bill_chargeback; pol_damaged_in_transit; bill_failed_payment,,"BEHAVIOUR: possible unnecessary hedge (check): the needed documents were retrieved, yet it says something is missing",0.000257,343,,
+q058,billing_dispute,,Can my company's tax number be added to the bill later?,No. Your company’s GSTIN must be entered at checkout before placing the order. TechStore cannot add it to an invoice afterward or issue a new invoice for a completed order.,bill_invoice_gst; acc_address; bill_duplicate_charge; bill_promo_codes,,,0.000121,79,,
+q059,simple_faq,,Do you deliver to Dubai?,No. TechStore ships within India only and does not deliver to international addresses.,ship_international; ship_open_box; ship_charges; acc_address,,,9.8e-05,52,,
+q060,troubleshooting,,My laptop gets really hot and switches itself off,"I’m sorry—that’s concerning. Try these steps:
+
+1. Make sure the vents are unobstructed and the laptop isn’t being used on fabric.
+2. Clean the intake grilles with compressed air.
+3. Update the BIOS.
+4. Surface temperatures up to 45°C under sustained load are within specification. If it still shuts down under light load, that can indicate a fan or sensor fault, which is covered by warranty.",tsg_laptop_overheating; tsg_laptop_not_charging; prod_pulsebook_air13; tsg_laptop_slow,,,0.00021,238,,
+q061,simple_faq,,How can I make my login safer with a code on my phone?,"You can enable two-factor authentication from **Security** in your account, using an authenticator app or SMS. Enabling it will sign out all other sessions.",acc_password; acc_two_factor; acc_create; pol_privacy_data,,,0.000115,77,,
+q062,policy_edge_case,,"If my headphones get replaced, does the 2 year cover restart?","No. A warranty replacement inherits the remaining warranty on the original unit; it does not restart the full 2-year term. If fewer than 90 days remain, the replacement gets 90 days from the replacement date.",pol_return_exclusions; pol_replacement_warranty; svc_out_of_warranty; prod_y500,,,0.000145,123,,
+q063,technical_api,,The API keeps telling me I'm sending too many requests,"You’re likely hitting the API’s rate limit:
+
+1. The Partner API allows **600 requests per minute per token**. Bulk export endpoints allow **60 requests per minute**.
+2. If you receive **429**, wait for the number of seconds in the `Retry-After` header.
+3. Use exponential backoff with jitter, rather than retrying immediately.
+4. If the limit is exceeded continuously for more than 15 minutes, the token may be temporarily blocked for 1 hour.",api_rate_limits; api_timeouts; api_error_codes; api_idempotency,,,0.000178,188,,
+q064,simple_faq,,Can I change where my parcel goes after it has left?,"After dispatch, the delivery address cannot be changed. You can reschedule delivery once through the courier tracking link. If you need to change to a different pin code, you’ll need to refuse the order and reorder.",acc_address; pol_damaged_in_transit; ship_tracking; pol_privacy_data,,,0.000123,92,,

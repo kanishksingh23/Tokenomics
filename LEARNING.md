@@ -179,7 +179,8 @@ logprobs; Anthropic does not.
 still pay for, at the output price.
 
 **In our project:** our Answer record logs reasoning tokens separately, so hidden thinking doesn't silently
-inflate the bill.
+inflate the bill. In the baseline, **Luna thought far more than Sol**: 84 hidden tokens per question against 6.
+So Luna is ~17× cheaper but actually *uses more tokens*.
 
 ### Hallucination
 **What it is:** the model confidently states something false or invented, such as a policy that doesn't exist
@@ -224,8 +225,9 @@ word on average.
 **Example:** "Unbelievable" might be split into `un` + `believ` + `able` = 3 tokens. Like a taxi meter that ticks
 per kilometre, not per trip: a longer prompt runs the meter longer.
 
-**In our project:** a typical TechStore question costs about **836 input tokens**. Most of that is the retrieved
-documents, not the question itself.
+**In our project:** a TechStore question averages **877 input tokens** (measured on 64 questions, 15 Oct 2026).
+Half of that is our own instructions (436 tokens, identical every time), 44% is the retrieved documents, and the
+question itself is only about 14 tokens.
 
 ### Input tokens vs output tokens
 **What it is:**
@@ -251,10 +253,10 @@ answers are cheap answers.
 ### Cost per request
 **What it is:** (input tokens × input price) + (output tokens × output price).
 
-**Worked example (Sol):** 836 input tokens and 93 output tokens:
-- Input: 836 ÷ 1,000,000 × $2 = $0.00167
-- Output: 93 ÷ 1,000,000 × $10 = $0.00093
-- **Total ≈ $0.0026 per question.** On Luna, the same question costs about **$0.00013**.
+**Worked example (Sol, our measured averages):** 877 input tokens and 94 output tokens:
+- Input: 877 ÷ 1,000,000 × $2 = $0.00175
+- Output: 94 ÷ 1,000,000 × $10 = $0.00094
+- **Total ≈ $0.0027 per question.** On Luna, the same question costs about **$0.00016**.
 
 Tiny per question, but a real shop answers millions of questions.
 
@@ -268,6 +270,10 @@ work and charges about **95% less** for that repeated part.
 (the token count is unchanged), but they're billed much cheaper. Our code records how many tokens were
 cached (`cached_tokens`).
 
+**What we found:** in our 128-call baseline, **0 tokens were cached**. The likely reason: our prompts average 877
+tokens, and OpenAI has historically cached only prompts of at least 1,024 tokens. So this discount isn't helping
+us yet.
+
 **Don't confuse** this with *our own* response cache (Part 5), which skips the model completely.
 
 ### Batch API
@@ -279,6 +285,14 @@ cached (`cached_tokens`).
 **What it is:** our pipeline runs *everything except* the real AI call and returns a fake answer. Free and instant.
 **In our project:** `python cli.py --mock "question"`. Used for testing, demos without a key, and CI. Cost
 figures in mock mode are marked as ESTIMATE.
+
+### Prompt compression
+**What it is:** shrinking a prompt by removing words the model doesn't need, while keeping its meaning. A small model
+scores each word for importance and drops the least useful ones.
+**Example:** turning a long, chatty message into telegram style ("Order 48712 late? Refund status?"). The meaning
+survives, and you pay for far fewer words.
+**In the wider world:** Microsoft's **LLMLingua** claims up to 20× compression. A possible extra token-saving step for
+us: 44% of our ~877 input tokens are retrieved documents.
 
 ### Tokens vs cost: not the same thing
 Some techniques save **tokens**; others save only **money**:
@@ -728,6 +742,19 @@ Otherwise the maximum possible score shrinks, and 0.45 would mean something stri
 **What it is:** Sol's answer is final. There's no chain of "try an even bigger model", because that would be an
 unbounded bill.
 
+### Cascade (model cascading)
+**What it is:** another name for "try the cheap model first, move up only if needed". The models form a ladder
+(a cascade) from cheapest to most expensive. Our escalation is a two-step cascade (Luna → Sol).
+
+### Drafter and verifier
+**What it is:** names some projects (e.g. cascadeflow) use for the two models: the **drafter** is the cheap model that
+writes a first answer; the **verifier** is the expensive model that's used when the draft fails the quality check.
+Same idea as our economy and frontier models.
+
+### Speculative execution
+**What it is:** start the cheap attempt *on the gamble* that it will be good enough, and only pay for the expensive one
+if the gamble fails. The word comes from computer chips, which guess ahead to save time.
+
 ### Sticky escalation
 **What it is:** once a conversation escalates, keep it on Sol for the next 3 turns.
 **Why:** sharp answer, then weak answer, then sharp answer feels worse than consistent answers.
@@ -947,6 +974,14 @@ measurement still looks fine, because the measurements share the same blind spot
 **In our project:** 5% of the questions the classifier would send to Sol go to Luna anyway, just to learn. Cost:
 about **0.09% of the bill**, cheap insurance against the router slowly getting worse.
 
+### Thompson sampling
+**What it is:** a smarter alternative to ε-greedy. Instead of exploring a fixed 5% of the time, keep a running
+estimate of how good each option is *and how unsure you are about it*, then pick options in proportion to their chance
+of being the best. Options you know little about get tried more; proven poor ones are tried less and less.
+**Example:** choosing between two new restaurants. After one great meal at A and one average meal at B, you go to A
+more often, but still try B occasionally because one meal isn't much evidence.
+**In the wider world:** LiteLLM's Auto Router v2 uses it to choose between models *within* a tier.
+
 ### Shadow evaluation
 **What it is:** on a small sample, quietly call *both* models and compare the answers. The user only sees one.
 
@@ -1052,19 +1087,49 @@ library, and every call gets recorded automatically.
 ```
 Question: "Can I return opened headphones?"          total 1.9 s, $0.0026
  ├─ document search        9 ms     (4 documents found)
- └─ GPT-6.1 Sol call       1.89 s   836 in / 93 out tokens
+ └─ GPT-6.1 Sol call       1.89 s   877 in / 94 out tokens
 ```
 
 Later, with the router:
 ```
  ├─ cache check            2 ms     miss
  ├─ classifier             1 ms     → economy
- ├─ GPT-6 Luna call        0.9 s    836 in / 88 out tokens
+ ├─ GPT-6 Luna call        0.9 s    877 in / 147 out tokens
  └─ uncertainty check      1 ms     0.12 → no escalation
 ```
 
 ### Span
 **What it is:** one step inside a trace (the document search, the model call).
+
+### Observation and generation (Langfuse words)
+**Observation:** Langfuse's general name for any recorded step in a trace. Spans are one kind.
+**Generation:** an observation that is specifically **an AI model call**. It stores the model name, the
+messages sent, the answer, token counts and cost.
+**In our project:** each question's trace has three observations: `techstore-question` (the whole thing),
+`retrieve` (document search) and `llm` (the generation, i.e. the call to Sol or Luna).
+
+### Session (Langfuse)
+**What it is:** a group of related traces.
+**Example:** a folder holding every receipt from one shopping trip.
+**In our project:** a batch run puts all its traces in one session named after the output file (e.g. all 64
+baseline questions under `sol_baseline`). Each visitor to the Streamlit demo gets their own session.
+
+### Environment (Langfuse)
+**What it is:** a label that keeps separate kinds of data apart in the same project. The dropdown at the top of
+the Langfuse page picks which one you're looking at.
+**In our project:** `mock` for free test runs, `development` for real model calls. That way fake mock costs never
+get mixed into real spending numbers.
+
+### Flush
+**What it is:** Langfuse collects traces in memory and sends them in batches in the background. **Flushing**
+means "send everything now". A short script must flush before it exits, or the last traces are lost.
+**Example:** pressing "send" on an email that's still sitting in your outbox before you shut the laptop.
+**In our project:** `tracing.flush()` runs at the end of every CLI command.
+
+### No-op
+**What it is:** "no operation": code that deliberately does nothing.
+**In our project:** without Langfuse keys, every function in `tracing.py` is a no-op, so tests, CI and anyone
+without an account run exactly as before.
 
 ### SDK (Software Development Kit)
 **What it is:** a ready-made library you install so you don't write the connection code yourself (e.g. `pip install langfuse`).
@@ -1130,6 +1195,8 @@ rather than many small updates. No server needed.
 - **Commit:** a saved snapshot of changes, with a message.
 - **Push:** upload commits to GitHub.
 - **.gitignore:** a list of files Git must never save. Our `.env` (holding the API key) is on it.
+- **Star (★):** a GitHub bookmark. Star counts are a rough measure of how popular a project is, not of how good it is.
+- **Archived repo:** a project its owners have frozen. It can be read but no longer gets updates.
 
 ### Environment variables and `.env`
 **What it is:** settings kept *outside* the code: API keys, model names, `TOP_K`.
@@ -1284,3 +1351,6 @@ names over made-up ones; if a fact changes (like a price or a count), update it 
 | Date | Change |
 |---|---|
 | 2026-10-09 | First version: Parts 0–13, built from the original glossary plus the terms added during Phase 0, Docker/CI, and Langfuse. |
+| 2026-10-09 | Added from the similar-projects research: prompt compression, cascade, drafter/verifier, speculative execution, Thompson sampling, GitHub stars and archived repos. |
+| 2026-10-15 | Added Langfuse setup terms: observation, generation, session, environment, flush, no-op. |
+| 2026-10-15 | Updated token figures with the measured baseline (877 input tokens; prompt split; no prompt caching; Luna's reasoning tokens). |

@@ -9,7 +9,9 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from pathlib import Path
 
+import tracing
 from agent import SupportAgent
 
 
@@ -25,6 +27,8 @@ def main() -> int:
                     help="run the full pipeline against a stub model: no API key, no spend")
     ap.add_argument("--batch", help="JSONL file with a 'question' field per line")
     ap.add_argument("--out", help="write results as JSONL")
+    ap.add_argument("--session", help="Langfuse session that groups this run's traces "
+                                      "(default for --batch: the --out file name)")
     args = ap.parse_args()
 
     agent = SupportAgent(model=args.model, retriever_mode=args.retriever,
@@ -36,9 +40,10 @@ def main() -> int:
     if args.batch:
         rows = [json.loads(line) for line in open(args.batch, encoding="utf-8") if line.strip()]
         out = open(args.out, "w", encoding="utf-8") if args.out else None
+        session = args.session or (Path(args.out).stem if args.out else None)
         total = 0.0
         for i, row in enumerate(rows, 1):
-            res = agent.ask(row["question"])
+            res = agent.ask(row["question"], session_id=session)
             total += res.cost_usd
             print(f"[{i}/{len(rows)}] ${res.cost_usd:.6f}  {res.latency_ms:7.1f}ms  "
                   f"{row['question'][:60]}", file=sys.stderr)
@@ -48,9 +53,12 @@ def main() -> int:
                 out.write(json.dumps(rec, ensure_ascii=False) + "\n")
         if out:
             out.close()
+        tracing.flush()
         tag = " ESTIMATED (mock)" if agent.mock else ""
         print(f"\ntotal ${total:.4f} over {len(rows)} questions "
               f"(mean ${total/max(len(rows),1):.6f}){tag}", file=sys.stderr)
+        if tracing.enabled() and session:
+            print(f"Langfuse: traces grouped under session '{session}'", file=sys.stderr)
         return 0
 
     if not args.question:
@@ -64,7 +72,8 @@ def main() -> int:
         print(ctx)
         return 0
 
-    res = agent.ask(args.question)
+    res = agent.ask(args.question, session_id=args.session)
+    tracing.flush()
     if res.error:
         print(f"ERROR: {res.error}", file=sys.stderr)
         return 1
@@ -73,6 +82,9 @@ def main() -> int:
     print(f"\n-- {res.model} | {res.prompt_tokens}+{res.completion_tokens} tok "
           f"| ${res.cost_usd:.6f}{est} | {res.latency_ms:.0f}ms "
           f"| docs={','.join(res.retrieved)}", file=sys.stderr)
+    url = tracing.trace_url(res.trace_id)
+    if url:
+        print(f"-- trace: {url}", file=sys.stderr)
     return 0
 
 

@@ -6,3 +6,5 @@ python-dotenv>=1.0.0
 streamlit>=1.38.0         # demo UI
 sentence-transformers>=3.0.0   # embedding search (the default retriever)
 tiktoken>=0.7.0                # optional: exact token counts in mock mode; falls back to a heuristic
+langfuse>=5.0                  # tracing: tokens, cost and latency per question (optional at runtime)
+protobuf>=5,<7                 # langfuse otherwise pulls protobuf 7, which streamlit rejects

@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
+# Tests must never send traces, even on a machine whose .env has Langfuse keys.
+os.environ["LANGFUSE_TRACING"] = "off"
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import config  # noqa: E402
@@ -326,3 +329,26 @@ def test_catalogue_agrees_with_product_pages():
         name, _, price, _ = [x.strip() for x in line.split("|")]
         assert name == docs[pid].title
         assert int(price.replace("₹", "").replace(",", "")) == docs[pid].price
+
+
+def test_tracing_off_is_a_no_op():
+    import tracing
+    assert not tracing.enabled()
+    with tracing.observation("x", as_type="span") as step:
+        step.update(output="ignored")
+    tracing.flush()
+    res = SupportAgent(retriever_mode="keyword", mock=True).ask("Can I return opened headphones?",
+                                                          session_id="t")
+    assert res.answer and res.trace_id is None and tracing.trace_url(res.trace_id) is None
+
+
+def test_trace_cost_split_matches_billing():
+    import tracing
+    model = config.FRONTIER_MODEL
+    usage, cost = tracing.usage_and_cost(model, prompt_tokens=1000, completion_tokens=300,
+                                         cached_tokens=400, reasoning_tokens=100)
+    assert usage["input"] == 600 and usage["input_cached_tokens"] == 400
+    assert usage["output"] == 200 and usage["output_reasoning_tokens"] == 100
+    assert usage["total"] == 1300
+    assert abs(cost["total"] - config.price(model, 1000, 300, 400)) < 1e-12
+    assert tracing.usage_and_cost("unknown-model", 10, 5)[1] == {}

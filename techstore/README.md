@@ -38,6 +38,29 @@ streamlit run app.py                                     # the demo
 Retrieval and context assembly work with **zero dependencies and no API key** —
 `--dry-run` and `validate_data.py` are the loop to iterate on the corpus in.
 
+### Tracing with Langfuse
+
+Every question becomes a trace in [Langfuse](https://langfuse.com): what was retrieved,
+the exact prompt, the answer, tokens (input, cached, output, reasoning) and cost.
+
+1. Create a project at cloud.langfuse.com → Settings → API keys.
+2. Add `LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY` and `LANGFUSE_BASE_URL` to `.env`
+   (see `.env.example`). Never commit or share the secret key.
+3. Run anything as usual. The CLI prints a link to each trace; the demo shows one in the inspector.
+
+```bash
+python cli.py "Can I return opened headphones?"                      # prints the trace link
+python cli.py --batch data/questions_dev.jsonl --out runs/sol_baseline.jsonl
+                                    # all 64 traces grouped under session "sol_baseline"
+```
+
+- **Costs are ours, not guessed:** they're sent from the pricing table in `config.py`, so
+  Langfuse's numbers match `cost_usd` in the results file exactly.
+- **Mock runs are kept apart:** they go to the `mock` environment, real calls to `development`.
+  Pick the environment at the top of the Langfuse page.
+- **Optional:** without the keys (or with `LANGFUSE_TRACING=off`) tracing is skipped and nothing
+  else changes. Tests always turn it off.
+
 ### With Docker
 
 From the repo root:
@@ -59,7 +82,7 @@ downloaded once so the container starts offline).
 ```bash
 pip install -r requirements-dev.txt
 ruff check .              # add --fix for import order and similar
-python -m pytest          # 26 tests, no key, no network, < 1 s
+python -m pytest          # 28 tests, no key, no network, < 1 s
 python validate_data.py
 ```
 
@@ -75,6 +98,7 @@ techstore/
 ├── agent.py             retrieve -> assemble context -> call model -> Answer record
 ├── cli.py               single question, --dry-run, or --batch over JSONL
 ├── app.py               Streamlit chat + inspector panel
+├── tracing.py           Langfuse traces (no-op without keys)
 ├── validate_data.py     corpus integrity; dev/test progress; --freeze locks the test set
 ├── check_setup.py       pre-flight: packages, key, model ids exist, prices present
 ├── review_results.py    batch review: cost, output length, flags, grading sheet
@@ -85,7 +109,7 @@ techstore/
 │   ├── orders.jsonl            40 orders incl. the multi-charge dispute case
 │   ├── questions_dev.jsonl     dev set (target 100): tuning only
 │   └── questions_test.jsonl    test set (target 200): frozen, final results only
-├── tests/test_agent.py  26 tests, no API calls, run by CI on every push
+├── tests/test_agent.py  28 tests, no API calls, run by CI on every push
 ├── Dockerfile           Streamlit demo image (CPU torch, MiniLM baked in)
 ├── pyproject.toml       ruff + pytest settings
 └── requirements-dev.txt pytest, ruff (all CI needs)

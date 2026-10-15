@@ -18,6 +18,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 import config
+import tracing
 from retriever import Doc, build_retriever, load_docs
 
 ORDER_ID = re.compile(r"\b(?:order\s*#?\s*)?(\d{5})\b", re.I)
@@ -122,6 +123,7 @@ class Answer:
     latency_ms: float = 0.0
     retrieval_ms: float = 0.0
     error: str | None = None
+    trace_id: str | None = None       # Langfuse trace, when tracing is on
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), ensure_ascii=False)
@@ -234,26 +236,62 @@ class SupportAgent:
             self._client = OpenAI(api_key=config.API_KEY, base_url=config.BASE_URL)
         return self._client
 
-    def ask(self, question: str) -> Answer:
-        context, retrieved, orders_used, retrieval_ms = self.build_context(question)
+    def ask(self, question: str, session_id: str | None = None) -> Answer:
+        """Answer one question. With Langfuse configured, also records a trace;
+        `session_id` groups traces (e.g. one batch run) in the Langfuse UI."""
+        with tracing.question_trace(question, model=self.model, retriever=self.retriever.name,
+                                    top_k=self.top_k, mock=self.mock,
+                                    session_id=session_id) as root:
+            result = self._answer(question)
+            result.trace_id = root.trace_id
+            root.update(
+                output=result.answer if not result.error else None,
+                level="ERROR" if result.error else "DEFAULT",
+                status_message=result.error,
+                metadata={"cost_usd": result.cost_usd, "cost_is_estimate": result.cost_is_estimate,
+                          "retrieved": result.retrieved, "orders_used": result.orders_used,
+                          "finish_reason": result.finish_reason},
+            )
+        return result
+
+    def _answer(self, question: str) -> Answer:
+        with tracing.observation("retrieve", as_type="retriever", input=question) as step:
+            context, retrieved, orders_used, retrieval_ms = self.build_context(question)
+            step.update(output={"documents": retrieved, "orders": orders_used},
+                        metadata={"retrieval_ms": round(retrieval_ms, 2), "top_k": self.top_k})
         result = Answer(question=question, answer="", model=self.model,
                         retriever=self.retriever.name,
                         retrieved=retrieved, orders_used=orders_used,
                         retrieval_ms=round(retrieval_ms, 2))
-        t0 = time.perf_counter()
-        if self.mock:
-            answer, pt, ct = MockCompletion(self).respond(question, context, retrieved)
-            result.answer = answer
-            result.prompt_tokens, result.completion_tokens = pt, ct
-            result.cost_usd = round(config.price(self.model, pt, ct), 6)
-            result.cost_is_estimate = True
+        messages = [{"role": "system", "content": self.system_message(context)},
+                    {"role": "user", "content": question}]
+        with tracing.observation("llm", as_type="generation", model=self.model, input=messages,
+                                 model_parameters={"max_tokens": config.MAX_TOKENS}) as gen:
+            t0 = time.perf_counter()
+            if self.mock:
+                answer, pt, ct = MockCompletion(self).respond(question, context, retrieved)
+                result.answer = answer
+                result.prompt_tokens, result.completion_tokens = pt, ct
+                result.cost_usd = round(config.price(self.model, pt, ct), 6)
+                result.cost_is_estimate = True
+            else:
+                self._call_model(messages, result)
             result.latency_ms = round((time.perf_counter() - t0) * 1000, 1)
-            return result
+            usage, cost = tracing.usage_and_cost(
+                self.model, result.prompt_tokens, result.completion_tokens,
+                result.cached_prompt_tokens, result.reasoning_tokens)
+            gen.update(output=result.answer if not result.error else None,
+                       usage_details=usage, cost_details=cost or None,
+                       level="ERROR" if result.error else "DEFAULT",
+                       status_message=result.error,
+                       metadata={"finish_reason": result.finish_reason,
+                                 "temperature_used": result.temperature_used})
+        return result
+
+    def _call_model(self, messages: list[dict], result: Answer) -> None:
         try:
             resp, result.temperature_used = chat_completion(
-                self.client, self.model,
-                [{"role": "system", "content": self.system_message(context)},
-                 {"role": "user", "content": question}],
+                self.client, self.model, messages,
                 max_tokens=config.MAX_TOKENS, temperature=config.TEMPERATURE,
             )
             result.answer = (resp.choices[0].message.content or "").strip()
@@ -274,5 +312,3 @@ class SupportAgent:
                     self.model, u.prompt_tokens, u.completion_tokens, cached), 6)
         except Exception as exc:                       # noqa: BLE001
             result.error = f"{type(exc).__name__}: {exc}"
-        result.latency_ms = round((time.perf_counter() - t0) * 1000, 1)
-        return result

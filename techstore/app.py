@@ -10,9 +10,12 @@ schema grows with it instead of being retrofitted in Week 12.
 """
 from __future__ import annotations
 
+import uuid
+
 import streamlit as st
 
 import config
+import tracing
 from agent import SupportAgent
 
 st.set_page_config(page_title="TechStore Support", page_icon="🎧", layout="wide")
@@ -72,7 +75,9 @@ question = typed or st.session_state.pop("pending", None)
 
 if question:
     with st.spinner("Thinking..."):
-        result = agent.ask(question)
+        # One Langfuse session per browser session groups this visitor's traces.
+        sid = st.session_state.setdefault("trace_session", f"ui-{uuid.uuid4().hex[:8]}")
+        result = agent.ask(question, session_id=sid)
     st.session_state.history.append(result)
     st.session_state.spend += result.cost_usd
 
@@ -116,7 +121,7 @@ with right:
                  r.completion_tokens)
         if r.cached_prompt_tokens:
             st.caption(f"{r.cached_prompt_tokens} prompt tokens served from provider cache "
-                       "(billed at 10%)")
+                       "(billed at the cheaper cached rate)")
 
         st.divider()
         st.caption(f"**Retrieved documents** · top {len(r.retrieved)} of {len(agent.docs)}")
@@ -127,6 +132,9 @@ with right:
             for o in r.orders_used:
                 st.markdown(f"`#{o}`")
         st.caption(f"Retrieval {r.retrieval_ms:.2f} ms via **{r.retriever}** · `{r.model}`")
+        url = tracing.trace_url(r.trace_id)
+        if url:
+            st.markdown(f"[View this trace in Langfuse ↗]({url})")
 
         st.divider()
         est = any(t.cost_is_estimate for t in st.session_state.history)
