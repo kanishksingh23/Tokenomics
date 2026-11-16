@@ -108,7 +108,7 @@ techstore/
 │   ├── knowledge_base.jsonl    86 policy / product / billing / API documents
 │   ├── orders.jsonl            40 orders incl. the multi-charge dispute case
 │   ├── questions_dev.jsonl     dev set (target 100): tuning only
-│   └── questions_test.jsonl    test set (target 200): frozen, final results only
+│   └── questions_test.jsonl    test set (target 36): frozen, final results only
 ├── tests/test_agent.py  28 tests, no API calls, run by CI on every push
 ├── Dockerfile           Streamlit demo image (CPU torch, MiniLM baked in)
 ├── pyproject.toml       ruff + pytest settings
@@ -196,7 +196,7 @@ There are two sets, and they must never mix:
 | Set | File | Target | Use |
 |:---|:---|---:|:---|
 | Dev | `data/questions_dev.jsonl` (ids `q…`) | 100 | Finding problems and tuning anything |
-| Test | `data/questions_test.jsonl` (ids `t…`) | 200 | Final results only |
+| Test | `data/questions_test.jsonl` (ids `t…`) | 36 | Final results only |
 
 **Why:** every fix made after looking at results fits the system to those
 questions, training or not. On 14 new questions keyword search found the right

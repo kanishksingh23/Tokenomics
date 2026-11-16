@@ -22,10 +22,12 @@ DEV_TARGETS = {
     # refuses correctly instead of inventing.
     "out_of_scope": 12,
 }
+# 36 fresh questions (decided 2026-11-16), written by Rahul and frozen before the
+# final measurement, because all 64 dev questions were used for tuning.
 TEST_TARGETS = {
-    "simple_faq": 24, "order_status": 24, "product_info": 16, "product_comparison": 20,
-    "troubleshooting": 20, "billing_dispute": 28, "technical_api": 28,
-    "policy_edge_case": 24, "out_of_scope": 16,
+    "simple_faq": 4, "order_status": 4, "product_info": 3, "product_comparison": 4,
+    "troubleshooting": 3, "billing_dispute": 5, "technical_api": 5,
+    "policy_edge_case": 4, "out_of_scope": 4,
 }
 CATEGORIES = DEV_TARGETS
 # What a correct reply does, for out_of_scope questions (see review_results.py).

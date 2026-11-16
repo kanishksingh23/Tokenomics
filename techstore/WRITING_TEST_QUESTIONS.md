@@ -1,10 +1,10 @@
 # Writing the TechStore Test Questions
 
-A guide for writing the **200 test questions** in `data/questions_test.jsonl`. Read it once fully before starting; after that, the checklists and the appendices are what you will keep coming back to.
+A guide for writing the **36 test questions** in `data/questions_test.jsonl`. Read it once fully before starting; after that, the checklists and the appendices are what you will keep coming back to.
 
 ## Why this set matters
 
-Every fix we made in Phase 0 — document wording, search rules, the prompt — was made after looking at the 50 seed questions, so the system is now fitted to them. On 14 questions written later, keyword search found the right document only 8 times out of 14, while it had looked best on the seeds. **The test set is how we find out how the system does on questions it has never seen.** It is what the router's final cost and quality claims are measured on.
+Every fix we made in Phase 0 — document wording, search rules, the prompt — was made after looking at the 50 seed questions, so the system is now fitted to them. On 14 questions written later, keyword search found the right document only 8 times out of 14, while it had looked best on the seeds. **The test set is how we find out how the system does on questions it has never seen.** Every token- and cost-saving technique we build is finally measured on it, so the questions we tuned on (the 64 dev questions) never decide the final result.
 
 That only works if the test set stays independent of everything we tune. Hence the rules below.
 
@@ -23,16 +23,16 @@ The store's date is **30 September 2026**. Every order record and every "is it l
 
 | Category | Test target | Expected tier | In one line |
 |:---|---:|:---|:---|
-| `simple_faq` | 24 | economy | One fact about a policy, delivery, payment or account |
-| `order_status` | 24 | economy | About one specific order, by its order number |
-| `product_info` | 16 | economy | One fact about one product |
-| `product_comparison` | 20 | economy_escalation | Choosing between products, or "which one is best for…" |
-| `troubleshooting` | 20 | economy | Something the customer owns isn't working |
-| `billing_dispute` | 28 | frontier | A problem with money: charges, refunds, EMI, invoices |
-| `technical_api` | 28 | frontier | A developer using the TechStore Partner API |
-| `policy_edge_case` | 24 | frontier | Two rules collide, or a rule meets an unusual situation |
-| `out_of_scope` | 16 | economy | The documents can't or shouldn't answer it |
-| **Total** | **200** | | |
+| `simple_faq` | 4 | economy | One fact about a policy, delivery, payment or account |
+| `order_status` | 4 | economy | About one specific order, by its order number |
+| `product_info` | 3 | economy | One fact about one product |
+| `product_comparison` | 4 | economy_escalation | Choosing between products, or "which one is best for…" |
+| `troubleshooting` | 3 | economy | Something the customer owns isn't working |
+| `billing_dispute` | 5 | frontier | A problem with money: charges, refunds, EMI, invoices |
+| `technical_api` | 5 | frontier | A developer using the TechStore Partner API |
+| `policy_edge_case` | 4 | frontier | Two rules collide, or a rule meets an unusual situation |
+| `out_of_scope` | 4 | economy | The documents can't or shouldn't answer it |
+| **Total** | **36** | | |
 
 **Expected tier** is your judgement of which model a well-built router *should* pick:
 - `economy` — a cheap model can answer it from one document.
@@ -41,7 +41,7 @@ The store's date is **30 September 2026**. Every order record and every "is it l
 
 When unsure, use the table's default for the category.
 
-### 1. `simple_faq` — 24 questions
+### 1. `simple_faq` — 4 questions
 One fact, one document. Policies (`pol_…`), shipping (`ship_…`), payment (`bill_payment_methods`), account (`acc_…`).
 
 ```
@@ -54,7 +54,7 @@ One fact, one document. Policies (`pol_…`), shipping (`ship_…`), payment (`b
    key points: ₹49 handling fee · refunded if the order is cancelled before dispatch
 ```
 
-### 2. `order_status` — 24 questions
+### 2. `order_status` — 4 questions
 About one real order. **Use an order number from [Appendix B](#appendix-b-the-40-orders)** and put it in `order_ids`. Vary the status (processing, shipped, delivered, cancelled, returned), and remember the store's date.
 
 ```
@@ -63,7 +63,7 @@ About one real order. **Use an order number from [Appendix B](#appendix-b-the-40
    key points: status is Processing · expected 2 October 2026 · tracking link sent by email and SMS once shipped
 ```
 
-### 3. `product_info` — 16 questions
+### 3. `product_info` — 3 questions
 One fact about one product (`prod_…`). Name the product the way a customer would ("the voltbank", "pulsebook air").
 
 ```
@@ -76,7 +76,7 @@ One fact about one product (`prod_…`). Name the product the way a customer wou
    key points: 1.12 kg
 ```
 
-### 4. `product_comparison` — 20 questions
+### 4. `product_comparison` — 4 questions
 Choosing between products, or asking for the best one for a purpose. List **every product page needed** in `context_ids` (not `catalogue_summary`). Include some that name a category instead of products ("your cheapest laptop"), and some with a budget.
 
 ```
@@ -89,7 +89,7 @@ Choosing between products, or asking for the best one for a purpose. List **ever
    key points: AuraWatch 3 is rated 5 ATM · AuraWatch Pro is rated 10 ATM
 ```
 
-### 5. `troubleshooting` — 20 questions
+### 5. `troubleshooting` — 3 questions
 Something the customer owns isn't working. Mostly `tsg_…` documents; add `pol_warranty_terms` when the honest answer is "this is a warranty defect".
 
 ```
@@ -98,7 +98,7 @@ Something the customer owns isn't working. Mostly `tsg_…` documents; add `pol_
    key points: put both buds in the case for 10 seconds · reset by holding both touch panels for 15 seconds · clean the charging contacts
 ```
 
-### 6. `billing_dispute` — 28 questions
+### 6. `billing_dispute` — 5 questions
 Money. These need the most care: several documents, often an order record, often arithmetic. Order **48712** has three charges (one payment, two duplicate holds); most other orders have one.
 
 ```
@@ -107,7 +107,7 @@ Money. These need the most care: several documents, often an order record, often
    key points: gift-card portion comes back as store credit · the rest goes back to UPI
 ```
 
-### 7. `technical_api` — 28 questions
+### 7. `technical_api` — 5 questions
 A developer integrating with the Partner API (`api_…`): error codes, webhooks, tokens, retries, pagination. You don't need to understand the code; the documents say what the right answer is. Developers write tersely and paste error messages.
 
 ```
@@ -120,7 +120,7 @@ A developer integrating with the Partner API (`api_…`): error codes, webhooks,
    key points: stock figures can lag up to 60 seconds · handle 422 out_of_stock on order creation
 ```
 
-### 8. `policy_edge_case` — 24 questions
+### 8. `policy_edge_case` — 4 questions
 Two rules meet, or a rule meets an unusual case. Usually 2–3 documents. The best ones make the customer's situation sound reasonable while the rules point the other way.
 
 ```
@@ -133,15 +133,15 @@ Two rules meet, or a rule meets an unusual case. Usually 2–3 documents. The be
    key points: more than 10 units is a business order · business orders have a 15-day return window · a GSTIN is required
 ```
 
-### 9. `out_of_scope` — 16 questions
+### 9. `out_of_scope` — 4 questions
 Questions the documents can't or shouldn't answer. Each needs an `expected_behavior`:
 
 | `expected_behavior` | Count | Meaning | Example |
 |:---|---:|:---|:---|
-| `decline_off_topic` | 4 | Nothing to do with TechStore; must decline even if the model knows the answer | *"whats the weather in delhi today"* |
-| `admit_unknown` | 6 | About TechStore, but not in the documents; must say so, never invent | *"do you take my old laptop in exchange"* |
-| `answer_from_about` | 3 | Answered by the About TechStore document (`about_techstore`) | *"do you sell gaming consoles"* |
-| `partial` | 3 | Half answerable, half not | *"what colours does the x200 come in and can you engrave it"* |
+| `decline_off_topic` | 1 | Nothing to do with TechStore; must decline even if the model knows the answer | *"whats the weather in delhi today"* |
+| `admit_unknown` | 1 | About TechStore, but not in the documents; must say so, never invent | *"do you take my old laptop in exchange"* |
+| `answer_from_about` | 1 | Answered by the About TechStore document (`about_techstore`) | *"do you sell gaming consoles"* |
+| `partial` | 1 | Half answerable, half not | *"what colours does the x200 come in and can you engrave it"* |
 
 For `admit_unknown`, check the knowledge base really doesn't cover it; search for the obvious words in [Appendix A](#appendix-a-the-85-documents-you-can-list). Leave `context_ids` empty except for `answer_from_about` (`about_techstore`) and `partial` (the document for the answerable half).
 
@@ -171,7 +171,7 @@ And rotate through **personas**:
 | Developer | terse, error codes, pasted messages |
 | Busy professional | one line, no greeting |
 
-Aim for no persona or type above about a third of any category.
+With only 3–5 questions per category, give each question in a category a **different type and persona**.
 
 ## Writing key points
 
@@ -207,17 +207,17 @@ formal or polite.
 
 ## The format
 
-Each question is **one line** in `data/questions_test.jsonl`. Ids run `t001` to `t200`.
+Each question is **one line** in `data/questions_test.jsonl`. Ids run `t001` to `t036`.
 
 ```json
 {"id": "t001", "category": "simple_faq", "question": "if i order now can it come tomorrow?", "context_ids": ["ship_charges"], "expected_tier": "economy", "key_points": ["Express next-day delivery costs ₹149", "Metro cities only, order before 2 PM"], "source": "human"}
-{"id": "t025", "category": "order_status", "question": "48390 still says processing, when does it ship??", "context_ids": ["ship_tracking"], "order_ids": ["48390"], "expected_tier": "economy", "key_points": ["Status is Processing", "Expected 2 October 2026", "Tracking link sent by email and SMS once shipped"], "source": "human"}
-{"id": "t185", "category": "out_of_scope", "question": "whats the weather in delhi today", "context_ids": [], "expected_tier": "economy", "expected_behavior": "decline_off_topic", "key_points": ["Declines; says it only helps with TechStore orders, products and support"], "source": "human"}
+{"id": "t005", "category": "order_status", "question": "48390 still says processing, when does it ship??", "context_ids": ["ship_tracking"], "order_ids": ["48390"], "expected_tier": "economy", "key_points": ["Status is Processing", "Expected 2 October 2026", "Tracking link sent by email and SMS once shipped"], "source": "human"}
+{"id": "t033", "category": "out_of_scope", "question": "whats the weather in delhi today", "context_ids": [], "expected_tier": "economy", "expected_behavior": "decline_off_topic", "key_points": ["Declines; says it only helps with TechStore orders, products and support"], "source": "human"}
 ```
 
 | Field | Required | Notes |
 |:---|:---|:---|
-| `id` | yes | `t001` … `t200` |
+| `id` | yes | `t001` … `t036` |
 | `category` | yes | One of the 9 above |
 | `question` | yes | The customer's message, in their words |
 | `context_ids` | yes | Document ids from Appendix A. Empty only for out-of-scope |
@@ -253,14 +253,14 @@ The examples in this guide show the format only. **Don't use them as test questi
 
 ## Process
 
-1. **Write in batches, one category at a time**, about 20 questions per sitting. Roughly 3–4 minutes each: about 12 hours for all 200, or 6 each if Kanishk writes half.
+1. **Write one category at a time.** Roughly 3–4 minutes per question: about 2–2½ hours for all 36.
 2. After each batch, run:
    ```bash
    python validate_data.py
    ```
    It shows progress per category and names any problem: an unknown document or order id, a missing field, a duplicate.
 3. **Spot-check**: Kanishk reads 20 random questions against the documents and their key points.
-4. **Freeze**, once all 200 are in and validation passes:
+4. **Freeze**, once all 36 are in and validation passes:
    ```bash
    python validate_data.py --freeze
    ```
