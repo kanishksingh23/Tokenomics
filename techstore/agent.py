@@ -77,13 +77,16 @@ _QUIRKS: dict[str, dict] = {}
 
 
 def chat_completion(client, model: str, messages: list[dict], max_tokens: int,
-                    temperature: float | None):
+                    temperature: float | None, reasoning_effort: str | None = None):
     """Returns (response, temperature actually sent or None)."""
     q = _QUIRKS.setdefault(model, {"temperature": True, "limit": "max_completion_tokens"})
     for _ in range(4):
         kwargs = {"model": model, "messages": messages, q["limit"]: max_tokens}
         if q["temperature"] and temperature is not None:
             kwargs["temperature"] = temperature
+        if reasoning_effort:
+            # Never dropped silently: an unsupported value fails loudly.
+            kwargs["reasoning_effort"] = reasoning_effort
         try:
             return client.chat.completions.create(**kwargs), kwargs.get("temperature")
         except Exception as exc:                        # noqa: BLE001
@@ -116,6 +119,8 @@ class Answer:
     reasoning_tokens: int = 0         # hidden, billed as output; 0 for non-reasoning models
     finish_reason: str | None = None  # "length" means the answer was cut off at MAX_TOKENS
     temperature_used: float | None = None  # None: the model rejected temperature (not reproducible at T=0)
+    reasoning_effort: str | None = None    # None: the model's default
+    system_prompt: str = ""                # file name, so runs with different prompts stay comparable
     cost_usd: float = 0.0
     # True in mock mode: tokens are counted locally and output length is
     # assumed. Never mix estimated rows into benchmark results.
@@ -164,8 +169,10 @@ class MockCompletion:
 
 class SupportAgent:
     def __init__(self, model: str | None = None, retriever_mode: str | None = None,
-                 top_k: int | None = None, mock: bool = False):
+                 top_k: int | None = None, mock: bool = False,
+                 reasoning_effort: str | None = None, system_prompt: str | None = None):
         self.model = model or config.FRONTIER_MODEL
+        self.reasoning_effort = reasoning_effort or config.REASONING_EFFORT
         self.top_k = top_k or config.TOP_K
         self.docs: list[Doc] = load_docs(config.KB_PATH)
         self.retriever = build_retriever(self.docs, retriever_mode or config.RETRIEVER)
@@ -175,7 +182,9 @@ class SupportAgent:
         # twice the PulseBook 14?", because the Pro 16 page outscored it.
         self._product_patterns = [(d, [_alias_pattern(a) for a in d.meta.get("aliases", [])])
                                   for d in self.docs if d.meta.get("aliases")]
-        self.system_prompt = config.SYSTEM_PROMPT_PATH.read_text(encoding="utf-8").strip()
+        prompt_path = config.BASE_DIR / system_prompt if system_prompt else config.SYSTEM_PROMPT_PATH
+        self.system_prompt_name = prompt_path.name
+        self.system_prompt = prompt_path.read_text(encoding="utf-8").strip()
         self.mock = mock
         self._client = None
 
@@ -241,6 +250,8 @@ class SupportAgent:
         `session_id` groups traces (e.g. one batch run) in the Langfuse UI."""
         with tracing.question_trace(question, model=self.model, retriever=self.retriever.name,
                                     top_k=self.top_k, mock=self.mock,
+                                    reasoning_effort=self.reasoning_effort,
+                                    system_prompt=self.system_prompt_name,
                                     session_id=session_id) as root:
             result = self._answer(question)
             result.trace_id = root.trace_id
@@ -260,13 +271,17 @@ class SupportAgent:
             step.update(output={"documents": retrieved, "orders": orders_used},
                         metadata={"retrieval_ms": round(retrieval_ms, 2), "top_k": self.top_k})
         result = Answer(question=question, answer="", model=self.model,
+                        reasoning_effort=self.reasoning_effort,
+                        system_prompt=self.system_prompt_name,
                         retriever=self.retriever.name,
                         retrieved=retrieved, orders_used=orders_used,
                         retrieval_ms=round(retrieval_ms, 2))
         messages = [{"role": "system", "content": self.system_message(context)},
                     {"role": "user", "content": question}]
         with tracing.observation("llm", as_type="generation", model=self.model, input=messages,
-                                 model_parameters={"max_tokens": config.MAX_TOKENS}) as gen:
+                                 model_parameters={"max_tokens": config.MAX_TOKENS,
+                                                   "reasoning_effort": self.reasoning_effort or "default",
+                                                   "system_prompt": self.system_prompt_name}) as gen:
             t0 = time.perf_counter()
             if self.mock:
                 answer, pt, ct = MockCompletion(self).respond(question, context, retrieved)
@@ -293,6 +308,7 @@ class SupportAgent:
             resp, result.temperature_used = chat_completion(
                 self.client, self.model, messages,
                 max_tokens=config.MAX_TOKENS, temperature=config.TEMPERATURE,
+                reasoning_effort=self.reasoning_effort,
             )
             result.answer = (resp.choices[0].message.content or "").strip()
             result.finish_reason = resp.choices[0].finish_reason

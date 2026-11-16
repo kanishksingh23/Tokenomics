@@ -12,7 +12,7 @@ BASE_DIR = Path(__file__).parent
 DATA_DIR = BASE_DIR / "data"
 KB_PATH = DATA_DIR / "knowledge_base.jsonl"
 ORDERS_PATH = DATA_DIR / "orders.jsonl"
-SYSTEM_PROMPT_PATH = BASE_DIR / "system_prompt.txt"
+SYSTEM_PROMPT_PATH = BASE_DIR / os.getenv("SYSTEM_PROMPT", "system_prompt.txt")
 
 # Two question sets that must never mix. DEV is for finding problems and tuning
 # anything (prompt, documents, search, thresholds). TEST is written once, frozen
@@ -79,6 +79,11 @@ REFUSAL_PARTIAL = "I don't have information about"
 # so this assumption dominates the estimate.
 MOCK_OUTPUT_TOKENS = 93   # calibrated: mean billed output over the 50-question real run, 2026-10-03
 TEMPERATURE = 0.0
+
+# How much hidden "thinking" the model does before answering (billed as output).
+# Empty = the model's default. GPT-6 Luna accepts none/low/medium/high; Sol accepts
+# low/medium/high (checked 2026-10-15). Luna's default spent 84 tokens per question.
+REASONING_EFFORT = os.getenv("REASONING_EFFORT", "").strip() or None
 
 
 def price(model: str, prompt_tokens: int, completion_tokens: int,

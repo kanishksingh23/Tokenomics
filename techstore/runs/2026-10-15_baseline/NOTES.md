@@ -55,6 +55,18 @@ Average document: 94 tokens.
 6. **Automatic checks (not grades):** Sol handled 10/10 out-of-scope questions correctly;
    Luna 8/10, and refused one answerable question outright. Human grading decides.
 
+## Grades
+
+**Luna, draft grades by Claude** (`luna_grades_claude_draft.csv`; humans to confirm):
+60 correct, 3 partial, 1 wrong, 0 hallucinated. Every rupee sum and date was checked.
+- q048 wrong: "Do you sell washing machines?" got the off-topic refusal, though
+  `about_techstore` says TechStore doesn't sell them (Sol answered it correctly).
+- q049, q053 partial: right content, but they open with the off-topic refusal line.
+- q020 partial: misses a bundle that fits the ₹1 lakh budget.
+- Check first: q049, q053, q020, q040, q035, q036.
+
+Pattern: Luna's mistakes are about **refusal type**, not facts.
+
 ## Still to do
 
 - Grade both runs: `sol_baseline.grading.html` and `luna_baseline.grading.html`

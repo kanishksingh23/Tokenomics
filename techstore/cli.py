@@ -21,6 +21,10 @@ def main() -> int:
     ap.add_argument("--model", default=None)
     ap.add_argument("--retriever", default=None, choices=["embedding", "keyword", "auto"])
     ap.add_argument("--top-k", type=int, default=None)
+    ap.add_argument("--reasoning-effort", default=None,
+                    help="none/low/medium/high (which values a model accepts varies)")
+    ap.add_argument("--system-prompt", default=None,
+                    help="prompt file in this folder (default: system_prompt.txt)")
     ap.add_argument("--dry-run", action="store_true",
                     help="assemble and print the prompt context without calling the API")
     ap.add_argument("--mock", action="store_true",
@@ -32,10 +36,12 @@ def main() -> int:
     args = ap.parse_args()
 
     agent = SupportAgent(model=args.model, retriever_mode=args.retriever,
-                         top_k=args.top_k, mock=args.mock)
+                         top_k=args.top_k, mock=args.mock,
+                         reasoning_effort=args.reasoning_effort, system_prompt=args.system_prompt)
     print(f"model={agent.model}{' (MOCK)' if agent.mock else ''}  "
           f"retriever={agent.retriever.name}  docs={len(agent.docs)}  "
-          f"top_k={agent.top_k}", file=sys.stderr)
+          f"top_k={agent.top_k}  effort={agent.reasoning_effort or 'default'}  "
+          f"prompt={agent.system_prompt_name}", file=sys.stderr)
 
     if args.batch:
         rows = [json.loads(line) for line in open(args.batch, encoding="utf-8") if line.strip()]

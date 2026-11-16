@@ -182,6 +182,15 @@ still pay for, at the output price.
 inflate the bill. In the baseline, **Luna thought far more than Sol**: 84 hidden tokens per question against 6.
 So Luna is ~17× cheaper but actually *uses more tokens*.
 
+### Reasoning effort
+**What it is:** a setting that tells the model how much to "think" privately before answering: `none`, `low`,
+`medium` or `high`. More thinking can help on hard questions but costs output tokens; simple questions rarely need it.
+**Example:** "think carefully" vs "answer off the top of your head". For "What are your store hours?" the quick answer
+is just as good.
+**In our project:** Luna accepts `none` (no thinking at all); Sol's lowest is `low`. Setting Luna to `none` cut its
+output from 155 to 55 tokens per question. A router could choose the effort per question, and that saves *tokens*,
+not just money.
+
 ### Hallucination
 **What it is:** the model confidently states something false or invented, such as a policy that doesn't exist
 or a wrong price.
@@ -1353,4 +1362,5 @@ names over made-up ones; if a fact changes (like a price or a count), update it 
 | 2026-10-09 | First version: Parts 0–13, built from the original glossary plus the terms added during Phase 0, Docker/CI, and Langfuse. |
 | 2026-10-09 | Added from the similar-projects research: prompt compression, cascade, drafter/verifier, speculative execution, Thompson sampling, GitHub stars and archived repos. |
 | 2026-10-15 | Added Langfuse setup terms: observation, generation, session, environment, flush, no-op. |
+| 2026-10-15 | Added reasoning effort. |
 | 2026-10-15 | Updated token figures with the measured baseline (877 input tokens; prompt split; no prompt caching; Luna's reasoning tokens). |
