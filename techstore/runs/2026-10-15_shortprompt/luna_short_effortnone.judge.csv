@@ -1,0 +1,38 @@
+id,verdict,confident,notes
+q001,correct,yes,
+q002,correct,yes,
+q006,correct,yes,
+q007,correct,yes,
+q008,correct,yes,ship_delivery_times missing; answer correctly uses the order record ETA.
+q009,partial,no,"'refund was initiated on 22 September 2026' is inferred: record only shows status refund_initiated, no initiation date. Hesitated: 22 Sep is the cancel date and consistent with the 1 Oct ETA, so a grader could call it correct."
+q010,correct,yes,
+q016,correct,yes,
+q017,correct,yes,"'slightly more than twice' checks out (2x64,999=1,29,998 < 1,34,999)."
+q019,correct,yes,"Does not say directly whether weight matters, but gives the evidence-backed flight recommendation."
+q020,partial,no,"Total 62,998 is right, but 'compact 8.4-inch screen is convenient for reading' is an unstated inference, and the NovaTab 11 + PulseBook 14 (94,998, both in evidence) are not mentioned. Hesitated: the pick is valid under budget, so correct is defensible."
+q021,correct,yes,
+q023,correct,yes,
+q024,correct,yes,
+q025,correct,yes,pol_warranty_terms missing; answer stays within tsg_headphone_battery.
+q026,correct,yes,"All three charges, surviving order and reversal dates match the record."
+q027,correct,yes,
+q028,correct,yes,
+q030,correct,yes,
+q031,correct,yes,
+q032,correct,no,"Hesitated: 'use a new Idempotency-Key' advice for a changed payload is not stated in the evidence (api_idempotency was missing), though it follows from the 409 definition."
+q035,correct,no,"Hesitated: does not mention token environment (api_auth was needed), but evidence ties the wrong-environment cause to 401, not 404."
+q037,correct,yes,
+q038,correct,yes,
+q039,correct,yes,
+q044,correct,yes,
+q045,correct,yes,Style: adds a stray off-topic-style sentence after the correct refusal.
+q046,correct,yes,
+q048,partial,no,"Begins with the off-topic decline 'I can only help with TechStore orders...' instead of answering from About; the fact that follows is correct. Hesitated: rubric could treat wrong refusal type as wrong, or the correct fact as enough for correct."
+q050,correct,no,"Right behaviour (answered battery, admitted no discount info) but did not use the 'I don't have information about' wording. Hesitated: a strict grader could call the template deviation partial."
+q051,correct,yes,
+q055,partial,no,Says 'I don't have information about ... its warranty coverage' though evidence gives 1-year (AuraWatch 3) and 2-year (Pro) warranties. Hesitated: model is unknown so caveat is partly fair.
+q057,correct,yes,
+q059,partial,no,"Facts correct, but wrongly opens with the off-topic decline line for an on-topic question. Hesitated: could be graded partial for the wrong refusal prefix. | rule 4: answerable question opened with a refusal line"
+q060,correct,yes,
+q062,correct,yes,
+q063,correct,yes,

@@ -1,0 +1,25 @@
+id,verdict,confident,notes
+q001,correct,yes,
+q002,correct,yes,
+q006,correct,yes,
+q014,correct,yes,"'video input' over USB-C is supported by tsg_monitor_no_signal (USB-C/DisplayPort Alt Mode), not the product page itself."
+q015,correct,yes,
+q016,correct,yes,
+q017,correct,yes,
+q020,correct,yes,"PulseBook 14 page missing but catalogue_summary gives its price/specs; sums 82,998 / 17,002 / 99,997 check out."
+q023,correct,yes,
+q025,correct,yes,
+q026,correct,yes,
+q027,correct,yes,
+q029,correct,yes,
+q030,correct,yes,
+q035,correct,yes,
+q036,correct,no,"Hesitated: hedges on warranty length (PulseBook product page not in evidence, so justified) and gives no claim steps (pol_warranty_claim missing); a grader could call it partial."
+q040,correct,yes,
+q054,correct,yes,
+q055,correct,yes,
+q057,correct,yes,
+q059,correct,yes,
+q061,correct,yes,
+q062,correct,yes,
+q063,correct,yes,

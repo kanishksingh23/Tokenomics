@@ -352,3 +352,67 @@ def test_trace_cost_split_matches_billing():
     assert usage["total"] == 1300
     assert abs(cost["total"] - config.price(model, 1000, 300, 400)) < 1e-12
     assert tracing.usage_and_cost("unknown-model", 10, 5)[1] == {}
+
+
+def test_quality_check_numbers_are_normalised():
+    from quality_check import numbers
+    assert numbers("₹1,34,999.00 within 30 days, order #48712") == {"134999", "30", "48712"}
+    assert numbers("₹134999 in 30 days for order 48712") == {"134999", "30", "48712"}
+
+
+def test_quality_check_compare_rules():
+    from quality_check import compare
+    near = lambda a, b: 0.97  # noqa: E731  (meaning treated as nearly identical)
+    base = {"answer": "You can return it within the 30-day return window, counted from delivery."}
+    same, _, why = compare(base, {"answer": "Returns are accepted within the 30-day window, from delivery."},
+                           near, 0.90)
+    assert same and not why
+    # one number differs -> changed, even when the meaning looks the same
+    same, _, why = compare(base, {"answer": "You can return it within the 31-day return window."}, near, 0.90)
+    assert not same and any("numbers" in w for w in why)
+    # an answer that turns into a refusal -> changed
+    same, _, why = compare(base, {"answer": config.REFUSAL_UNKNOWN + " Within 30 days."}, near, 0.90)
+    assert not same and any("reply kind" in w for w in why)
+    # meaning drifted
+    same, _, why = compare(base, base | {"answer": base["answer"] + " "}, lambda a, b: 0.5, 0.90)
+    assert not same and any("similarity" in w for w in why)
+    # errors are never "same"
+    assert not compare(base, {"answer": "", "error": "RateLimitError"}, near, 0.90)[0]
+
+
+def test_cost_per_correct():
+    from quality_check import cost_per_correct
+    rows = [{"id": "a", "cost_usd": 0.002}, {"id": "b", "cost_usd": 0.002}]
+    assert cost_per_correct(rows, {"a": "correct", "b": "partial"}) == 0.004
+    assert cost_per_correct(rows, {"a": "correct"}) is None   # ungraded answer -> no figure
+
+
+def test_answer_length_technique():
+    import techniques
+    req = {"model": "m", "messages": [{"role": "system", "content": "Rules."},
+                                      {"role": "user", "content": "hi"}]}
+    out = techniques.apply_length(req, "concise", verbosity="low")
+    assert out["messages"][0]["content"].endswith(techniques.CONCISE_RULE)
+    assert out["verbosity"] == "low"
+    assert req["messages"][0]["content"] == "Rules."          # the original request is untouched
+    assert techniques.apply_length(req, "default") == req
+    try:
+        techniques.apply_length(req, "tiny")
+        raise AssertionError("unknown mode accepted")
+    except ValueError:
+        pass
+    # the rule is counted in the prompt, so its input cost shows up in every measurement
+    plain = SupportAgent(retriever_mode="keyword", mock=True).ask("Is delivery free?")
+    concise = SupportAgent(retriever_mode="keyword", mock=True,
+                           answer_length="concise").ask("Is delivery free?")
+    assert concise.prompt_tokens > plain.prompt_tokens and concise.answer_length == "concise"
+
+
+def test_refusal_opening_rule():
+    from quality_check import refusal_opening_cap as cap
+    ans = config.REFUSAL_OFF_TOPIC + " TechStore ships within India only and not to Dubai."
+    assert cap(ans, None, "correct") == "partial"                 # answerable question
+    assert cap(ans, "answer_from_about", "correct") == "partial"
+    assert cap(config.REFUSAL_OFF_TOPIC, "decline_off_topic", "correct") == "correct"
+    assert cap("TechStore ships within India only.", None, "correct") == "correct"
+    assert cap(ans, None, "wrong") == "wrong"                    # never raises a verdict

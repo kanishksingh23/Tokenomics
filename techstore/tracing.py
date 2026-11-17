@@ -58,7 +58,8 @@ def observation(name: str, **kwargs):
 @contextmanager
 def question_trace(question: str, *, model: str, retriever: str, top_k: int,
                    mock: bool, session_id: str | None = None,
-                   reasoning_effort: str | None = None, system_prompt: str = ""):
+                   reasoning_effort: str | None = None, system_prompt: str = "",
+                   answer_length: str = "default"):
     """Root of one question's trace. Attributes set here are copied onto every step."""
     lf = client()
     if lf is None:
@@ -72,10 +73,11 @@ def question_trace(question: str, *, model: str, retriever: str, top_k: int,
             # Mock runs go to their own environment so they never mix with real data.
             environment="mock" if mock else "development",
             tags=[model, f"retriever:{retriever}", f"top_k:{top_k}",
-                  f"effort:{reasoning_effort or 'default'}", f"prompt:{system_prompt}"],
+                  f"effort:{reasoning_effort or 'default'}", f"prompt:{system_prompt}",
+                  f"length:{answer_length}"],
             metadata={"model": model, "retriever": retriever, "top_k": str(top_k),
                       "reasoning_effort": reasoning_effort or "default",
-                      "system_prompt": system_prompt},
+                      "system_prompt": system_prompt, "answer_length": answer_length},
         ):
             yield root
 

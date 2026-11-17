@@ -295,6 +295,23 @@ us yet.
 **In our project:** `python cli.py --mock "question"`. Used for testing, demos without a key, and CI. Cost
 figures in mock mode are marked as ESTIMATE.
 
+### Answer-length control (and `verbosity`)
+**What it is:** making the model's *visible* answer shorter. Two ways: (1) add a short rule to the instructions
+("start with the direct answer in one or two sentences; lists only when needed"), or (2) the provider's own
+**verbosity** setting (low/medium/high), which costs no extra input tokens but not every model accepts it.
+**Example:** "Yes, delivery is free above ₹999; below that it's ₹79." instead of a three-paragraph reply with a
+greeting and an offer of more help.
+**In our project:** `techniques.py`, option `--answer-length concise`. The rule itself costs **55 input tokens per
+call**, so it only pays off if answers shrink by more than ~11 tokens on average (output costs 5× input).
+Measuring it waits for OpenAI credit.
+
+### Cost per correct answer
+**What it is:** total cost ÷ number of answers graded correct. Our **headline measure**, because it combines money
+and quality in one number: a trick that makes answers cheaper but wrong makes this number *worse*.
+**Example:** 64 answers for $0.172 with 63 correct = $0.00273 per correct answer. If a cheaper setup costs $0.10 but
+only 40 are correct, it's $0.0025, barely better despite costing 42% less.
+**In our project:** printed by `quality_check.py`. Sol with the short prompt: $0.00273 → $0.00232 (−15%).
+
 ### Prompt compression
 **What it is:** shrinking a prompt by removing words the model doesn't need, while keeping its meaning. A small model
 scores each word for importance and drops the least useful ones.
@@ -805,6 +822,27 @@ and so on), like a survey that makes sure every age group is represented.
 
 ### Key points
 **What it is:** the 1–3 facts a correct answer *must* contain. They make grading consistent between people.
+
+### Automatic quality check (carry-over grading)
+**What it is:** instead of re-grading every answer after each experiment, compare each new answer with the already
+graded answer to the same question. If it says the same thing (same reply type, same numbers, very similar
+meaning), it **carries over** the old grade. Only changed answers get graded.
+**Example:** a teacher re-marking a resubmitted essay only reads the paragraphs that changed.
+**In our project:** `quality_check.py`. On our three experiments, 27–40 of 64 answers carried over their grade.
+
+### AI grader (LLM judge) and evidence pack
+**What it is:** an AI model that grades answers using our rubric. An **evidence pack** is the file we give it:
+each question, the answer, and exactly the documents that answer was based on, so it judges only against
+those.
+**In our project:** Claude grades GPT's answers (a different company, to avoid self-preference bias). Its grades
+are drafts until it agrees with human grades often enough (κ ≥ 0.6). It also marks when it isn't confident;
+only those go to a person.
+
+### Run-to-run variation (non-determinism)
+**What it is:** asking the same model the same question twice can give different wording, or even different
+facts. Normally temperature 0 reduces this, but GPT-6 doesn't accept a temperature setting.
+**Why it matters:** when an experiment changes an answer, part of the change may just be chance, not the
+technique. To separate the two, re-run the unchanged baseline once and see how much changes by itself.
 
 ### Grading rubric
 **What it is:** the agreed rules for grading. Ours has four grades:
@@ -1363,4 +1401,5 @@ names over made-up ones; if a fact changes (like a price or a count), update it 
 | 2026-10-09 | Added from the similar-projects research: prompt compression, cascade, drafter/verifier, speculative execution, Thompson sampling, GitHub stars and archived repos. |
 | 2026-10-15 | Added Langfuse setup terms: observation, generation, session, environment, flush, no-op. |
 | 2026-10-15 | Added reasoning effort. |
+| 2026-11-17 | Added answer-length control, cost per correct answer, automatic quality check, AI grader and evidence pack, run-to-run variation. |
 | 2026-10-15 | Updated token figures with the measured baseline (877 input tokens; prompt split; no prompt caching; Luna's reasoning tokens). |

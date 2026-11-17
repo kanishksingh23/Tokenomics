@@ -38,6 +38,22 @@ streamlit run app.py                                     # the demo
 Retrieval and context assembly work with **zero dependencies and no API key** —
 `--dry-run` and `validate_data.py` are the loop to iterate on the corpus in.
 
+### Checking quality automatically
+
+Every token-saving experiment is checked against a graded baseline run without grading
+all 64 answers again:
+
+```bash
+python quality_check.py runs/<baseline>.jsonl runs/<experiment>.jsonl --grades <baseline grades>.csv
+#  -> <experiment>.check.csv  same / changed per question, and why
+#  -> <experiment>.judge.md   only the changed answers, with the documents each was given
+#     (grade these into <experiment>.judge.csv: id,verdict,confident,notes)
+python quality_check.py ... --merge runs/<experiment>.judge.csv    # final verdicts, cost per correct answer
+```
+
+An answer keeps its baseline grade only if its reply type, every number and its meaning all match.
+Changed answers go to an AI grader; people check only the ones it was unsure about, or that got worse.
+
 ### Tracing with Langfuse
 
 Every question becomes a trace in [Langfuse](https://langfuse.com): what was retrieved,
@@ -82,7 +98,7 @@ downloaded once so the container starts offline).
 ```bash
 pip install -r requirements-dev.txt
 ruff check .              # add --fix for import order and similar
-python -m pytest          # 28 tests, no key, no network, < 1 s
+python -m pytest          # 32 tests, no key, no network, < 1 s
 python validate_data.py
 ```
 
@@ -99,6 +115,8 @@ techstore/
 ├── cli.py               single question, --dry-run, or --batch over JSONL
 ├── app.py               Streamlit chat + inspector panel
 ├── tracing.py           Langfuse traces (no-op without keys)
+├── techniques.py        token-saving techniques applied to the request (moves into the gateway later)
+├── quality_check.py     compare an experiment with a graded baseline; cost per correct answer
 ├── validate_data.py     corpus integrity; dev/test progress; --freeze locks the test set
 ├── check_setup.py       pre-flight: packages, key, model ids exist, prices present
 ├── review_results.py    batch review: cost, output length, flags, grading sheet
@@ -109,7 +127,7 @@ techstore/
 │   ├── orders.jsonl            40 orders incl. the multi-charge dispute case
 │   ├── questions_dev.jsonl     dev set (target 100): tuning only
 │   └── questions_test.jsonl    test set (target 36): frozen, final results only
-├── tests/test_agent.py  28 tests, no API calls, run by CI on every push
+├── tests/test_agent.py  32 tests, no API calls, run by CI on every push
 ├── Dockerfile           Streamlit demo image (CPU torch, MiniLM baked in)
 ├── pyproject.toml       ruff + pytest settings
 └── requirements-dev.txt pytest, ruff (all CI needs)

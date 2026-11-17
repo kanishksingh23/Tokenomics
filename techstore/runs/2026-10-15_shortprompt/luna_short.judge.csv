@@ -1,0 +1,36 @@
+id,verdict,confident,notes
+q001,correct,yes,
+q002,correct,yes,
+q006,correct,yes,
+q007,correct,yes,
+q008,correct,yes,ETA from order record; missing ship_delivery_times not needed.
+q009,correct,yes,
+q010,correct,yes,
+q015,correct,yes,
+q017,correct,yes,"Ratio 134999/64999 = 2.08, 'about 2.1 times' ok; hedged recommendation."
+q019,correct,yes,
+q020,correct,yes,"PulseBook 14 page missing but catalogue summary supplies price/specs; totals 94,998 and 99,997 check out."
+q021,correct,yes,
+q025,correct,no,Hesitated: says it lacks the rated battery life though X200 (40 h) and Y500 (60 h) figures were in evidence; user's model unknown so judged acceptable.
+q026,correct,yes,
+q027,correct,yes,
+q029,correct,no,"Hesitated: evidence implies customer bears levied interest (bank may still charge, discount deducted); answer says it has no info on reimbursement rather than stating that plainly - could be partial."
+q030,correct,yes,
+q032,correct,yes,
+q035,correct,yes,
+q036,correct,no,"Hesitated: does not explicitly say the faulty unit can be repaired/replaced under warranty (pol_warranty_claim missing), only that warranty is independent of return window."
+q037,correct,yes,
+q039,correct,yes,
+q040,correct,yes,
+q044,correct,yes,
+q045,correct,yes,
+q046,correct,yes,"Style: correct admit_unknown refusal but appends an extra off-topic-style sentence 'I can help with TechStore orders, products, and support.'"
+q048,partial,no,"Opens with off-topic refusal 'I can only help with TechStore orders, products, and support.' before correctly answering from About; hesitated between partial, wrong (wrong refusal type) and correct (facts right)."
+q049,correct,yes,
+q051,correct,yes,
+q053,partial,no,"On-topic question prefixed with off-topic refusal 'I can only help with TechStore orders, products, and support.'; the fact (no wallet payments) is correct, so could be graded correct with a style note."
+q055,correct,yes,
+q058,correct,yes,
+q060,correct,yes,
+q061,correct,yes,
+q063,correct,yes,

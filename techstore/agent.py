@@ -11,6 +11,7 @@ Week 4: set OPENAI_BASE_URL to the router and change nothing else.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import time
@@ -18,6 +19,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 import config
+import techniques
 import tracing
 from retriever import Doc, build_retriever, load_docs
 
@@ -77,8 +79,9 @@ _QUIRKS: dict[str, dict] = {}
 
 
 def chat_completion(client, model: str, messages: list[dict], max_tokens: int,
-                    temperature: float | None, reasoning_effort: str | None = None):
-    """Returns (response, temperature actually sent or None)."""
+                    temperature: float | None, reasoning_effort: str | None = None, **extra):
+    """Returns (response, temperature actually sent or None). `extra` passes provider
+    parameters such as verbosity through unchanged; unsupported ones fail loudly."""
     q = _QUIRKS.setdefault(model, {"temperature": True, "limit": "max_completion_tokens"})
     for _ in range(4):
         kwargs = {"model": model, "messages": messages, q["limit"]: max_tokens}
@@ -87,6 +90,7 @@ def chat_completion(client, model: str, messages: list[dict], max_tokens: int,
         if reasoning_effort:
             # Never dropped silently: an unsupported value fails loudly.
             kwargs["reasoning_effort"] = reasoning_effort
+        kwargs.update({k: v for k, v in extra.items() if v is not None})
         try:
             return client.chat.completions.create(**kwargs), kwargs.get("temperature")
         except Exception as exc:                        # noqa: BLE001
@@ -120,7 +124,11 @@ class Answer:
     finish_reason: str | None = None  # "length" means the answer was cut off at MAX_TOKENS
     temperature_used: float | None = None  # None: the model rejected temperature (not reproducible at T=0)
     reasoning_effort: str | None = None    # None: the model's default
+    answer_length: str = "default"          # "concise" adds the answer-length rule (techniques.py)
+    verbosity: str | None = None           # provider length setting, if sent
     system_prompt: str = ""                # file name, so runs with different prompts stay comparable
+    system_prompt_sha: str = ""            # first 8 hex of its sha256: the file name alone is ambiguous
+                                           # (system_prompt.txt was the 436-token version until 2026-11-17)
     cost_usd: float = 0.0
     # True in mock mode: tokens are counted locally and output length is
     # assumed. Never mix estimated rows into benchmark results.
@@ -152,17 +160,20 @@ class MockCompletion:
     def __init__(self, agent: "SupportAgent"):
         self.agent = agent
 
-    def respond(self, question: str, context: str, retrieved: list[str]) -> tuple[str, int, int]:
+    def respond(self, question: str, context: str, retrieved: list[str],
+                messages: list[dict] | None = None) -> tuple[str, int, int]:
         titles = [d.title for d in self.agent.docs if d.id in retrieved]
         body = (
             "[MOCK RESPONSE - no model was called]\n\n"
             f"A real answer to {question!r} would be composed from:\n"
             + "\n".join(f"  - {t}" for t in titles)
         )
-        # Count what the API would actually receive: two messages plus overhead.
-        system = self.agent.system_message(context)
-        prompt_tokens = (count_tokens(system) + count_tokens(question)
-                         + 2 * _MSG_OVERHEAD + _REPLY_PRIMING)
+        # Count what the API would actually receive: the messages plus overhead.
+        if messages is None:
+            messages = [{"role": "system", "content": self.agent.system_message(context)},
+                        {"role": "user", "content": question}]
+        prompt_tokens = (sum(count_tokens(m["content"]) for m in messages)
+                         + len(messages) * _MSG_OVERHEAD + _REPLY_PRIMING)
         # The placeholder text says nothing about a real answer's length.
         return body, prompt_tokens, config.MOCK_OUTPUT_TOKENS
 
@@ -170,9 +181,12 @@ class MockCompletion:
 class SupportAgent:
     def __init__(self, model: str | None = None, retriever_mode: str | None = None,
                  top_k: int | None = None, mock: bool = False,
-                 reasoning_effort: str | None = None, system_prompt: str | None = None):
+                 reasoning_effort: str | None = None, system_prompt: str | None = None,
+                 answer_length: str | None = None, verbosity: str | None = None):
         self.model = model or config.FRONTIER_MODEL
         self.reasoning_effort = reasoning_effort or config.REASONING_EFFORT
+        self.answer_length = answer_length or config.ANSWER_LENGTH
+        self.verbosity = verbosity or config.VERBOSITY
         self.top_k = top_k or config.TOP_K
         self.docs: list[Doc] = load_docs(config.KB_PATH)
         self.retriever = build_retriever(self.docs, retriever_mode or config.RETRIEVER)
@@ -185,6 +199,7 @@ class SupportAgent:
         prompt_path = config.BASE_DIR / system_prompt if system_prompt else config.SYSTEM_PROMPT_PATH
         self.system_prompt_name = prompt_path.name
         self.system_prompt = prompt_path.read_text(encoding="utf-8").strip()
+        self.system_prompt_sha = hashlib.sha256(self.system_prompt.encode()).hexdigest()[:8]
         self.mock = mock
         self._client = None
 
@@ -252,6 +267,7 @@ class SupportAgent:
                                     top_k=self.top_k, mock=self.mock,
                                     reasoning_effort=self.reasoning_effort,
                                     system_prompt=self.system_prompt_name,
+                                    answer_length=self.answer_length,
                                     session_id=session_id) as root:
             result = self._answer(question)
             result.trace_id = root.trace_id
@@ -272,25 +288,35 @@ class SupportAgent:
                         metadata={"retrieval_ms": round(retrieval_ms, 2), "top_k": self.top_k})
         result = Answer(question=question, answer="", model=self.model,
                         reasoning_effort=self.reasoning_effort,
+                        answer_length=self.answer_length, verbosity=self.verbosity,
                         system_prompt=self.system_prompt_name,
+                        system_prompt_sha=self.system_prompt_sha,
                         retriever=self.retriever.name,
                         retrieved=retrieved, orders_used=orders_used,
                         retrieval_ms=round(retrieval_ms, 2))
-        messages = [{"role": "system", "content": self.system_message(context)},
-                    {"role": "user", "content": question}]
+        # The request passes through the token-saving techniques exactly as the gateway
+        # will apply them to any app's request (techniques.py).
+        request = {"model": self.model,
+                   "messages": [{"role": "system", "content": self.system_message(context)},
+                                {"role": "user", "content": question}]}
+        request = techniques.apply_length(request, self.answer_length, self.verbosity)
+        request = techniques.apply_reasoning(request, self.reasoning_effort)
+        messages = request["messages"]
         with tracing.observation("llm", as_type="generation", model=self.model, input=messages,
                                  model_parameters={"max_tokens": config.MAX_TOKENS,
                                                    "reasoning_effort": self.reasoning_effort or "default",
+                                                   "answer_length": self.answer_length,
+                                                   "verbosity": self.verbosity or "default",
                                                    "system_prompt": self.system_prompt_name}) as gen:
             t0 = time.perf_counter()
             if self.mock:
-                answer, pt, ct = MockCompletion(self).respond(question, context, retrieved)
+                answer, pt, ct = MockCompletion(self).respond(question, context, retrieved, messages)
                 result.answer = answer
                 result.prompt_tokens, result.completion_tokens = pt, ct
                 result.cost_usd = round(config.price(self.model, pt, ct), 6)
                 result.cost_is_estimate = True
             else:
-                self._call_model(messages, result)
+                self._call_model(request, result)
             result.latency_ms = round((time.perf_counter() - t0) * 1000, 1)
             usage, cost = tracing.usage_and_cost(
                 self.model, result.prompt_tokens, result.completion_tokens,
@@ -303,12 +329,13 @@ class SupportAgent:
                                  "temperature_used": result.temperature_used})
         return result
 
-    def _call_model(self, messages: list[dict], result: Answer) -> None:
+    def _call_model(self, request: dict, result: Answer) -> None:
         try:
             resp, result.temperature_used = chat_completion(
-                self.client, self.model, messages,
+                self.client, self.model, request["messages"],
                 max_tokens=config.MAX_TOKENS, temperature=config.TEMPERATURE,
-                reasoning_effort=self.reasoning_effort,
+                reasoning_effort=request.get("reasoning_effort"),
+                verbosity=request.get("verbosity"),
             )
             result.answer = (resp.choices[0].message.content or "").strip()
             result.finish_reason = resp.choices[0].finish_reason

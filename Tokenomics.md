@@ -6,7 +6,7 @@
 **Target Delivery**: 6–8 Week Core Build expanded into a full 12-Week Production-Grade Roadmap  
 **Repository**: [`kanishksingh23/Tokenomics`](https://github.com/kanishksingh23/Tokenomics)  
 **License**: MIT (see [§9](#licensing--distribution-strategy))  
-**Spec Version**: 2.8 — 300 questions in separate dev and frozen test sets; embedding search by default  
+**Spec Version**: 2.9 — techniques first, routing last; Langfuse for observability; 36 fresh test questions  
 
 ---
 
@@ -43,13 +43,25 @@
    - [The Three Datasets](#the-three-datasets-these-are-routinely-confused)
    - [Demonstration Strategy & Demo Script](#demonstration-strategy)
    - [Licensing & Distribution Strategy](#licensing--distribution-strategy)
-10. [End-to-End 12-Week Phased Delivery Roadmap](#10-end-to-end-12-week-phased-delivery-roadmap)
+10. [Delivery Roadmap](#10-delivery-roadmap)
 11. [Repository Structure & GitHub Setup](#11-repository-structure--github-setup)
 12. [Critical Engineering Nuances & FAQs](#12-critical-engineering-nuances--faqs)
 13. [Failure Semantics, Edge Cases & Degradation Policy](#13-failure-semantics-edge-cases--degradation-policy)
 14. [Total Cost of Ownership & Project Budget](#14-total-cost-of-ownership--project-budget)
 
 ---
+
+> ## ⭐ Current direction (v2.9, November 2026) — read this first
+>
+> Decisions since v2.8 change *how* we reach the goal, not the goal (cut LLM cost and tokens without making answers worse, and prove it):
+>
+> 1. **Techniques first, model routing last** (mentor). Each cost/token technique is built, measured and written up on its own, so the team learns the whole toolbox. Routing and escalation (Layers 2–3) come at the end. Full list and order: [§10](#10-delivery-roadmap).
+> 2. **Cost is the headline; tokens are the mechanism.** Primary measure: **cost per correct answer**. Tokens are reported for every technique.
+> 3. **Langfuse** (Cloud, EU) is the observability layer and **replaces Prometheus, Grafana, OpenTelemetry/Jaeger**.
+> 4. **Out of scope:** circuit breakers and failover, SLA-aware load balancing, SSE streaming ([§4](#4-production-infrastructure--gateway-resilience)). Nothing that saves cost or tokens is dropped.
+> 5. **Questions:** the 64 dev questions are for building only (every one was used for tuning). **Rahul writes 36 fresh test questions**, frozen before the final measurement.
+> 6. **Quality checks:** automatic during building (answer comparison + AI grader); **human grading at the end** on the 36 test questions.
+> 7. **Measured so far** (64 questions, 15 Oct 2026): the system prompt is half of every prompt; provider prompt caching never triggered; Luna is 17× cheaper than Sol but spends 84 hidden reasoning tokens per question; GPT-6 rejects `logprobs`; a shorter prompt saves 16% of Sol's tokens. Details: [§9](#baseline-and-first-token-experiments-2026-10-15).
 
 # 1. Executive Summary & Core Mission
 
@@ -70,8 +82,8 @@ To automatically inspect, classify, and route incoming requests to the cheapest 
 |:--|:---|:---|
 | C1 | 40–60% cost reduction vs. always-frontier | Five-arm benchmark, both arms actually executed ([§7](#the-five-arm-comparative-harness)) |
 | C2 | Quality non-inferior within $\delta = 0.25$ | Pre-registered TOST + objective-ground-truth tracks |
-| C3 | Routing overhead $< 20$ ms at P95 | Single-embedding pipeline, traced end-to-end ([§6](#opentelemetry-distributed-tracing)) |
-| C4 | Safe under provider failure and cache collision | Chaos suite + cache-safety test suite ([§13](#13-failure-semantics-edge-cases--degradation-policy)) |
+| C3 | Routing overhead $< 20$ ms at P95 | Single-embedding pipeline, timed per step in Langfuse traces (v2.9) |
+| C4 | Safe under cache collision and runaway spending | Cache-safety test suite + per-client spending limits (v2.9: provider-failure resilience is out of scope) |
 
 ---
 
@@ -468,6 +480,8 @@ Escalation costs $C_e + C_f$ — *more* than never having tried. These four guar
 
 # 4. Production Infrastructure & Gateway Resilience
 
+> **v2.9 scope:** circuit breakers, failover, retry with jitter, SLA-aware load balancing and SSE streaming are **out of scope**. They make a gateway more robust but save no cost or tokens, and mature gateways already provide them. **Kept:** authentication and the token-bucket limiter, which become the **spending limits** technique (per-client budgets enforced *before* a request is sent; Langfuse only records after the fact). The sections below are kept for reference.
+
 ```
                                  Client Request
                                        │
@@ -672,6 +686,8 @@ v1 listed `training/data/labeled_prompts.jsonl` in the repo tree but never said 
 
 # 6. Observability, Metrics & Telemetry Stack
 
+> **v2.9:** **Langfuse replaces Prometheus, Grafana and OpenTelemetry/Jaeger.** Every request is a Langfuse trace (retrieval step + model call) carrying token counts split into input, cached, output and reasoning, and **cost computed from our own pricing table**, so Langfuse matches the results files exactly (verified on 128 calls). Batch runs group into Langfuse sessions; mock runs use a separate environment. The ledger fields below remain the reference for what each request must record.
+
 ## Per-Request Accounting Ledger
 
 Every interaction emits a structured record, written to **DuckDB** (not a bare JSONL file): the benchmark report needs SQL aggregation, and Prometheus counters reset on restart, so the durable financial record must live somewhere queryable.
@@ -823,19 +839,19 @@ A central requirement of this project is **not just claiming, but proving** the 
 v1 evaluated exclusively on a self-authored 500-query support corpus scored by an LLM judge. That has three weaknesses a reviewer will press on: we wrote the questions *and* the reference answers *and* chose the judge (circularity); there is no external point of comparison; and "quality" is never grounded in anything objectively checkable. We therefore run **two tracks**.
 
 ### Track A — Domain Track (narrative, relatability, RAGAS)
-**300 stratified questions in two sets that never mix** — a **frozen 200-question test set** behind every reported number, and a **100-question dev set** for finding problems and tuning ([Dev and Test Sets](#dev-and-test-sets)) — simulating real support traffic, plus a companion `knowledge_base.jsonl` of 86 TechStore policy, product, and order documents that supplies the *reference contexts* RAGAS faithfulness requires. (v1 specified RAGAS but never specified a knowledge base — RAGAS cannot run without one.)
+**Two sets that never mix** (v2.9) — a **frozen 36-question test set**, written fresh by Rahul, behind every reported number, and the **64-question dev set** used for building and tuning ([Dev and Test Sets](#dev-and-test-sets)) — simulating real support traffic, plus a companion `knowledge_base.jsonl` of 86 TechStore policy, product, and order documents that supplies the *reference contexts* RAGAS faithfulness requires. (v1 specified RAGAS but never specified a knowledge base — RAGAS cannot run without one.)
 
-| Category | Test | Dev | Expected Optimal Tier | Cacheable? |
+| Category | Test (v2.9) | Dev (have) | Expected Optimal Tier | Cacheable? |
 |:---|:---|:---|:---|:---|
-| **Simple FAQ & Policy** | 24 | 12 | Economy / Cache | ✅ High |
-| **Order Status & Account** | 24 | 12 | Economy | ❌ **Never** (user-scoped, volatile) |
-| **Basic Product Information** | 16 | 8 | Economy | ✅ High |
-| **Product Comparison** | 20 | 10 | Economy → Escalation | ⚠ Exact only |
-| **Simple Troubleshooting** | 20 | 10 | Economy | ✅ Moderate |
-| **Complex Billing Disputes** | 28 | 12 | Frontier | ❌ Never |
-| **Technical API Support** | 28 | 12 | Frontier | ⚠ Exact only |
-| **Multi-Step Policy Edge Cases** | 24 | 12 | Frontier | ⚠ Exact only |
-| **Out of Scope / Unanswerable** | 16 | 12 | Economy | ⚠ Exact only |
+| **Simple FAQ & Policy** | 4 | 12 | Economy / Cache | ✅ High |
+| **Order Status & Account** | 4 | 5 | Economy | ❌ **Never** (user-scoped, volatile) |
+| **Basic Product Information** | 3 | 5 | Economy | ✅ High |
+| **Product Comparison** | 4 | 5 | Economy → Escalation | ⚠ Exact only |
+| **Simple Troubleshooting** | 3 | 8 | Economy | ✅ Moderate |
+| **Complex Billing Disputes** | 5 | 7 | Frontier | ❌ Never |
+| **Technical API Support** | 5 | 6 | Frontier | ⚠ Exact only |
+| **Multi-Step Policy Edge Cases** | 4 | 6 | Frontier | ⚠ Exact only |
+| **Out of Scope / Unanswerable** | 4 | 10 | Economy | ⚠ Exact only |
 
 Note the cacheability column: **26% of the corpus must never be semantically cached**. Reporting an overall $\alpha$ without that decomposition would overstate the achievable cache hit rate. A separate **multi-turn subset** of 60 conversations (3–6 turns each) exercises sticky escalation and anaphora handling.
 
@@ -852,9 +868,9 @@ No model is trained in this project, but the system is still **tuned**: every ch
 Keyword search had looked best only on the questions it had been fitted to; on new wording ("earphones", "blinking", "paid twice") it failed where embeddings matched by meaning. **Embedding search is therefore the default**, to be confirmed on the test set.
 
 **Rules.**
-1. **Two files that never mix.** `questions_dev.jsonl` (100 questions, ids `q…`): every tuning decision is made here. `questions_test.jsonl` (200 questions, ids `t…`): used only for reported results.
+1. **Two files that never mix.** `questions_dev.jsonl` (64 questions, ids `q…`): every tuning decision is made here. `questions_test.jsonl` (36 fresh questions, ids `t…`, v2.9): used only for reported results.
 2. **The test set is written before any router tuning and then frozen.** `validate_data.py --freeze` records its fingerprint; any later edit fails validation. A question in both files fails validation.
-3. **Sizes follow the claims.** About 200 paired questions prove the 0.25-point quality margin of the statistical protocol even if the router is truly 0.1 points worse (135 needed), and "at most 7 points fewer correct answers" (175 needed). Per-category results (16–28 test questions each) are reported as descriptive, not proven.
+3. **⚠ v2.9 — what 36 questions can and cannot prove.** The paragraph below sized the test set at 200 for the TOST margin. With **36** paired questions the test can detect only *large* quality drops (roughly 0.5 points on a 5-point scale, or about 5–6 more wrong answers out of 36), so the final report will state results with confidence intervals and say plainly which smaller differences it cannot rule out. Adding fresh questions later is always allowed; reusing dev questions for the final claim is not. Original v2.8 sizing, for reference: **Sizes follow the claims.** About 200 paired questions prove the 0.25-point quality margin of the statistical protocol even if the router is truly 0.1 points worse (135 needed), and "at most 7 points fewer correct answers" (175 needed). Per-category results (16–28 test questions each) are reported as descriptive, not proven.
 
 **Reserved idea — choosing the search method per question.** Technical questions (error codes, acronyms, code) would use keyword search and the rest embeddings. Tested on the dev set it matched embedding search exactly (79.3% / 100%): on the eight technical questions both methods scored 75%, and exact product names and order numbers are already handled by rule. Kept in reserve, to be switched on if the test set shows a question type where keyword search clearly wins.
 
@@ -918,7 +934,7 @@ v1 used **GPT-4o as the judge while GPT-4o was also the baseline arm** — textb
 
 ### Grading Rubric
 
-Every judge, human or AI, applies the same four verdicts and three rules. They were tightened after Phase 0, where each disagreement between graders traced back to a case the original one-line definitions did not settle.
+Every judge, human or AI, applies the same four verdicts and four rules. They were tightened after Phase 0, where each disagreement between graders traced back to a case the original one-line definitions did not settle.
 
 | Verdict | Meaning |
 |:---|:---|
@@ -930,6 +946,7 @@ Every judge, human or AI, applies the same four verdicts and three rules. They w
 1. Extra detail that the evidence supports does not lower the verdict.
 2. Style and formatting are recorded in notes and do not change the verdict.
 3. If the evidence lacks something and the answer says so, that is the correct behaviour — the gap belongs to the knowledge base or the retriever, not the model.
+4. **(v2.9)** If a question the documents can answer gets a reply that **opens with a refusal line** ("I can only help with…", "I don't have that information…") and then answers anyway, the verdict is at most `partial`: the facts may be right, but the customer first reads a refusal. Applied automatically by `quality_check.py`.
 
 ---
 
@@ -978,6 +995,13 @@ $$\Delta_{\min} = 2.80 \cdot \frac{s_d}{\sqrt{n}} = 2.80 \cdot \frac{0.7}{14.14}
 ---
 
 # 8. Competitive Landscape & Market Differentiation
+
+> **⚠ v2.9 corrections (GitHub and docs checked October 2026).** Three claims below are out of date and must not be repeated as stated:
+> * **LiteLLM** *does* route by complexity since **Auto Router v2 (July 2026)**: heuristic and LLM-based complexity tiers, with Thompson sampling within a tier. It decides only before the call.
+> * **"Two-sided routing exists nowhere else" is false:** **cascadeflow** (lemony-ai, MIT, ~4K★) classifies before the call *and* validates the cheap model's answer afterwards (logprobs, length, format) before escalating, and runs as an OpenAI-compatible proxy. It publishes no statistical test, random baseline or oracle.
+> * **Entity-aware cache guards exist** in small projects (recalq-guard, semcache, kmemo), though not in the major gateways.
+>
+> What remains distinctive: many cost/token techniques combined in one layer and measured one by one; a cache that is safe by construction and tested adversarially; and an evaluation with a random-at-matched-cost arm, an oracle and fresh test questions. Competitors are sources of ideas and code to learn from, not the frame of this project.
 
 ## Open-Source GitHub Projects
 
@@ -1131,6 +1155,26 @@ techstore/
 
 Controls re-run alongside the fixes (q001, q026, q041, q044, q050) were unchanged — no regressions. **Category questions** — naming a category rather than a product ("which of your headphones is lighter", "a laptop for college") — missed the product pages they needed (q019, q020). Fixed with a one-line-per-product catalogue, added on top of the searched documents only when a question names a category and asks to compare, choose or buy; `validate_data.py` checks every price and spec number in it against the product pages. Verified on a real re-run: both now answer fully and correctly (q020's three totals checked), and a category question about an owned item (q021, pairing) is unaffected.
 
+### Baseline and First Token Experiments (2026-10-15)
+
+All 64 dev questions on both models, traced in Langfuse (totals match the result files to the cent). Files: `techstore/runs/2026-10-15_baseline/`, `techstore/runs/2026-10-15_shortprompt/`.
+
+| Run | Input tok | Output tok (of which hidden reasoning) | Total tok | Cost / 64 q |
+|:---|---:|---:|---:|---:|
+| Sol, original prompt (**baseline**) | 877 | 93.5 (5.6) | 970 | \$0.1721 |
+| Sol, short prompt | 724 | 87.2 (5.6) | 811 (−16%) | \$0.1485 (−14%) |
+| Luna, original prompt | 877 | 146.9 (84.2) | 1,024 | \$0.0103 |
+| Luna, short prompt | 724 | 155.5 (92.8) | 879 | \$0.0096 |
+| Luna, short prompt, `reasoning_effort=none` | 724 | 55.5 (0) | 779 | \$0.0064 |
+
+**Findings.**
+1. **Input is 90% of tokens and 65% of Sol's cost.** Of the 877 input tokens, the system prompt is 436 (50%), retrieved documents 381 (44%), order records 26, the question about 14.
+2. **Provider prompt caching never triggered** (0 cached tokens in 128 calls); the prompts are shorter than the ~1,024-token minimum OpenAI has historically required. It becomes relevant with multi-turn conversations.
+3. **Routing to Luna cuts cost about 17× but raises output tokens ~57%**, because Luna spends 84 hidden reasoning tokens per question. Model routing saves money, not tokens.
+4. **Reasoning effort is a token lever.** Luna accepts `none/low/medium/high`, Sol `low/medium/high`; neither accepts `minimal`. `none` removed all of Luna's reasoning tokens.
+5. **Neither model accepts `logprobs`.** Escalation signal 1 (30% weight) is unavailable; Layer 3 renormalises over the other four signals.
+6. **Quality not yet graded** for the experiments. Draft grades for Luna's baseline (Claude, to be confirmed): 60 correct, 3 partial, 1 wrong, 0 hallucinated; its errors are the *type* of refusal, never facts. A perfect router on these grades would cut cost ~87% (ceiling; tokens +5%).
+
 ### The Three Datasets (these are routinely confused)
 
 | # | Dataset | Size | Purpose | Origin | May it train the model? |
@@ -1260,7 +1304,39 @@ The 2:15 and 3:45 moments are the two that no competing open-source project can 
 
 ---
 
-# 10. End-to-End 12-Week Phased Delivery Roadmap
+# 10. Delivery Roadmap
+
+## v2.9 roadmap: techniques first, routing last
+
+Every technique follows the same loop: **build → run on the 64 dev questions → automatic quality check → read tokens and cost in Langfuse → keep or reject → write it up** (results in `techstore/runs/`, terms in `LEARNING.md`). Effects multiply, they do not add: a 16% cut followed by a 10% cut is about 24% in total.
+
+**"Lives in"** says who applies it. *Tokenomics* techniques work automatically for any app that points at the gateway; *app* techniques are lessons the app developer applies, reported but not the product.
+
+| # | Technique | What it cuts | Lives in | Status / evidence |
+|:--|:---|:---|:---|:---|
+| 0 | **Automatic quality check**: compare each answer with its graded baseline answer; an AI grader judges only changed ones; humans check only uncertain ones | — (safety for every step) | Tooling | ✅ Built (`quality_check.py`); grades are AI drafts until κ ≥ 0.6 vs humans |
+| 1 | Shorter instructions (same rules) | Input | App | ✅ **Adopted as the default (2026-11-17).** Sol 64/64 correct (baseline 63 + 1 wrong); cost per correct answer −15% |
+| 2 | **Reasoning effort control** | Hidden output | Tokenomics | ✅ Luna output 155 → 55 tokens; cost per correct −35%, but 57 correct + 7 partial vs 60 + 3 + 1 wrong → **use for simple questions only** (step 5) |
+| 3 | **Answer-length control** (concise instruction / `verbosity`, safe length cap) | Visible output (5× input price) | Tokenomics | Built (`techniques.py`, `--answer-length concise`, `--verbosity`); the rule adds 55 input tokens; measurement waits for OpenAI credit |
+| 4 | Smaller context: relevant passages only, compact formats | Input | App | |
+| 5 | **Adaptive context**: fewer documents for simple questions | Input | Tokenomics / app | |
+| 6 | **Prompt compression** (LLMLingua-2) | Input | Tokenomics | Mentor to confirm |
+| 7 | **Response cache**, exact + semantic, with the admission controller of [§3](#layer-1-two-tier-caching-system) | Everything, for repeats | Tokenomics | |
+| 8 | **FAQ shortcut**: cache pre-filled with human-approved answers to the top FAQs; zero model calls from the first ask | Everything, for FAQs | Tokenomics | Approved |
+| 9 | **Conversation memory**: TechStore becomes multi-turn; Tokenomics keeps recent turns verbatim and summarises older ones, preserving order numbers and amounts | Input (grows every turn) | Tokenomics (+ app for multi-turn) | |
+| 10 | **Provider prompt caching**: stable content first so OpenAI's cached-input price applies | Cost (tokens unchanged) | Tokenomics | Applies once prompts pass ~1,024 tokens (step 9) |
+| 11 | **Batch API** for non-urgent work (benchmarks, reports) | Cost (−50%) | Tokenomics | |
+| 12 | **Spending limits**: per-client budgets enforced before a request is sent; downgrade to the cheap model, then refuse | Runaway cost | Tokenomics | |
+| 13 | **The gateway**: steps 2, 3, 5–12 behind the OpenAI-compatible endpoint; TechStore switches by one line (`OPENAI_BASE_URL`) | — (makes it a product) | Tokenomics | |
+| 14 | **Model routing + escalation** (Layers 2–3): Luna / Sol, plus a hosted open-weight model (Llama 3.1 8B on Groq, ~\$0.05/\$0.08 per 1M) for the easiest questions and as a backup | Price per token | Tokenomics | **Last**; ceiling ≈ −87% cost on draft grades |
+| 15 | **Final proof** on the 36 fresh test questions: always-Sol, always-Luna, random-at-matched-cost, oracle, Tokenomics; human grading; cost per correct answer | — | — | |
+| 16 | Demo (Streamlit + Langfuse), report, video | — | — | |
+
+Open questions for the mentor: prompt compression in or out; keep or cut the learning loop of [§5](#5-the-learning-loop-offline-policy-retraining).
+
+**Week-by-week plan below: superseded by the table above (kept for history).**
+
+## v2.8 plan: 12-week phased roadmap (superseded)
 
 ```
 W1-W2: Foundation & Safe Caching ──► W3-W4: Providers & MVP ──► W5-W6: Resilience & Streaming
@@ -1661,6 +1737,8 @@ $$\text{Break-even volume} = \frac{\$130}{\$0.001378} \approx \mathbf{94{,}400 \
 
 ### Project API Budget
 
+> **⚠ Status, 17 Nov 2026:** OpenAI now rejects calls with *"You have no credits remaining"*, although only **≈ \$0.57** is recorded across all runs and the key was never committed (full git history scanned). Most likely the \$50 prepaid grant **expired**; to be confirmed under Billing → Credit grants and Usage. New model runs wait for a top-up; everything else continues in mock mode. **No Anthropic key yet** for the AI grader (≈ \$12 budgeted below).
+
 **Available: \$50 of prepaid OpenAI credit**, with the project spend limit set to \$20/month (Settings → Project → Limits) and alerts at 50% and 100%. The judge runs on a separate Anthropic account.
 
 Cost of **one full five-arm benchmark run** (Track A 200 + Track B 1,144), OpenAI side, at official prices:
@@ -1719,6 +1797,21 @@ This project builds a system that calls LLMs in loops, with retries, escalation,
 ---
 
 ## Appendix A: Revision History
+
+### Changes in v2.9 (techniques first, Langfuse, 36 test questions)
+
+| Area | v2.8 | v2.9 | Severity |
+|:---|:---|:---|:---|
+| Order of work | Router-centred 12-week plan | **Techniques first, routing last** (mentor); 16-step technique roadmap in [§10](#10-delivery-roadmap) | **Critical** |
+| Headline measure | Cost reduction vs always-frontier | **Cost per correct answer**; tokens reported per technique | High |
+| Observability | Prometheus, Grafana, OpenTelemetry/Jaeger | **Langfuse** (Cloud); costs from our pricing table, matching result files exactly | High |
+| Scope | Circuit breakers, failover, SLA balancing, SSE streaming | **Out of scope**; rate limiter kept as per-client spending limits | High |
+| New techniques | — | Reasoning-effort control, answer-length control, FAQ shortcut, conversation memory, spending limits, hosted open-weight model in routing | High |
+| Test set | 200 frozen questions | **36 fresh questions** (Rahul); dev set fixed at 64; statistical power stated honestly | High |
+| Quality checks | Human grading per run | Automatic during building; human grading at the end | Medium |
+| Measured | Phase 0 only | Sol/Luna baseline and short-prompt experiments on 64 questions (§9) | — |
+| Competitors | LiteLLM "no intelligent routing"; two-sided routing and entity-aware caching "exist nowhere else" | Corrected: LiteLLM Auto Router v2, cascadeflow, small cache-guard projects (§8) | High |
+| API budget | \$50 prepaid OpenAI credit | Credit exhausted/expired at ≈ \$0.57 recorded spend; top-up needed | High |
 
 ### Changes in v2.8 (dev and test sets, embedding search)
 

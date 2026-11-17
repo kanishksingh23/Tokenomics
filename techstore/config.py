@@ -12,6 +12,8 @@ BASE_DIR = Path(__file__).parent
 DATA_DIR = BASE_DIR / "data"
 KB_PATH = DATA_DIR / "knowledge_base.jsonl"
 ORDERS_PATH = DATA_DIR / "orders.jsonl"
+# system_prompt.txt is the short version since 2026-11-17 (same rules, 436 -> 283 tokens; no quality
+# loss on the 64 dev questions). The original is kept as system_prompt_original.txt.
 SYSTEM_PROMPT_PATH = BASE_DIR / os.getenv("SYSTEM_PROMPT", "system_prompt.txt")
 
 # Two question sets that must never mix. DEV is for finding problems and tuning
@@ -84,6 +86,11 @@ TEMPERATURE = 0.0
 # Empty = the model's default. GPT-6 Luna accepts none/low/medium/high; Sol accepts
 # low/medium/high (checked 2026-10-15). Luna's default spent 84 tokens per question.
 REASONING_EFFORT = os.getenv("REASONING_EFFORT", "").strip() or None
+
+# Answer-length control (techniques.py). "concise" adds a short-answer rule to the system
+# message; VERBOSITY sends the provider's own length setting (low/medium/high) if set.
+ANSWER_LENGTH = os.getenv("ANSWER_LENGTH", "default").strip() or "default"
+VERBOSITY = os.getenv("VERBOSITY", "").strip() or None
 
 
 def price(model: str, prompt_tokens: int, completion_tokens: int,
