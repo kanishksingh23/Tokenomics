@@ -15,6 +15,8 @@ problems for under $0.001).
 | 4 | Sol `reasoning_effort=low` (technique 2) | Optional: Sol thinks only ~6 tokens per question, so little to gain | `--model gpt-6.1-sol --reasoning-effort low` | ≈ $0.15 | |
 | 5 | **Response cache on repeat traffic** (technique 7) | Real reuse rate and whether reused answers stay correct. Needs a "repeat traffic" set (rephrasings of ~12 test questions, written by Rahul). | `python cli.py --cache --batch <repeat_traffic>.jsonl --out runs/<date>_cache/sol_cache.jsonl` | ≈ $0.10 | |
 | 6 | **Conversation memory quality** (technique 9) | Does shrinking older turns lose context? Compare each mode's answers per turn with `off`; record the real cost of summary calls. | `python cli.py --conversations data/conversations_dev.jsonl --memory <off/window/facts/summary> --out runs/<date>_memory/sol_<mode>.jsonl` (4 runs) | ≈ $0.45 | |
+| 7 | **How caching behaves in our API** (technique 10) | Docs cover the Responses API only. In Chat Completions: is caching on by default, which usage fields report `cached_tokens` / `cache_write_tokens`, and is a write billed when never reused? Decides which simulator column is real. | Send one 1,500-token prompt twice within a minute (Sol); print the full `usage` of both responses | < $0.01 | |
+| 8 | **Validate the caching simulator + quality of the cache layout** | Do real cached/written tokens match `prompt_cache_sim.py`? Does moving documents into the user message change answer quality? | One 13-turn chat with `--layout cache` and one classic (`--conversations`), then `quality_check.py` per turn | ≈ $0.25 | |
 
 Then run `quality_check.py` against the graded baseline for each, and record the result in the
 run folder's NOTES.md and in `Tokenomics.md` §10.

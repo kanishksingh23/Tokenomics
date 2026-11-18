@@ -40,9 +40,11 @@ ECONOMY_MODEL = os.getenv("ECONOMY_MODEL", "gpt-6-luna")
 # provider's live pricing page -- check before the benchmark.
 # Verified 2026-10-03 against developers.openai.com/api/docs/pricing (Standard
 # tier, short context). Model ids verified on the account's Limits page.
-# cache_write: OpenAI bills writing a prompt prefix into its cache at 1.25x input.
-# Not yet applied in price(): the usage field that reports cache writes has not
-# been observed in a real response. Our ~500-token prompts may never be cached.
+# Prompt caching (developers.openai.com/api/docs/guides/prompt-caching, read 2026-11-18):
+# prompts of 1,024+ tokens can be cached by exact prefix; writing a prefix costs 1.25x input
+# (30-minute cache), reading it 0.05x for GPT-6.1 Sol and 0.1x for others. price() bills
+# both when the response reports them; whether Chat Completions reports cache writes is
+# still to be confirmed with a real call (runs/PENDING_CREDITS.md).
 # Batch and Flex tiers are 50% of these rates.
 PRICING = {
     "gpt-6.1-sol": {"input": 2.00,  "cached_input": 0.10, "cache_write": 2.50,  "output": 10.00},
@@ -79,6 +81,12 @@ CACHE_TTL_HOURS = float(os.getenv("CACHE_TTL_HOURS", "24"))
 # Keeps the last MEMORY_KEEP_TURNS exchanges word for word and shrinks everything older.
 MEMORY_MODE = os.getenv("MEMORY_MODE", "off").strip().lower() or "off"
 MEMORY_KEEP_TURNS = int(os.getenv("MEMORY_KEEP_TURNS", "2"))
+
+# Technique 10, prompt layout for provider caching. "classic": documents inside the first
+# (system) message. "cache": fixed instructions first, then the conversation exactly as sent,
+# then this turn's documents with the question, so each turn's prompt starts with the
+# previous turn's prompt and OpenAI's prefix cache can reuse it.
+PROMPT_LAYOUT = os.getenv("PROMPT_LAYOUT", "classic").strip().lower() or "classic"
 # Upper bound on output tokens, including any hidden reasoning tokens. Reasoning
 # models can spend hundreds of tokens thinking before writing; a low cap yields an
 # EMPTY answer that is still billed. You pay only for tokens actually produced,
@@ -116,16 +124,19 @@ VERBOSITY = os.getenv("VERBOSITY", "").strip() or None
 
 
 def price(model: str, prompt_tokens: int, completion_tokens: int,
-          cached_prompt_tokens: int = 0) -> float:
+          cached_prompt_tokens: int = 0, cache_write_tokens: int = 0) -> float:
     """USD cost of one call. Unknown models cost 0 and are flagged by the caller.
 
-    `prompt_tokens` is the provider's total, which includes any cached tokens;
-    those are billed at the cached rate instead of the full input rate.
+    `prompt_tokens` is the provider's total, which includes cached and newly written
+    tokens: cached ones are billed at the cheap read rate, written ones at the write rate
+    (1.25x), the rest at the normal input rate.
     """
     p = PRICING.get(model)
     if not p:
         return 0.0
     cached = min(max(cached_prompt_tokens, 0), prompt_tokens)
-    return ((prompt_tokens - cached) * p["input"]
+    written = min(max(cache_write_tokens, 0), prompt_tokens - cached)
+    return ((prompt_tokens - cached - written) * p["input"]
             + cached * p.get("cached_input", p["input"])
+            + written * p.get("cache_write", p["input"])
             + completion_tokens * p["output"]) / 1e6

@@ -83,14 +83,17 @@ def question_trace(question: str, *, model: str, retriever: str, top_k: int,
 
 
 def usage_and_cost(model: str, prompt_tokens: int, completion_tokens: int,
-                   cached_tokens: int = 0, reasoning_tokens: int = 0) -> tuple[dict, dict]:
+                   cached_tokens: int = 0, reasoning_tokens: int = 0,
+                   cache_write_tokens: int = 0) -> tuple[dict, dict]:
     """Token counts and USD cost in Langfuse's format, split the way they are billed."""
     import config  # noqa: PLC0415
     cached = min(max(cached_tokens, 0), prompt_tokens)
+    written = min(max(cache_write_tokens, 0), prompt_tokens - cached)
     reasoning = min(max(reasoning_tokens, 0), completion_tokens)
     usage = {
-        "input": prompt_tokens - cached,
+        "input": prompt_tokens - cached - written,
         "input_cached_tokens": cached,
+        "input_cache_write_tokens": written,
         "output": completion_tokens - reasoning,
         "output_reasoning_tokens": reasoning,
     }
@@ -101,6 +104,7 @@ def usage_and_cost(model: str, prompt_tokens: int, completion_tokens: int,
     cost = {
         "input": usage["input"] * p["input"] / 1e6,
         "input_cached_tokens": cached * p.get("cached_input", p["input"]) / 1e6,
+        "input_cache_write_tokens": written * p.get("cache_write", p["input"]) / 1e6,
         # Reasoning tokens are billed at the output rate.
         "output": usage["output"] * p["output"] / 1e6,
         "output_reasoning_tokens": reasoning * p["output"] / 1e6,

@@ -46,6 +46,8 @@ def main() -> int:
                     help="conversation memory: how earlier turns are kept (techniques.py)")
     ap.add_argument("--keep-turns", type=int, default=None,
                     help="earlier exchanges kept word for word (default 2)")
+    ap.add_argument("--layout", default=None, choices=["classic", "cache"],
+                    help="cache: fixed instructions first, documents last (provider prompt caching)")
     ap.add_argument("--out", help="write results as JSONL")
     ap.add_argument("--session", help="Langfuse session that groups this run's traces "
                                       "(default for --batch: the --out file name)")
@@ -57,13 +59,14 @@ def main() -> int:
                          answer_length=args.answer_length, verbosity=args.verbosity,
                          faq=False if args.no_faq else None, faq_drafts=args.faq_drafts,
                          cache=True if args.cache else None,
-                         memory=args.memory, keep_turns=args.keep_turns)
+                         memory=args.memory, keep_turns=args.keep_turns, layout=args.layout)
     print(f"model={agent.model}{' (MOCK)' if agent.mock else ''}  "
           f"retriever={agent.retriever.name}  docs={len(agent.docs)}  "
           f"top_k={agent.top_k}  effort={agent.reasoning_effort or 'default'}  "
           f"prompt={agent.system_prompt_name}  length={agent.answer_length}"
           f"{'  verbosity=' + agent.verbosity if agent.verbosity else ''}"
           f"  cache={'on' if agent.cache else 'off'}  memory={agent.memory_mode}"
+          f"  layout={agent.prompt_layout}"
           f"  faq={len(agent.faq.entries) if agent.faq else 0} answers"
           f"{' (incl. drafts)' if args.faq_drafts else ''}", file=sys.stderr)
 
@@ -81,7 +84,10 @@ def main() -> int:
                 n += 1
                 print(f"[{chat['id']} turn {turn}] {res.prompt_tokens:5d} in  ${res.cost_usd:.6f}  "
                       f"{question[:55]}", file=sys.stderr)
-                history += [{"role": "user", "content": question},
+                # With layout "cache" the history keeps each message exactly as sent, so the
+                # next prompt starts with this one and the provider can reuse its cache.
+                sent = res.sent_user_message if agent.prompt_layout == "cache" else question
+                history += [{"role": "user", "content": sent},
                             {"role": "assistant", "content": res.answer}]
                 if out:
                     rec = json.loads(res.to_json())

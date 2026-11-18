@@ -45,6 +45,15 @@ def wants_catalogue(question: str) -> bool:
     return bool(_CATEGORY.search(question) and _INTENT.search(question))
 
 
+QUESTION_MARK = "CUSTOMER QUESTION:"
+
+
+def _question_of(user_message: str) -> str:
+    """The customer's words from a user message (layout "cache" puts documents before them)."""
+    i = user_message.rfind(QUESTION_MARK)
+    return user_message[i + len(QUESTION_MARK):].strip() if i >= 0 else user_message
+
+
 def _pretty_date(iso: str) -> str:
     y, m, d = (int(x) for x in iso.split("-"))
     months = ["January", "February", "March", "April", "May", "June", "July",
@@ -119,6 +128,7 @@ class Answer:
     orders_used: list[str] = field(default_factory=list)
     prompt_tokens: int = 0
     cached_prompt_tokens: int = 0
+    cache_write_tokens: int = 0       # prompt tokens written into the provider's cache (1.25x)
     completion_tokens: int = 0
     reasoning_tokens: int = 0         # hidden, billed as output; 0 for non-reasoning models
     finish_reason: str | None = None  # "length" means the answer was cut off at MAX_TOKENS
@@ -148,6 +158,9 @@ class Answer:
     memory_mode: str = "off"          # conversation-memory technique applied (techniques.py)
     memory_dropped_turns: int = 0     # earlier turns shrunk into a note/summary or dropped
     memory_cost_usd: float = 0.0      # cost of writing the summary (summary mode); in cost_usd too
+    prompt_layout: str = "classic"
+    sent_user_message: str = ""       # the final user message as sent; with layout "cache", put
+                                      # THIS in the history so the next prompt reuses the prefix
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), ensure_ascii=False)
@@ -199,13 +212,21 @@ class SupportAgent:
                  reasoning_effort: str | None = None, system_prompt: str | None = None,
                  answer_length: str | None = None, verbosity: str | None = None,
                  faq: bool | None = None, faq_drafts: bool = False, cache: bool | None = None,
-                 memory: str | None = None, keep_turns: int | None = None):
+                 memory: str | None = None, keep_turns: int | None = None,
+                 layout: str | None = None):
         self.model = model or config.FRONTIER_MODEL
         self.reasoning_effort = reasoning_effort or config.REASONING_EFFORT
         self.answer_length = answer_length or config.ANSWER_LENGTH
         self.memory_mode = memory or config.MEMORY_MODE
         self.keep_turns = config.MEMORY_KEEP_TURNS if keep_turns is None else keep_turns
         self._summary_cache: dict = {}
+        self.prompt_layout = layout or config.PROMPT_LAYOUT
+        if self.prompt_layout not in ("classic", "cache"):
+            raise ValueError("layout must be 'classic' or 'cache'")
+        if self.prompt_layout == "cache" and self.memory_mode != "off":
+            # Trimming rewrites earlier turns, which changes the prompt's beginning and
+            # stops the provider reusing its cache. Combining the two is a later step.
+            raise ValueError("layout 'cache' needs memory 'off' (trimming resets cache reuse)")
         self.verbosity = verbosity or config.VERBOSITY
         self.top_k = top_k or config.TOP_K
         self.docs: list[Doc] = load_docs(config.KB_PATH)
@@ -260,16 +281,16 @@ class SupportAgent:
         q = question.lower()
         return [d for d, pats in self._product_patterns if any(p.search(q) for p in pats)]
 
-    def system_message(self, context: str) -> str:
-        return (f"{self.system_prompt}\n\nToday's date: {_pretty_date(config.SIMULATED_TODAY)}."
-                f"\n\n{context}")
+    def system_message(self, context: str = "") -> str:
+        base = f"{self.system_prompt}\n\nToday's date: {_pretty_date(config.SIMULATED_TODAY)}."
+        return f"{base}\n\n{context}" if context else base
 
     def build_context(self, question: str, history: list[dict] | None = None
                       ) -> tuple[str, list[str], list[str], float]:
         t0 = time.perf_counter()
         # A follow-up ("what about the Y500?") means little alone: search with the previous
         # question too. Order numbers stay available for the whole conversation.
-        asked = [m["content"] for m in (history or []) if m["role"] == "user"]
+        asked = [_question_of(m["content"]) for m in (history or []) if m["role"] == "user"]
         search_text = f"{asked[-1]} {question}" if asked else question
         named = self.named_products(search_text)[: self.top_k]
         named_ids = {d.id for d in named}
@@ -434,9 +455,18 @@ class SupportAgent:
         result.cache_note = cache_note
         # The request passes through the token-saving techniques exactly as the gateway
         # will apply them to any app's request (techniques.py).
-        request = {"model": self.model,
-                   "messages": [{"role": "system", "content": self.system_message(context)},
-                                *history, {"role": "user", "content": question}]}
+        if self.prompt_layout == "cache":
+            # Fixed instructions first; this turn's documents travel with the question at the end.
+            user = f"{context}\n{QUESTION_MARK} {question}"
+            request = {"model": self.model,
+                       "messages": [{"role": "system", "content": self.system_message()},
+                                    *history, {"role": "user", "content": user}]}
+        else:
+            user = question
+            request = {"model": self.model,
+                       "messages": [{"role": "system", "content": self.system_message(context)},
+                                    *history, {"role": "user", "content": question}]}
+        result.prompt_layout, result.sent_user_message = self.prompt_layout, user
         result.turn = sum(1 for m in history if m["role"] == "user") + 1
         summary_cost = [0.0]
         request, memory = techniques.apply_memory(
@@ -448,6 +478,7 @@ class SupportAgent:
         request = techniques.apply_length(request, self.answer_length, self.verbosity)
         request = techniques.apply_reasoning(request, self.reasoning_effort)
         messages = request["messages"]
+        self.last_request = request        # exactly what is sent (used by prompt_cache_sim.py)
         with tracing.observation("llm", as_type="generation", model=self.model, input=messages,
                                  model_parameters={"max_tokens": config.MAX_TOKENS,
                                                    "reasoning_effort": self.reasoning_effort or "default",
@@ -469,7 +500,7 @@ class SupportAgent:
             result.cost_usd = round(result.cost_usd + summary_cost[0], 6)
             usage, cost = tracing.usage_and_cost(
                 self.model, result.prompt_tokens, result.completion_tokens,
-                result.cached_prompt_tokens, result.reasoning_tokens)
+                result.cached_prompt_tokens, result.reasoning_tokens, result.cache_write_tokens)
             gen.update(output=result.answer if not result.error else None,
                        usage_details=usage, cost_details=cost or None,
                        level="ERROR" if result.error else "DEFAULT",
@@ -493,14 +524,19 @@ class SupportAgent:
                 # Provider-reported counts: these are what is billed. For
                 # reasoning models completion_tokens includes hidden reasoning
                 # tokens, which is why it can far exceed the visible answer.
-                details = getattr(u, "prompt_tokens_details", None)
+                # Chat Completions says prompt_tokens_details, the Responses API
+                # input_tokens_details; read whichever is present.
+                details = (getattr(u, "prompt_tokens_details", None)
+                           or getattr(u, "input_tokens_details", None))
                 cached = getattr(details, "cached_tokens", 0) or 0
+                written = getattr(details, "cache_write_tokens", 0) or 0
+                result.cache_write_tokens = written
                 out_details = getattr(u, "completion_tokens_details", None)
                 result.reasoning_tokens = getattr(out_details, "reasoning_tokens", 0) or 0
                 result.prompt_tokens = u.prompt_tokens
                 result.cached_prompt_tokens = cached
                 result.completion_tokens = u.completion_tokens
                 result.cost_usd = round(config.price(
-                    self.model, u.prompt_tokens, u.completion_tokens, cached), 6)
+                    self.model, u.prompt_tokens, u.completion_tokens, cached, written), 6)
         except Exception as exc:                       # noqa: BLE001
             result.error = f"{type(exc).__name__}: {exc}"

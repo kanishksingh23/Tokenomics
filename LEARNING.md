@@ -279,9 +279,27 @@ work and charges about **95% less** for that repeated part.
 (the token count is unchanged), but they're billed much cheaper. Our code records how many tokens were
 cached (`cached_tokens`).
 
-**What we found:** in our 128-call baseline, **0 tokens were cached**. The likely reason: our prompts average 877
-tokens, and OpenAI has historically cached only prompts of at least 1,024 tokens. So this discount isn't helping
-us yet.
+**What we found:** in our 128-call baseline, **0 tokens were cached**: our single-question prompts are under the
+1,024-token minimum.
+
+**The official rules (checked 18 Nov 2026):** only prompts of 1,024+ tokens are cached, by **exact beginning**
+(prefix). **Writing** into the cache costs **1.25×** the normal input price; **reading** costs 0.05× on Sol (0.1× on
+Luna). So caching pays off only when what is written gets reused, as in a long chat where each turn starts with
+the previous turn's prompt. Our simulator showed long chats cutting input cost 31–42% with a cache-friendly
+layout, while the current layout could cost up to 22% *more* from writes that are never reused.
+
+### Cache write vs cache read
+**Write:** the first time a prompt beginning is stored in the provider's cache (billed 1.25× on GPT-6).
+**Read:** a later request starting with exactly that beginning (billed 0.05× on Sol).
+**Example:** paying a little extra to photocopy a form once, then a few paise for each copy. Worth it only if
+you need many copies.
+
+### Prompt layout (cache-friendly order)
+**What it is:** the order of things inside a prompt. For caching, the parts that never change (instructions) go
+first, then things that only grow (the conversation), and the parts that change every time (this turn's
+documents and question) go last, so each prompt starts exactly like the previous one.
+**In our project:** `--layout cache`. It sends more tokens but costs less on long chats, a reminder that
+**techniques interact**: trimming the memory saves tokens but stops cache reuse, and vice versa.
 
 **Don't confuse** this with *our own* response cache (Part 5), which skips the model completely.
 
@@ -1456,5 +1474,6 @@ names over made-up ones; if a fact changes (like a price or a count), update it 
 | 2026-11-17 | Added FAQ shortcut and similarity threshold. |
 | 2026-11-18 | Added safety suite, cache namespace, repeat rate. |
 | 2026-11-18 | Added multi-turn conversation, memory trimming, rolling summary. |
+| 2026-11-18 | Updated prompt caching with the official rules; added cache write vs read, prompt layout. |
 | 2026-11-17 | Added answer-length control, cost per correct answer, automatic quality check, AI grader and evidence pack, run-to-run variation. |
 | 2026-10-15 | Updated token figures with the measured baseline (877 input tokens; prompt split; no prompt caching; Luna's reasoning tokens). |

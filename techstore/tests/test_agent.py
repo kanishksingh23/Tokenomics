@@ -570,3 +570,51 @@ def test_agent_conversation():
     assert res.turn == 3 and res.memory_dropped_turns == 1
     assert res.orders_used == ["48712"]        # the order from turn 1 is still looked up at turn 3
     assert res.served_by == "model"            # follow-ups never use the FAQ or cache
+
+
+def test_cache_write_and_read_billing():
+    import tracing
+    m = config.FRONTIER_MODEL                      # Sol: input $2, write $2.50, read $0.10 per 1M
+    p = config.PRICING[m]
+    cost = config.price(m, 2000, 100, cached_prompt_tokens=1200, cache_write_tokens=500)
+    expect = (300 * p["input"] + 1200 * p["cached_input"] + 500 * p["cache_write"] + 100 * p["output"]) / 1e6
+    assert abs(cost - expect) < 1e-12
+    usage, c = tracing.usage_and_cost(m, 2000, 100, cached_tokens=1200, cache_write_tokens=500)
+    assert usage["input"] == 300 and usage["input_cache_write_tokens"] == 500
+    assert abs(c["total"] - cost) < 1e-12
+
+
+def test_cache_layout():
+    import pytest
+
+    from agent import QUESTION_MARK, _question_of
+    agent = SupportAgent(retriever_mode="keyword", mock=True, layout="cache")
+    first = agent.ask("Is delivery free?")
+    system, user = agent.last_request["messages"][0], agent.last_request["messages"][-1]
+    assert "REFERENCE DOCUMENTS" not in system["content"]          # fixed instructions only
+    assert "REFERENCE DOCUMENTS" in user["content"] and user["content"] == first.sent_user_message
+    assert _question_of(first.sent_user_message) == "Is delivery free?"
+    history = [{"role": "user", "content": first.sent_user_message},
+               {"role": "assistant", "content": first.answer}]
+    agent.ask("And for express?", history=history)
+    # the new prompt starts with the previous prompt, word for word: reusable by the provider
+    assert agent.last_request["messages"][:2] == [system, history[0]]
+    assert QUESTION_MARK not in _question_of("plain question")
+    with pytest.raises(ValueError):
+        SupportAgent(retriever_mode="keyword", mock=True, layout="cache", memory="facts")
+
+
+def test_prompt_cache_simulation_rules():
+    from prompt_cache_sim import price_requests
+    big = "word " * 1500                                    # comfortably over 1,024 tokens
+    sys_msg = {"role": "system", "content": "instructions"}
+    t1 = [sys_msg, {"role": "user", "content": big + "first"}]
+    t2 = t1 + [{"role": "assistant", "content": "answer"}, {"role": "user", "content": "second"}]
+    grows = price_requests([t1, t2], config.FRONTIER_MODEL, writes_billed=True)
+    assert grows["cached_tokens"] > 1024 and grows["written_tokens"] > 1024   # turn 2 reuses turn 1
+    changing = price_requests([t1, [{"role": "system", "content": "other"}, *t1[1:]]],
+                              config.FRONTIER_MODEL, writes_billed=True)
+    assert changing["cached_tokens"] == 0                   # a different start: no reuse
+    assert changing["cost_with_cache"] > changing["cost_no_cache"]        # writes wasted
+    small = price_requests([[sys_msg, {"role": "user", "content": "hi"}]] * 2, config.FRONTIER_MODEL, True)
+    assert small["cached_tokens"] == small["written_tokens"] == 0          # under 1,024: never cached
