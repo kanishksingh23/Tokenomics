@@ -144,6 +144,10 @@ class Answer:
     cache_score: float | None = None
     cached_question: str | None = None
     cache_note: str | None = None     # why the cache missed, skipped, or did not store
+    turn: int = 1                     # position in the conversation (1 = first question)
+    memory_mode: str = "off"          # conversation-memory technique applied (techniques.py)
+    memory_dropped_turns: int = 0     # earlier turns shrunk into a note/summary or dropped
+    memory_cost_usd: float = 0.0      # cost of writing the summary (summary mode); in cost_usd too
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), ensure_ascii=False)
@@ -175,6 +179,10 @@ class MockCompletion:
             f"A real answer to {question!r} would be composed from:\n"
             + "\n".join(f"  - {t}" for t in titles)
         )
+        # Pad to the assumed answer length, so conversation history grows like a real one.
+        filler = " (placeholder standing in for a real answer)"
+        while count_tokens(body) < config.MOCK_OUTPUT_TOKENS:
+            body += filler
         # Count what the API would actually receive: the messages plus overhead.
         if messages is None:
             messages = [{"role": "system", "content": self.agent.system_message(context)},
@@ -190,10 +198,14 @@ class SupportAgent:
                  top_k: int | None = None, mock: bool = False,
                  reasoning_effort: str | None = None, system_prompt: str | None = None,
                  answer_length: str | None = None, verbosity: str | None = None,
-                 faq: bool | None = None, faq_drafts: bool = False, cache: bool | None = None):
+                 faq: bool | None = None, faq_drafts: bool = False, cache: bool | None = None,
+                 memory: str | None = None, keep_turns: int | None = None):
         self.model = model or config.FRONTIER_MODEL
         self.reasoning_effort = reasoning_effort or config.REASONING_EFFORT
         self.answer_length = answer_length or config.ANSWER_LENGTH
+        self.memory_mode = memory or config.MEMORY_MODE
+        self.keep_turns = config.MEMORY_KEEP_TURNS if keep_turns is None else keep_turns
+        self._summary_cache: dict = {}
         self.verbosity = verbosity or config.VERBOSITY
         self.top_k = top_k or config.TOP_K
         self.docs: list[Doc] = load_docs(config.KB_PATH)
@@ -252,18 +264,23 @@ class SupportAgent:
         return (f"{self.system_prompt}\n\nToday's date: {_pretty_date(config.SIMULATED_TODAY)}."
                 f"\n\n{context}")
 
-    def build_context(self, question: str) -> tuple[str, list[str], list[str], float]:
+    def build_context(self, question: str, history: list[dict] | None = None
+                      ) -> tuple[str, list[str], list[str], float]:
         t0 = time.perf_counter()
-        named = self.named_products(question)[: self.top_k]
+        # A follow-up ("what about the Y500?") means little alone: search with the previous
+        # question too. Order numbers stay available for the whole conversation.
+        asked = [m["content"] for m in (history or []) if m["role"] == "user"]
+        search_text = f"{asked[-1]} {question}" if asked else question
+        named = self.named_products(search_text)[: self.top_k]
         named_ids = {d.id for d in named}
-        searched = [(d, s) for d, s in self.retriever.search(question, self.top_k + len(named))
+        searched = [(d, s) for d, s in self.retriever.search(search_text, self.top_k + len(named))
                     if d.id not in named_ids]
         hits = [(d, None) for d in named] + searched[: self.top_k - len(named)]
         # The catalogue is extra: it never takes one of the top_k slots.
         catalogue = next((d for d in self.docs if d.id == "catalogue_summary"), None)
-        if catalogue and wants_catalogue(question):
+        if catalogue and wants_catalogue(search_text):
             hits.append((catalogue, None))
-        orders = self._orders_in(question)
+        orders = self._orders_in(" ".join([*asked, question]))
         retrieval_ms = (time.perf_counter() - t0) * 1000
 
         parts = ["REFERENCE DOCUMENTS", ""]
@@ -296,16 +313,18 @@ class SupportAgent:
             self._client = OpenAI(api_key=config.API_KEY, base_url=config.BASE_URL)
         return self._client
 
-    def ask(self, question: str, session_id: str | None = None) -> Answer:
-        """Answer one question. With Langfuse configured, also records a trace;
-        `session_id` groups traces (e.g. one batch run) in the Langfuse UI."""
+    def ask(self, question: str, session_id: str | None = None,
+            history: list[dict] | None = None) -> Answer:
+        """Answer one question. `history` is the conversation so far, as OpenAI-style
+        {"role": "user"|"assistant", "content": ...} messages. With Langfuse configured,
+        also records a trace; `session_id` groups traces (one batch run, one chat)."""
         with tracing.question_trace(question, model=self.model, retriever=self.retriever.name,
                                     top_k=self.top_k, mock=self.mock,
                                     reasoning_effort=self.reasoning_effort,
                                     system_prompt=self.system_prompt_name,
                                     answer_length=self.answer_length,
                                     session_id=session_id) as root:
-            result = self._answer(question)
+            result = self._answer(question, history or [])
             result.trace_id = root.trace_id
             root.update(
                 output=result.answer if not result.error else None,
@@ -317,11 +336,39 @@ class SupportAgent:
             )
         return result
 
+    SUMMARY_PROMPT = (
+        "Summarise this part of a customer-support chat in at most 3 short sentences, for the "
+        "agent who continues it. Keep every order number, amount, date, product name and "
+        "decision exactly as written; never add anything that was not said.")
+
+    def _summarise(self, previous: str | None, messages: list[dict], spent: list[float]) -> str:
+        """Memory mode "summary": the cheap model condenses older turns (rolling: it extends
+        the previous summary instead of re-reading everything). Its cost is added to `spent`."""
+        convo = "\n".join(f"{m['role']}: {m['content']}" for m in messages)
+        if previous:
+            convo = f"Summary so far: {previous}\n{convo}"
+        if self.mock:
+            asked = [m["content"] for m in messages if m["role"] == "user"]
+            return "[mock summary] The customer asked: " + " | ".join(asked)
+        model = config.ECONOMY_MODEL
+        resp, _ = chat_completion(self.client, model,
+                                  [{"role": "system", "content": self.SUMMARY_PROMPT},
+                                   {"role": "user", "content": convo}],
+                                  max_tokens=400, temperature=None, reasoning_effort="none")
+        u = resp.usage
+        if u:
+            spent[0] += config.price(model, u.prompt_tokens, u.completion_tokens)
+        return (resp.choices[0].message.content or "").strip()
+
     def _product_entities(self, question: str) -> frozenset:
         return frozenset(d.id for d in self.named_products(question))
 
-    def _answer(self, question: str) -> Answer:
-        result = self._answer_uncached(question)
+    def _answer(self, question: str, history: list[dict]) -> Answer:
+        result = self._answer_uncached(question, history)
+        if history:
+            # A follow-up depends on what came before ("and how long would that take?"), so it
+            # is never stored or served on its own. FAQ and cache apply to first questions only.
+            return result
         if self.cache is not None and result.served_by == "model":
             ok = not result.error and result.finish_reason != "length" and not result.cost_is_estimate
             if ok or self.mock:
@@ -333,8 +380,9 @@ class SupportAgent:
             result.cache_note = "; ".join(filter(None, [result.cache_note, stored]))
         return result
 
-    def _answer_uncached(self, question: str) -> Answer:
-        if self.faq is not None and self.faq.entries:
+    def _answer_uncached(self, question: str, history: list[dict] | None = None) -> Answer:
+        history = history or []
+        if self.faq is not None and self.faq.entries and not history:
             with tracing.observation("faq-shortcut", as_type="span", input=question) as step:
                 t0 = time.perf_counter()
                 match = self.faq.lookup(question)
@@ -351,7 +399,7 @@ class SupportAgent:
                               system_prompt=self.system_prompt_name,
                               system_prompt_sha=self.system_prompt_sha)
         cache_note = None
-        if self.cache is not None:
+        if self.cache is not None and not history:
             with tracing.observation("response-cache", as_type="span", input=question) as step:
                 t0 = time.perf_counter()
                 look = self.cache.lookup(question, self.cache_namespace,
@@ -372,7 +420,7 @@ class SupportAgent:
                               system_prompt_sha=self.system_prompt_sha)
             cache_note = look.reason
         with tracing.observation("retrieve", as_type="retriever", input=question) as step:
-            context, retrieved, orders_used, retrieval_ms = self.build_context(question)
+            context, retrieved, orders_used, retrieval_ms = self.build_context(question, history)
             step.update(output={"documents": retrieved, "orders": orders_used},
                         metadata={"retrieval_ms": round(retrieval_ms, 2), "top_k": self.top_k})
         result = Answer(question=question, answer="", model=self.model,
@@ -388,7 +436,15 @@ class SupportAgent:
         # will apply them to any app's request (techniques.py).
         request = {"model": self.model,
                    "messages": [{"role": "system", "content": self.system_message(context)},
-                                {"role": "user", "content": question}]}
+                                *history, {"role": "user", "content": question}]}
+        result.turn = sum(1 for m in history if m["role"] == "user") + 1
+        summary_cost = [0.0]
+        request, memory = techniques.apply_memory(
+            request, self.memory_mode, self.keep_turns,
+            summarise=lambda prev, msgs: self._summarise(prev, msgs, summary_cost),
+            summary_cache=self._summary_cache)
+        result.memory_mode = self.memory_mode
+        result.memory_dropped_turns = memory["dropped_turns"]
         request = techniques.apply_length(request, self.answer_length, self.verbosity)
         request = techniques.apply_reasoning(request, self.reasoning_effort)
         messages = request["messages"]
@@ -408,6 +464,9 @@ class SupportAgent:
             else:
                 self._call_model(request, result)
             result.latency_ms = round((time.perf_counter() - t0) * 1000, 1)
+            # The summary call (memory mode "summary") is part of what this answer cost.
+            result.memory_cost_usd = round(summary_cost[0], 6)
+            result.cost_usd = round(result.cost_usd + summary_cost[0], 6)
             usage, cost = tracing.usage_and_cost(
                 self.model, result.prompt_tokens, result.completion_tokens,
                 result.cached_prompt_tokens, result.reasoning_tokens)

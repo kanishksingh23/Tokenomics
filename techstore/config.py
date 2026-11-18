@@ -74,6 +74,11 @@ FAQ_THRESHOLD = float(os.getenv("FAQ_THRESHOLD", "0.75"))
 RESPONSE_CACHE = os.getenv("RESPONSE_CACHE", "off").strip().lower() == "on"
 CACHE_THRESHOLD = float(os.getenv("CACHE_THRESHOLD", "0.88"))
 CACHE_TTL_HOURS = float(os.getenv("CACHE_TTL_HOURS", "24"))
+
+# Technique 9, conversation memory (techniques.py): off | window | facts | summary.
+# Keeps the last MEMORY_KEEP_TURNS exchanges word for word and shrinks everything older.
+MEMORY_MODE = os.getenv("MEMORY_MODE", "off").strip().lower() or "off"
+MEMORY_KEEP_TURNS = int(os.getenv("MEMORY_KEEP_TURNS", "2"))
 # Upper bound on output tokens, including any hidden reasoning tokens. Reasoning
 # models can spend hundreds of tokens thinking before writing; a low cap yields an
 # EMPTY answer that is still billed. You pay only for tokens actually produced,

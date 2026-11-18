@@ -50,6 +50,16 @@ python faq_shortcut.py --eval                              # what it would do wi
 python cli.py --mock --faq-drafts --batch data/questions_dev.jsonl --out /tmp/x.jsonl   # try drafts, mock only
 ```
 
+### Conversations and memory
+
+TechStore is a multi-turn chat: follow-ups use the earlier turns, and order numbers stay
+available for the whole conversation. Long chats resend everything, so older turns can be shrunk:
+
+```bash
+python cli.py --mock --conversations data/conversations_dev.jsonl --memory facts --out /tmp/c.jsonl
+#   --memory off | window | facts | summary     --keep-turns 2   (techniques.py)
+```
+
 ### Safe response cache
 
 Reuses an earlier answer when the same question comes again (zero tokens). **Off by default** so
@@ -124,7 +134,7 @@ downloaded once so the container starts offline).
 ```bash
 pip install -r requirements-dev.txt
 ruff check .              # add --fix for import order and similar
-python -m pytest          # 38 tests, no key, no network, < 1 s
+python -m pytest          # 41 tests, no key, no network, < 1 s
 python validate_data.py
 ```
 
@@ -154,10 +164,11 @@ techstore/
 │   ├── knowledge_base.jsonl    86 policy / product / billing / API documents
 │   ├── faq.jsonl               22 FAQ answers (draft until approved)
 │   ├── cache_pairs.jsonl       75 cache safety pairs (45 must never share an answer)
+│   ├── conversations_dev.jsonl 8 multi-turn chats for building conversation memory
 │   ├── orders.jsonl            40 orders incl. the multi-charge dispute case
 │   ├── questions_dev.jsonl     dev set (target 100): tuning only
 │   └── questions_test.jsonl    test set (target 36): frozen, final results only
-├── tests/test_agent.py  38 tests, no API calls, run by CI on every push
+├── tests/test_agent.py  41 tests, no API calls, run by CI on every push
 ├── Dockerfile           Streamlit demo image (CPU torch, MiniLM baked in)
 ├── pyproject.toml       ruff + pytest settings
 └── requirements-dev.txt pytest, ruff (all CI needs)

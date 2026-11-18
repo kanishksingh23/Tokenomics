@@ -517,3 +517,56 @@ def test_agent_reuses_cached_answer(monkeypatch):
     assert again.served_by == "cache" and again.cache_kind == "exact" and again.cost_usd == 0
     order = agent.ask("Where is my order 48213?")
     assert order.served_by == "model" and "not stored" in order.cache_note
+
+
+def _chat(n):
+    msgs = [{"role": "system", "content": "Rules and documents."}]
+    for i in range(1, n):
+        msgs += [{"role": "user", "content": f"question {i} about order 48712 and ₹12,999"},
+                 {"role": "assistant", "content": f"answer {i}"}]
+    return msgs + [{"role": "user", "content": f"question {n}"}]
+
+
+def test_memory_modes():
+    import techniques as t
+    req = {"model": "m", "messages": _chat(5)}             # 4 earlier turns + the new question
+    same, info = t.apply_memory(req, "off")
+    assert same == req and info["dropped_turns"] == 0
+    short, _ = t.apply_memory({"model": "m", "messages": _chat(3)}, "window", keep_turns=2)
+    assert short["messages"] == _chat(3)                   # nothing older than 2 turns yet
+    win, info = t.apply_memory(req, "window", keep_turns=2)
+    assert info["dropped_turns"] == 2
+    assert [m["content"] for m in win["messages"]][1:] == [
+        "question 3 about order 48712 and ₹12,999", "answer 3",
+        "question 4 about order 48712 and ₹12,999", "answer 4", "question 5"]
+    facts, _ = t.apply_memory(req, "facts", keep_turns=2)
+    note = facts["messages"][1]
+    assert note["role"] == "system" and "48712" in note["content"] and "₹12,999" in note["content"]
+    assert "question 1" in note["content"] and req["messages"] == _chat(5)   # input untouched
+
+
+def test_memory_summary_is_rolling():
+    import techniques as t
+    calls, cache = [], {}
+
+    def summarise(prev, msgs):
+        calls.append((prev, len(msgs)))
+        return (prev or "") + f"+{len(msgs)}"
+    for n in (4, 5, 6):                                    # three successive turns of one chat
+        t.apply_memory({"model": "m", "messages": _chat(n)}, "summary", 2, summarise, cache)
+    # each turn summarises only the turn that newly aged out, extending the previous summary
+    assert calls == [(None, 2), ("+2", 2), ("+2+2", 2)]
+    t.apply_memory({"model": "m", "messages": _chat(6)}, "summary", 2, summarise, cache)
+    assert len(calls) == 3                                 # same history again: no new call
+
+
+def test_agent_conversation():
+    agent = SupportAgent(retriever_mode="keyword", mock=True, memory="window", keep_turns=1)
+    history = []
+    for q in ["What's happening with order 48712?", "Why are there three charges?",
+              "Can I still cancel it?"]:
+        res = agent.ask(q, history=history)
+        history += [{"role": "user", "content": q}, {"role": "assistant", "content": res.answer}]
+    assert res.turn == 3 and res.memory_dropped_turns == 1
+    assert res.orders_used == ["48712"]        # the order from turn 1 is still looked up at turn 3
+    assert res.served_by == "model"            # follow-ups never use the FAQ or cache

@@ -29,8 +29,8 @@ PRESETS = [
 
 
 @st.cache_resource
-def get_agent(model: str, retriever: str, top_k: int, mock: bool) -> SupportAgent:
-    return SupportAgent(model=model, retriever_mode=retriever, top_k=top_k, mock=mock)
+def get_agent(model: str, retriever: str, top_k: int, mock: bool, memory: str) -> SupportAgent:
+    return SupportAgent(model=model, retriever_mode=retriever, top_k=top_k, mock=mock, memory=memory)
 
 
 if "history" not in st.session_state:
@@ -51,13 +51,17 @@ with st.sidebar:
                              help="keyword: BM25, no dependencies. embedding: MiniLM on CPU. "
                                   "auto: embedding if installed, else keyword.")
     top_k = st.slider("Documents retrieved", 1, 6, config.TOP_K)
+    memory = st.selectbox("Conversation memory", ["facts", "window", "summary", "off"],
+                          help="How earlier turns are kept: the last 2 exchanges word for word, "
+                               "older ones as a facts note (facts), dropped (window), summarised "
+                               "by the cheap model (summary), or all resent every turn (off).")
     mock = st.toggle("Mock mode (no API key, no spend)", value=not bool(config.API_KEY))
     if mock:
         st.caption("⚠️ Stub model. Retrieval and cost accounting are real; the answer text is not.")
     elif not config.API_KEY:
         st.error("No OPENAI_API_KEY set. Enable mock mode or add a key to .env")
 
-    if st.session_state.history and st.button("Clear conversation", use_container_width=True):
+    if st.session_state.history and st.button("New conversation", use_container_width=True):
         st.session_state.history = []
         st.session_state.spend = 0.0
         st.rerun()
@@ -66,7 +70,7 @@ with st.sidebar:
     st.caption(f"Endpoint `{config.BASE_URL}`")
     st.caption(f"Pricing as of {config.PRICING_AS_OF}")
 
-agent = get_agent(model, retriever, top_k, mock)
+agent = get_agent(model, retriever, top_k, mock, memory)
 
 # chat_input must be called at the top level, not inside a column, or Streamlit
 # renders it inline instead of pinning it to the bottom of the viewport.
@@ -77,7 +81,12 @@ if question:
     with st.spinner("Thinking..."):
         # One Langfuse session per browser session groups this visitor's traces.
         sid = st.session_state.setdefault("trace_session", f"ui-{uuid.uuid4().hex[:8]}")
-        result = agent.ask(question, session_id=sid)
+        # The conversation so far, so follow-ups ("and the other one?") make sense.
+        history = []
+        for turn in st.session_state.history:
+            history += [{"role": "user", "content": turn.question},
+                        {"role": "assistant", "content": turn.error or turn.answer}]
+        result = agent.ask(question, session_id=sid, history=history)
     st.session_state.history.append(result)
     st.session_state.spend += result.cost_usd
 
@@ -132,6 +141,13 @@ with right:
             for o in r.orders_used:
                 st.markdown(f"`#{o}`")
         st.caption(f"Retrieval {r.retrieval_ms:.2f} ms via **{r.retriever}** · `{r.model}`")
+        if r.served_by != "model":
+            st.caption(f"⚡ Answered by the **{r.served_by}** with no model call "
+                       f"({r.faq_id or r.cache_kind}).")
+        if r.turn > 1:
+            st.caption(f"Turn {r.turn} · memory **{r.memory_mode}**"
+                       + (f" · {r.memory_dropped_turns} earlier turn(s) shrunk"
+                          if r.memory_dropped_turns else " · full history sent"))
         url = tracing.trace_url(r.trace_id)
         if url:
             st.markdown(f"[View this trace in Langfuse ↗]({url})")

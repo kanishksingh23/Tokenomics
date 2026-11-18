@@ -305,7 +305,23 @@ greeting and an offer of more help.
 call**, so it only pays off if answers shrink by more than ~11 tokens on average (output costs 5× input).
 Measuring it waits for OpenAI credit.
 
-### Safety suite (adversarial pairs)
+### Multi-turn conversation and memory trimming
+**What it is:** a chat where each message builds on the earlier ones. In the OpenAI format, every new message is
+sent **together with the whole conversation so far**, so each turn costs more than the last. **Memory trimming**
+keeps the last few exchanges word for word and shrinks the older ones:
+- **window:** forget them (free, but early details are lost)
+- **facts:** keep a short note of the customer's earlier questions and every number, amount and date (free)
+- **summary:** a cheap model writes a short summary (costs a small call)
+**Example:** a support agent reading the whole chat log before every reply, versus glancing at the last two
+messages plus a sticky note with the order number.
+**In our project:** `techniques.apply_memory`. On our test chats input stays flat at ~880 tokens after turn 3
+instead of growing ~100 tokens per turn; projected −24% over a 10-turn chat, −46% over 20.
+
+### Rolling summary
+**What it is:** instead of re-summarising the whole older conversation on every turn, keep the previous summary
+and only add the turn that just became "old". Each turn is summarised once.
+**Why:** without it, the summary call itself grows with the chat, eating the saving it was meant to create.
+
 **What it is:** a list of question pairs that **look alike but need different answers** ("turn on" vs "turn off",
 order 48213 vs 48217, UPI vs Paytm), used to attack our own cache. If the cache ever reuses an answer across one
 of these pairs, the test fails. Plus true rephrasings that *should* reuse an answer.
@@ -1439,5 +1455,6 @@ names over made-up ones; if a fact changes (like a price or a count), update it 
 | 2026-10-15 | Added reasoning effort. |
 | 2026-11-17 | Added FAQ shortcut and similarity threshold. |
 | 2026-11-18 | Added safety suite, cache namespace, repeat rate. |
+| 2026-11-18 | Added multi-turn conversation, memory trimming, rolling summary. |
 | 2026-11-17 | Added answer-length control, cost per correct answer, automatic quality check, AI grader and evidence pack, run-to-run variation. |
 | 2026-10-15 | Updated token figures with the measured baseline (877 input tokens; prompt split; no prompt caching; Luna's reasoning tokens). |

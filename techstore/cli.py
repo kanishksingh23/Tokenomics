@@ -3,6 +3,7 @@
     python cli.py "Can I return opened headphones?"
     python cli.py --dry-run "Where is my order #48213?"     # shows context, no API call
     python cli.py --batch questions.jsonl --out results.jsonl
+    python cli.py --conversations data/conversations_dev.jsonl --memory facts --out chats.jsonl
 """
 from __future__ import annotations
 
@@ -40,6 +41,11 @@ def main() -> int:
     ap.add_argument("--mock", action="store_true",
                     help="run the full pipeline against a stub model: no API key, no spend")
     ap.add_argument("--batch", help="JSONL file with a 'question' field per line")
+    ap.add_argument("--conversations", help="JSONL file, one chat per line: {'id', 'turns': [questions]}")
+    ap.add_argument("--memory", default=None, choices=["off", "window", "facts", "summary"],
+                    help="conversation memory: how earlier turns are kept (techniques.py)")
+    ap.add_argument("--keep-turns", type=int, default=None,
+                    help="earlier exchanges kept word for word (default 2)")
     ap.add_argument("--out", help="write results as JSONL")
     ap.add_argument("--session", help="Langfuse session that groups this run's traces "
                                       "(default for --batch: the --out file name)")
@@ -50,15 +56,43 @@ def main() -> int:
                          reasoning_effort=args.reasoning_effort, system_prompt=args.system_prompt,
                          answer_length=args.answer_length, verbosity=args.verbosity,
                          faq=False if args.no_faq else None, faq_drafts=args.faq_drafts,
-                         cache=True if args.cache else None)
+                         cache=True if args.cache else None,
+                         memory=args.memory, keep_turns=args.keep_turns)
     print(f"model={agent.model}{' (MOCK)' if agent.mock else ''}  "
           f"retriever={agent.retriever.name}  docs={len(agent.docs)}  "
           f"top_k={agent.top_k}  effort={agent.reasoning_effort or 'default'}  "
           f"prompt={agent.system_prompt_name}  length={agent.answer_length}"
           f"{'  verbosity=' + agent.verbosity if agent.verbosity else ''}"
-          f"  cache={'on' if agent.cache else 'off'}"
+          f"  cache={'on' if agent.cache else 'off'}  memory={agent.memory_mode}"
           f"  faq={len(agent.faq.entries) if agent.faq else 0} answers"
           f"{' (incl. drafts)' if args.faq_drafts else ''}", file=sys.stderr)
+
+    if args.conversations:
+        chats = [json.loads(line) for line in open(args.conversations, encoding="utf-8") if line.strip()]
+        out = open(args.out, "w", encoding="utf-8") if args.out else None
+        session = args.session or (Path(args.out).stem if args.out else None)
+        total, n = 0.0, 0
+        for chat in chats:
+            history: list[dict] = []
+            for turn, question in enumerate(chat["turns"], 1):
+                res = agent.ask(question, session_id=f"{session}-{chat['id']}" if session else chat["id"],
+                                history=history)
+                total += res.cost_usd
+                n += 1
+                print(f"[{chat['id']} turn {turn}] {res.prompt_tokens:5d} in  ${res.cost_usd:.6f}  "
+                      f"{question[:55]}", file=sys.stderr)
+                history += [{"role": "user", "content": question},
+                            {"role": "assistant", "content": res.answer}]
+                if out:
+                    rec = json.loads(res.to_json())
+                    rec.update({"conversation_id": chat["id"], "id": f"{chat['id']}-{turn}"})
+                    out.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        if out:
+            out.close()
+        tracing.flush()
+        tag = " ESTIMATED (mock)" if agent.mock else ""
+        print(f"\ntotal ${total:.4f} over {n} turns in {len(chats)} conversations{tag}", file=sys.stderr)
+        return 0
 
     if args.batch:
         rows = [json.loads(line) for line in open(args.batch, encoding="utf-8") if line.strip()]
