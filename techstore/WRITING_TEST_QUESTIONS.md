@@ -2,6 +2,10 @@
 
 A guide for writing the **36 test questions** in `data/questions_test.jsonl`. Read it once fully before starting; after that, the checklists and the appendices are what you will keep coming back to.
 
+**Two tasks, in this order:**
+1. The 36 test questions (most of this guide), about 2–2½ hours.
+2. After they're done: a small **repeat-traffic set** of 36 variants for testing the answer cache, about 20–30 minutes. See [the repeat-traffic set](#after-the-test-set-the-repeat-traffic-set-for-the-cache).
+
 ## Why this set matters
 
 Every fix we made in Phase 0 — document wording, search rules, the prompt — was made after looking at the 50 seed questions, so the system is now fitted to them. On 14 questions written later, keyword search found the right document only 8 times out of 14, while it had looked best on the seeds. **The test set is how we find out how the system does on questions it has never seen.** Every token- and cost-saving technique we build is finally measured on it, so the questions we tuned on (the 64 dev questions) never decide the final result.
@@ -265,6 +269,88 @@ The examples in this guide show the format only. **Don't use them as test questi
    python validate_data.py --freeze
    ```
    This writes `questions_test.sha256`. Commit both files. From then on, any edit to the test set fails validation.
+
+---
+
+## After the test set: the repeat-traffic set (for the cache)
+
+**Do this only after your 36 test questions are finished.** About 20–30 minutes.
+
+### Why
+
+Tokenomics has an **answer cache**: when a customer asks something that was already answered,
+even in different words, it reuses the saved answer instead of paying the model again. It saves
+money only when customers **repeat** each other, and our question sets have no repeats on
+purpose. So this small set measures two things:
+
+1. **Saving:** how often the cache recognises a real repeat and reuses the answer.
+2. **Safety:** whether it refuses look-alike questions that need a *different* answer. Reusing an
+   answer there would give a customer the wrong information.
+
+It has to be written by you, not by Kanishk or Claude: Claude set how strict the cache is, so it
+must not also write the exam.
+
+### What to write
+
+1. **Pick 12 of your 36 test questions** whose answer is the same for every customer: simple FAQs,
+   product info, policies, general troubleshooting. **Don't pick `order_status` questions** or
+   anything with an order number; those are personal and the cache never stores them.
+2. **For each of the 12, write 3 variants:**
+
+| `type` | How many | Rule |
+|:---|---:|:---|
+| `same` | 2 | **Same meaning and the same correct answer**, in different words, as a different customer would type it. Keep any numbers and product names exactly as in the original. |
+| `different` | 1 | **Looks almost the same but needs a different answer.** Change one detail: the product, a number, on ↔ off, with ↔ without, before ↔ after, a payment method... |
+
+That makes **36 lines** (12 × 3).
+
+**Example.** Original test question `t007`: *"can i return headphones after opening them"*
+
+| `type` | Variant | Why it's a good one |
+|:---|:---|:---|
+| `same` | *"opened my headphones, can they still go back?"* | Same question, different words |
+| `same` | *"earphones box is open now, return possible??"* | Same question, casual wording |
+| `different` | *"can i return a laptop after opening it"* | Looks the same, but laptops have no hygiene rule, so the answer differs |
+
+**Good `different` variants are the tricky ones**: almost word-for-word the same, with one detail
+that changes the answer. A variant about a completely different topic tests nothing.
+
+### Rules
+
+- **Same rules as the test questions:** a customer's own words (lowercase and typos are fine),
+  **write blind** (don't try them on the system), and Gemini only for phrasing ideas, never
+  ChatGPT or Claude. Mark AI-helped lines `"source": "ai_assisted"`.
+- A `same` variant must really have the same correct answer. If you're unsure, it's probably
+  a `different`.
+- Don't copy any dev or test question, and don't repeat the original word for word.
+
+### Format
+
+One line per variant in **`data/questions_repeat.jsonl`**. Ids run `r001` to `r036`.
+
+```json
+{"id": "r001", "repeat_of": "t007", "type": "same", "question": "opened my headphones, can they still go back?", "source": "human"}
+{"id": "r002", "repeat_of": "t007", "type": "same", "question": "earphones box is open now, return possible??", "source": "human"}
+{"id": "r003", "repeat_of": "t007", "type": "different", "question": "can i return a laptop after opening it", "source": "human"}
+```
+
+| Field | Notes |
+|:---|:---|
+| `id` | `r001` … `r036` |
+| `repeat_of` | The id of your test question it's a variant of (`t…`) |
+| `type` | `same` or `different` |
+| `question` | The customer's message |
+| `source` | `human` or `ai_assisted` |
+
+### Check and hand over
+
+```bash
+python validate_data.py
+```
+
+It checks every line (known `repeat_of`, no order-status originals, no copies, `same` variants
+keeping the original's numbers) and shows progress: "repeat set: 36 / 36". When it passes,
+commit the file. Don't edit it after the cache has been measured on it.
 
 ---
 

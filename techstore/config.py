@@ -23,6 +23,9 @@ SYSTEM_PROMPT_PATH = BASE_DIR / os.getenv("SYSTEM_PROMPT", "system_prompt.txt")
 DEV_QUESTIONS_PATH = DATA_DIR / "questions_dev.jsonl"
 TEST_QUESTIONS_PATH = DATA_DIR / "questions_test.jsonl"
 TEST_LOCK_PATH = DATA_DIR / "questions_test.sha256"
+# Variants of 12 test questions for measuring the answer cache (WRITING_TEST_QUESTIONS.md):
+# "same" = same answer in other words, "different" = look-alike needing another answer.
+REPEAT_QUESTIONS_PATH = DATA_DIR / "questions_repeat.jsonl"
 
 API_KEY = os.getenv("OPENAI_API_KEY", "")
 BASE_URL = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")

@@ -172,6 +172,49 @@ def main() -> int:
             warnings.append("test set is not frozen yet: when it is complete, run "
                             "`python validate_data.py --freeze`")
 
+    # Repeat-traffic set for the cache: written after the test set, from 12 of its questions.
+    repeat = rows(config.REPEAT_QUESTIONS_PATH) if config.REPEAT_QUESTIONS_PATH.exists() else []
+    if repeat:
+        test_by_id = {q["id"]: q for q in test}
+        if not test:
+            errors.append("questions_repeat.jsonl exists but the test set is empty: write the 36 first")
+        seen_ids, seen_q = set(), set()
+        known = {norm(q["question"]) for q in dev + test}
+        for v in repeat:
+            vid, orig = v.get("id", "?"), test_by_id.get(v.get("repeat_of"))
+            if not re.fullmatch(r"r\d{3}", vid):
+                errors.append(f"repeat {vid}: id must look like r001")
+            if vid in seen_ids:
+                errors.append(f"repeat {vid}: duplicate id")
+            seen_ids.add(vid)
+            if v.get("type") not in ("same", "different"):
+                errors.append(f"repeat {vid}: type must be 'same' or 'different'")
+            if v.get("source") not in ("human", "ai_assisted"):
+                errors.append(f"repeat {vid}: source must be 'human' or 'ai_assisted'")
+            q = (v.get("question") or "").strip()
+            if not q:
+                errors.append(f"repeat {vid}: empty question")
+                continue
+            if norm(q) in known or norm(q) in seen_q:
+                errors.append(f"repeat {vid}: copies an existing question")
+            seen_q.add(norm(q))
+            if test and orig is None:
+                errors.append(f"repeat {vid}: repeat_of {v.get('repeat_of')!r} is not a test question id")
+                continue
+            if orig and orig["category"] == "order_status":
+                errors.append(f"repeat {vid}: {orig['id']} is an order_status question "
+                              "(never cached); pick another")
+            if orig and v.get("type") == "same":
+                nums = lambda t: set(re.findall(r"\d+", t.replace(",", "")))  # noqa: E731
+                if nums(q) != nums(orig["question"]):
+                    warnings.append(f"repeat {vid}: a 'same' variant should keep the original's numbers "
+                                    f"({sorted(nums(orig['question']))} vs {sorted(nums(q))})")
+        per = Counter((v.get("repeat_of"), v.get("type")) for v in repeat)
+        for o in sorted({v.get("repeat_of") for v in repeat}):
+            if (per[(o, "same")], per[(o, "different")]) != (2, 1):
+                warnings.append(f"repeat set: {o} has {per[(o, 'same')]} same / "
+                                f"{per[(o, 'different')]} different (aim for 2 / 1)")
+
     print(f"knowledge base : {len(kb)} documents")
     print(f"orders         : {len(orders)}")
     for label, qs, targets, fname in (("dev set", dev, DEV_TARGETS, config.DEV_QUESTIONS_PATH.name),
@@ -185,6 +228,11 @@ def main() -> int:
             have = counts.get(cat, 0)
             bar = "#" * int(20 * min(have / target, 1.0))
             print(f"  {cat:22s} {have:5d} {target:7d}  {bar:<20s} {100*have/target:5.1f}%")
+
+    if repeat or config.REPEAT_QUESTIONS_PATH.exists():
+        originals = len({v.get("repeat_of") for v in repeat})
+        print(f"\nrepeat set: {len(repeat)} / 36  ({originals} / 12 test questions covered; "
+              f"{config.REPEAT_QUESTIONS_PATH.name})")
 
     if warnings:
         print("\nwarnings:")
