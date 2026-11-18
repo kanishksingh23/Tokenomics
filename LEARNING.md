@@ -340,6 +340,7 @@ instead of growing ~100 tokens per turn; projected −24% over a 10-turn chat, �
 and only add the turn that just became "old". Each turn is summarised once.
 **Why:** without it, the summary call itself grows with the chat, eating the saving it was meant to create.
 
+### Safety suite (adversarial pairs)
 **What it is:** a list of question pairs that **look alike but need different answers** ("turn on" vs "turn off",
 order 48213 vs 48217, UPI vs Paytm), used to attack our own cache. If the cache ever reuses an answer across one
 of these pairs, the test fails. Plus true rephrasings that *should* reuse an answer.
@@ -360,6 +361,7 @@ cache's saving equals the repeat rate of the questions it is allowed to store.
 **In our project:** our test questions are all different on purpose, so the cache saved 0 on them. Measuring it
 needs a "repeat traffic" set; real support traffic repeats a lot.
 
+### FAQ shortcut (pre-filled cache)
 **What it is:** answers to the most common questions, written in advance from the documents and **approved by a
 person**, served instantly with **no model call**: zero tokens, zero cost. Unlike a normal cache, it works from
 the very first time a question is asked.
@@ -376,6 +378,21 @@ Higher means safer but fewer matches.
 **In our project:** the FAQ shortcut uses 0.75. At 0.70 one question nearly got the wrong saved answer, and a
 wrong saved answer reaches the customer unchecked, while a missed match only costs a normal model call.
 
+### Adaptive context
+**What it is:** sending a different number of documents per question: one when a single document is the clear
+match, up to four when several are close. Measured by how close each document's search score is to the best one.
+**Example:** a librarian handing you the one book you asked for, instead of always four books "just in case".
+**In our project:** `--context-margin 0.25`: 3.4 documents instead of 4 on average, 15% fewer document tokens,
+and no document a question needed was dropped.
+
+### Proxy measure
+**What it is:** a cheap, indirect check used when the real measurement is expensive or impossible right now.
+**Example:** checking that a recipe card still lists every ingredient, before anyone actually cooks the dish.
+**In our project:** without credits we can't ask the model again, so we checked whether the **numbers Sol quoted
+in its correct answers** still appear in the trimmed documents. It showed that sentence trimming cut real facts
+(the Y500's price), so we rejected it before spending anything.
+
+### Cost per correct answer
 **What it is:** total cost ÷ number of answers graded correct. Our **headline measure**, because it combines money
 and quality in one number: a trick that makes answers cheaper but wrong makes this number *worse*.
 **Example:** 64 answers for $0.172 with 63 correct = $0.00273 per correct answer. If a cheaper setup costs $0.10 but
@@ -1471,9 +1488,10 @@ names over made-up ones; if a fact changes (like a price or a count), update it 
 | 2026-10-09 | Added from the similar-projects research: prompt compression, cascade, drafter/verifier, speculative execution, Thompson sampling, GitHub stars and archived repos. |
 | 2026-10-15 | Added Langfuse setup terms: observation, generation, session, environment, flush, no-op. |
 | 2026-10-15 | Added reasoning effort. |
+| 2026-10-15 | Updated token figures with the measured baseline (877 input tokens; prompt split; no prompt caching; Luna's reasoning tokens). |
 | 2026-11-17 | Added FAQ shortcut and similarity threshold. |
+| 2026-11-17 | Added answer-length control, cost per correct answer, automatic quality check, AI grader and evidence pack, run-to-run variation. |
 | 2026-11-18 | Added safety suite, cache namespace, repeat rate. |
 | 2026-11-18 | Added multi-turn conversation, memory trimming, rolling summary. |
 | 2026-11-18 | Updated prompt caching with the official rules; added cache write vs read, prompt layout. |
-| 2026-11-17 | Added answer-length control, cost per correct answer, automatic quality check, AI grader and evidence pack, run-to-run variation. |
-| 2026-10-15 | Updated token figures with the measured baseline (877 input tokens; prompt split; no prompt caching; Luna's reasoning tokens). |
+| 2026-11-18 | Added adaptive context and proxy measure; restored three headings lost in earlier edits (safety suite, FAQ shortcut, cost per correct answer). |

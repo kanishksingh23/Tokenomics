@@ -87,6 +87,16 @@ MEMORY_KEEP_TURNS = int(os.getenv("MEMORY_KEEP_TURNS", "2"))
 # then this turn's documents with the question, so each turn's prompt starts with the
 # previous turn's prompt and OpenAI's prefix cache can reuse it.
 PROMPT_LAYOUT = os.getenv("PROMPT_LAYOUT", "classic").strip().lower() or "classic"
+
+# Technique 5, adaptive context: instead of always sending TOP_K documents, keep only those
+# whose search score is within CONTEXT_MARGIN of the best one (at least 1, at most TOP_K).
+# Empty = off (always TOP_K). Scores are cosine similarities from the embedding retriever.
+CONTEXT_MARGIN = float(os.getenv("CONTEXT_MARGIN")) if os.getenv("CONTEXT_MARGIN") else None
+
+# Technique 4, smaller context: inside each document, keep only sentences (catalogue: product
+# lines) whose similarity to the question is within PASSAGE_MARGIN of the document's best
+# sentence; the first sentence always stays. Empty = off (whole documents).
+PASSAGE_MARGIN = float(os.getenv("PASSAGE_MARGIN")) if os.getenv("PASSAGE_MARGIN") else None
 # Upper bound on output tokens, including any hidden reasoning tokens. Reasoning
 # models can spend hundreds of tokens thinking before writing; a low cap yields an
 # EMPTY answer that is still billed. You pay only for tokens actually produced,

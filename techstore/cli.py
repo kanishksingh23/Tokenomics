@@ -46,6 +46,10 @@ def main() -> int:
                     help="conversation memory: how earlier turns are kept (techniques.py)")
     ap.add_argument("--keep-turns", type=int, default=None,
                     help="earlier exchanges kept word for word (default 2)")
+    ap.add_argument("--context-margin", type=float, default=None,
+                    help="adaptive context: keep documents within this score of the best (e.g. 0.25)")
+    ap.add_argument("--passage-margin", type=float, default=None,
+                    help="smaller context: keep sentences within this score of the best (off by default)")
     ap.add_argument("--layout", default=None, choices=["classic", "cache"],
                     help="cache: fixed instructions first, documents last (provider prompt caching)")
     ap.add_argument("--out", help="write results as JSONL")
@@ -59,7 +63,8 @@ def main() -> int:
                          answer_length=args.answer_length, verbosity=args.verbosity,
                          faq=False if args.no_faq else None, faq_drafts=args.faq_drafts,
                          cache=True if args.cache else None,
-                         memory=args.memory, keep_turns=args.keep_turns, layout=args.layout)
+                         memory=args.memory, keep_turns=args.keep_turns, layout=args.layout,
+                         context_margin=args.context_margin, passage_margin=args.passage_margin)
     print(f"model={agent.model}{' (MOCK)' if agent.mock else ''}  "
           f"retriever={agent.retriever.name}  docs={len(agent.docs)}  "
           f"top_k={agent.top_k}  effort={agent.reasoning_effort or 'default'}  "

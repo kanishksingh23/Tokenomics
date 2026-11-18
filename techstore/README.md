@@ -60,6 +60,13 @@ python cli.py --mock --conversations data/conversations_dev.jsonl --memory facts
 #   --memory off | window | facts | summary     --keep-turns 2   (techniques.py)
 ```
 
+### Sending less context
+
+```bash
+python cli.py --context-margin 0.25 "Is delivery free?"   # adaptive: fewer documents when one clearly matches
+python cli.py --passage-margin 0.3 ...                     # sentence trimming: rejected on our data (loses facts)
+```
+
 ### Provider prompt caching
 
 OpenAI bills a repeated prompt beginning (1,024+ tokens) far cheaper, but writing it into the
@@ -144,7 +151,7 @@ downloaded once so the container starts offline).
 ```bash
 pip install -r requirements-dev.txt
 ruff check .              # add --fix for import order and similar
-python -m pytest          # 44 tests, no key, no network, < 1 s
+python -m pytest          # 46 tests, no key, no network, < 1 s
 python validate_data.py
 ```
 
@@ -179,7 +186,7 @@ techstore/
 │   ├── orders.jsonl            40 orders incl. the multi-charge dispute case
 │   ├── questions_dev.jsonl     dev set (target 100): tuning only
 │   └── questions_test.jsonl    test set (target 36): frozen, final results only
-├── tests/test_agent.py  44 tests, no API calls, run by CI on every push
+├── tests/test_agent.py  46 tests, no API calls, run by CI on every push
 ├── Dockerfile           Streamlit demo image (CPU torch, MiniLM baked in)
 ├── pyproject.toml       ruff + pytest settings
 └── requirements-dev.txt pytest, ruff (all CI needs)

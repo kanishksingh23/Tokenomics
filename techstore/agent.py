@@ -213,13 +213,17 @@ class SupportAgent:
                  answer_length: str | None = None, verbosity: str | None = None,
                  faq: bool | None = None, faq_drafts: bool = False, cache: bool | None = None,
                  memory: str | None = None, keep_turns: int | None = None,
-                 layout: str | None = None):
+                 layout: str | None = None, context_margin: float | None = None,
+                 passage_margin: float | None = None):
         self.model = model or config.FRONTIER_MODEL
         self.reasoning_effort = reasoning_effort or config.REASONING_EFFORT
         self.answer_length = answer_length or config.ANSWER_LENGTH
         self.memory_mode = memory or config.MEMORY_MODE
         self.keep_turns = config.MEMORY_KEEP_TURNS if keep_turns is None else keep_turns
         self._summary_cache: dict = {}
+        self.context_margin = config.CONTEXT_MARGIN if context_margin is None else context_margin
+        self.passage_margin = config.PASSAGE_MARGIN if passage_margin is None else passage_margin
+        self._sentences: dict[str, tuple[list[str], object]] = {}
         self.prompt_layout = layout or config.PROMPT_LAYOUT
         if self.prompt_layout not in ("classic", "cache"):
             raise ValueError("layout must be 'classic' or 'cache'")
@@ -296,6 +300,12 @@ class SupportAgent:
         named_ids = {d.id for d in named}
         searched = [(d, s) for d, s in self.retriever.search(search_text, self.top_k + len(named))
                     if d.id not in named_ids]
+        if self.context_margin is not None and searched:
+            # Adaptive context: keep documents scoring close to the best match; a clear winner
+            # travels alone. Named products (above) are always kept.
+            best = searched[0][1]
+            close = [(d, s) for d, s in searched if s >= best - self.context_margin]
+            searched = close or searched[:1]
         hits = [(d, None) for d in named] + searched[: self.top_k - len(named)]
         # The catalogue is extra: it never takes one of the top_k slots.
         catalogue = next((d for d in self.docs if d.id == "catalogue_summary"), None)
@@ -306,7 +316,8 @@ class SupportAgent:
 
         parts = ["REFERENCE DOCUMENTS", ""]
         for doc, _ in hits:
-            parts.append(f"[{doc.id}] {doc.title}\n{doc.text}\n")
+            text = doc.text if self.passage_margin is None else self.passage(doc, search_text)
+            parts.append(f"[{doc.id}] {doc.title}\n{text}\n")
         if not hits:
             # Say it explicitly. An empty heading leaves the model to infer that
             # nothing matched, and some models fill the silence from memory.
@@ -380,6 +391,33 @@ class SupportAgent:
         if u:
             spent[0] += config.price(model, u.prompt_tokens, u.completion_tokens)
         return (resp.choices[0].message.content or "").strip()
+
+    def _encode(self, texts: list[str]):
+        model = getattr(self.retriever, "model", None)
+        if model is None:                       # keyword retriever: load MiniLM once
+            from sentence_transformers import SentenceTransformer  # noqa: PLC0415
+            model = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2", device="cpu")
+            self.retriever.model = model
+        return model.encode(texts, normalize_embeddings=True)
+
+    def passage(self, doc: Doc, question: str) -> str:
+        """Technique 4: the parts of `doc` relevant to `question`. Sentences (catalogue:
+        product lines) within passage_margin of the best one are kept, in order; the first
+        always stays because it says what the document is about."""
+        if doc.id not in self._sentences:
+            if doc.id == "catalogue_summary":
+                parts = [line for line in doc.text.split("\n") if line.strip()]
+            else:
+                parts = [p for p in re.split(r"(?<=[.!?])\s+", doc.text.strip()) if p]
+            self._sentences[doc.id] = (parts, self._encode(parts))
+        parts, vecs = self._sentences[doc.id]
+        if len(parts) <= 2:
+            return doc.text
+        sims = vecs @ self._encode([question])[0]
+        floor = float(sims.max()) - self.passage_margin
+        keep = [p for i, (p, s) in enumerate(zip(parts, sims, strict=True)) if i == 0 or s >= floor]
+        joiner = "\n" if doc.id == "catalogue_summary" else " "
+        return joiner.join(keep)
 
     def _product_entities(self, question: str) -> frozenset:
         return frozenset(d.id for d in self.named_products(question))

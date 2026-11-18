@@ -618,3 +618,27 @@ def test_prompt_cache_simulation_rules():
     assert changing["cost_with_cache"] > changing["cost_no_cache"]        # writes wasted
     small = price_requests([[sys_msg, {"role": "user", "content": "hi"}]] * 2, config.FRONTIER_MODEL, True)
     assert small["cached_tokens"] == small["written_tokens"] == 0          # under 1,024: never cached
+
+
+def test_adaptive_context():
+    q = "Can I compare the PulseBook 14 with the Pro 16 for video editing?"
+    fixed = SupportAgent(retriever_mode="keyword", mock=True)
+    tight = SupportAgent(retriever_mode="keyword", mock=True, context_margin=0.0)
+    loose = SupportAgent(retriever_mode="keyword", mock=True, context_margin=1e9)
+    _, docs_fixed, _, _ = fixed.build_context(q)
+    _, docs_tight, _, _ = tight.build_context(q)
+    _, docs_loose, _, _ = loose.build_context(q)
+    named = {"prod_pulsebook14", "prod_pulsebook_pro16"}
+    assert named <= set(docs_tight)                      # named products are always kept
+    assert len(docs_tight) < len(docs_fixed) and docs_loose == docs_fixed
+    _, one, _, _ = tight.build_context("How long do I have to return something?")
+    assert len(one) == 1                                 # a clear winner travels alone
+
+
+def test_passage_keeps_first_sentence():
+    import pytest
+    pytest.importorskip("sentence_transformers")
+    agent = SupportAgent(retriever_mode="keyword", mock=True, passage_margin=0.0)
+    doc = next(d for d in agent.docs if d.id == "pol_refund_timeline")
+    text = agent.passage(doc, "Can a refund go to a different card?")
+    assert text.startswith(doc.text.split(". ")[0]) and len(text) < len(doc.text)
