@@ -50,6 +50,8 @@ def main() -> int:
                     help="adaptive context: keep documents within this score of the best (e.g. 0.25)")
     ap.add_argument("--passage-margin", type=float, default=None,
                     help="smaller context: keep sentences within this score of the best (off by default)")
+    ap.add_argument("--client", default=None,
+                    help="client id for per-client spending limits (default: app-wide cap only)")
     ap.add_argument("--layout", default=None, choices=["classic", "cache"],
                     help="cache: fixed instructions first, documents last (provider prompt caching)")
     ap.add_argument("--out", help="write results as JSONL")
@@ -84,7 +86,7 @@ def main() -> int:
             history: list[dict] = []
             for turn, question in enumerate(chat["turns"], 1):
                 res = agent.ask(question, session_id=f"{session}-{chat['id']}" if session else chat["id"],
-                                history=history)
+                                history=history, client_id=args.client)
                 total += res.cost_usd
                 n += 1
                 print(f"[{chat['id']} turn {turn}] {res.prompt_tokens:5d} in  ${res.cost_usd:.6f}  "
@@ -111,7 +113,7 @@ def main() -> int:
         session = args.session or (Path(args.out).stem if args.out else None)
         total = 0.0
         for i, row in enumerate(rows, 1):
-            res = agent.ask(row["question"], session_id=session)
+            res = agent.ask(row["question"], session_id=session, client_id=args.client)
             total += res.cost_usd
             tag = {"faq": " FAQ", "cache": f" CACHE-{(res.cache_kind or '').upper()}"}.get(res.served_by, "")
             print(f"[{i}/{len(rows)}]{tag} ${res.cost_usd:.6f}  {res.latency_ms:7.1f}ms  "
@@ -141,7 +143,7 @@ def main() -> int:
         print(ctx)
         return 0
 
-    res = agent.ask(args.question, session_id=args.session)
+    res = agent.ask(args.question, session_id=args.session, client_id=args.client)
     tracing.flush()
     if res.error:
         print(f"ERROR: {res.error}", file=sys.stderr)

@@ -1178,6 +1178,14 @@ and both write "4", when it should be 3.
 **Atomic:** an operation that happens as one unbreakable step, so nothing can sneak in between. That fixes race conditions.
 **Lua script:** a small program Redis runs atomically; our rate limiter uses one.
 
+### Spending limits (soft and hard)
+**What it is:** a budget checked **before** each request, not after the bill. A **soft limit** changes behaviour
+(past 80% of the budget, answer with the cheap model); a **hard limit** stops (at 100%, politely refuse).
+**Example:** a prepaid phone plan that switches you to slower data near the end of your pack, then stops calls
+when the balance is zero.
+**In our project:** `spending_limits.py`. Each demo visitor gets $0.05/day; the whole app $5/day, which also
+stops a runaway script. In a test, a looping bug was stopped at $1; 10,000 such calls overnight would have cost ~$29.
+
 ### Fail open vs fail closed
 **What it is:** when a *safety* part breaks, do you let everything through or block everything?
 **Example:** a bouncer whose guest-list tablet dies. Let everyone in (open) or nobody (closed)?
@@ -1494,4 +1502,5 @@ names over made-up ones; if a fact changes (like a price or a count), update it 
 | 2026-11-18 | Added safety suite, cache namespace, repeat rate. |
 | 2026-11-18 | Added multi-turn conversation, memory trimming, rolling summary. |
 | 2026-11-18 | Updated prompt caching with the official rules; added cache write vs read, prompt layout. |
+| 2026-11-18 | Added spending limits (soft and hard). |
 | 2026-11-18 | Added adaptive context and proxy measure; restored three headings lost in earlier edits (safety suite, FAQ shortcut, cost per correct answer). |

@@ -642,3 +642,75 @@ def test_passage_keeps_first_sentence():
     doc = next(d for d in agent.docs if d.id == "pol_refund_timeline")
     text = agent.passage(doc, "Can a refund go to a different card?")
     assert text.startswith(doc.text.split(". ")[0]) and len(text) < len(doc.text)
+
+
+def test_token_bucket():
+    from spending_limits import TokenBucket
+    now = [0.0]
+    bucket = TokenBucket(2, clock=lambda: now[0])           # 2 requests per minute
+    assert bucket.take() and bucket.take() and not bucket.take()
+    now[0] = 30                                             # half a minute refills one
+    assert bucket.take() and not bucket.take()
+
+
+def test_spending_limit_decisions():
+    from spending_limits import SpendingLimits
+    now = [1_800_000_000.0]
+    lim = SpendingLimits(":memory:", client_daily_usd=1.0, global_daily_usd=5.0, soft_ratio=0.8,
+                         rpm=0, downgrade_model="cheap", clock=lambda: now[0])
+    est = {"big": 0.10, "cheap": 0.01}.get
+    assert lim.check("a", "big", est).action == "allow"
+    lim.record("a", 0.75)
+    d = lim.check("a", "big", est)                          # 0.75 + 0.10 > 0.80 soft limit
+    assert d.action == "downgrade" and d.model == "cheap"
+    lim.record("a", 0.985)                                  # now 1.735 > budget even for cheap
+    assert lim.check("a", "big", est).action == "refuse"
+    assert lim.check("b", "big", est).action == "allow"     # other clients unaffected
+    lim.record("b", 3.3)                                    # app total now 5.035
+    assert "app daily cap" in lim.check("c", "big", est).reason
+    assert "app daily cap" in lim.check(None, "big", est).reason   # scripts too
+    now[0] += 86_400                                        # next day: everything resets
+    assert lim.check("a", "big", est).action == "allow"
+
+
+def test_agent_spending_limits():
+    from agent import LIMIT_REACHED
+    from spending_limits import SpendingLimits
+    agent = SupportAgent(retriever_mode="keyword", mock=True, faq=False)
+    agent.limits = SpendingLimits(":memory:", client_daily_usd=0.006, global_daily_usd=1.0, rpm=0)
+    seen = []
+    for _ in range(60):          # after the downgrade, cheap answers stretch the budget a long way
+        r = agent.ask("How do I reset my password?", client_id="visitor-1")
+        seen.append((r.limit_action, r.model, r.cost_usd))
+    actions = [a for a, _, _ in seen]
+    assert actions[0] == "allow" and "downgrade" in actions and actions[-1] == "refuse"
+    assert all(m == config.ECONOMY_MODEL for a, m, _ in seen if a == "downgrade")
+    assert all(c == 0 for a, _, c in seen if a == "refuse")       # refusals cost nothing
+    assert r.answer == LIMIT_REACHED and r.served_by == "limit"
+    assert agent.limits.spent("visitor-1") <= 0.006 + 1e-9         # never over budget
+
+
+def test_stores_work_across_threads():
+    """Streamlit answers each message on a new thread; the stores must allow that."""
+    import threading
+
+    import response_cache as rc
+    from spending_limits import SpendingLimits
+    lim = SpendingLimits(":memory:", rpm=0)
+    cache = rc.ResponseCache(":memory:", encode=_bow_encoder())
+    errors = []
+
+    def worker():
+        try:
+            lim.record("visitor", 0.01)
+            lim.check("visitor", "m", lambda m: 0.001)
+            cache.store("Is delivery free?", "Free above 999.", "ns", "m")
+            cache.lookup("Is delivery free?", "ns")
+        except Exception as exc:                      # noqa: BLE001
+            errors.append(exc)
+    threads = [threading.Thread(target=worker) for _ in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert not errors and abs(lim.spent("visitor") - 0.04) < 1e-9

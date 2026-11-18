@@ -60,6 +60,16 @@ python cli.py --mock --conversations data/conversations_dev.jsonl --memory facts
 #   --memory off | window | facts | summary     --keep-turns 2   (techniques.py)
 ```
 
+### Spending limits
+
+Checked before every model call: an app-wide daily cap (default $5, also stops runaway scripts),
+and per client (each demo visitor, or `--client`): cheap model past 80% of the daily budget,
+polite refusal at 100%, max 20 requests per minute. Settings in `config.py` / `.env`.
+
+```bash
+python cli.py --client alice "How do I reset my password?"
+```
+
 ### Sending less context
 
 ```bash
@@ -151,7 +161,7 @@ downloaded once so the container starts offline).
 ```bash
 pip install -r requirements-dev.txt
 ruff check .              # add --fix for import order and similar
-python -m pytest          # 46 tests, no key, no network, < 1 s
+python -m pytest          # 50 tests, no key, no network, < 1 s
 python validate_data.py
 ```
 
@@ -173,6 +183,7 @@ techstore/
 ├── faq_shortcut.py      FAQ shortcut: approved saved answers, no model call
 ├── response_cache.py    safe response cache: exact + meaning-based reuse with safety checks
 ├── prompt_cache_sim.py  prices our real prompts under OpenAI's prompt-caching rules
+├── spending_limits.py   budgets checked before each call: downgrade, refuse, per-minute limit
 ├── validate_data.py     corpus integrity; dev/test progress; --freeze locks the test set
 ├── check_setup.py       pre-flight: packages, key, model ids exist, prices present
 ├── review_results.py    batch review: cost, output length, flags, grading sheet
@@ -186,7 +197,7 @@ techstore/
 │   ├── orders.jsonl            40 orders incl. the multi-charge dispute case
 │   ├── questions_dev.jsonl     dev set (target 100): tuning only
 │   └── questions_test.jsonl    test set (target 36): frozen, final results only
-├── tests/test_agent.py  46 tests, no API calls, run by CI on every push
+├── tests/test_agent.py  50 tests, no API calls, run by CI on every push
 ├── Dockerfile           Streamlit demo image (CPU torch, MiniLM baked in)
 ├── pyproject.toml       ruff + pytest settings
 └── requirements-dev.txt pytest, ruff (all CI needs)

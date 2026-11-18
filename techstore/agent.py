@@ -46,6 +46,10 @@ def wants_catalogue(question: str) -> bool:
 
 
 QUESTION_MARK = "CUSTOMER QUESTION:"
+# Spending limits: what the customer sees instead of an answer (no model call, nothing spent).
+LIMIT_REACHED = ("Sorry, this assistant has reached its usage limit for today. Please try again "
+                 "tomorrow, or contact TechStore support by chat or email (9 AM to 9 PM IST).")
+LIMIT_SLOW_DOWN = "You're sending messages very quickly. Please wait a moment and try again."
 
 
 def _question_of(user_message: str) -> str:
@@ -158,6 +162,9 @@ class Answer:
     memory_mode: str = "off"          # conversation-memory technique applied (techniques.py)
     memory_dropped_turns: int = 0     # earlier turns shrunk into a note/summary or dropped
     memory_cost_usd: float = 0.0      # cost of writing the summary (summary mode); in cost_usd too
+    client_id: str | None = None      # whose budget this counts against (None: app cap only)
+    limit_action: str | None = None   # spending limits: allow / downgrade / refuse
+    limit_reason: str | None = None
     prompt_layout: str = "classic"
     sent_user_message: str = ""       # the final user message as sent; with layout "cache", put
                                       # THIS in the history so the next prompt reuses the prefix
@@ -214,7 +221,7 @@ class SupportAgent:
                  faq: bool | None = None, faq_drafts: bool = False, cache: bool | None = None,
                  memory: str | None = None, keep_turns: int | None = None,
                  layout: str | None = None, context_margin: float | None = None,
-                 passage_margin: float | None = None):
+                 passage_margin: float | None = None, limits: bool | None = None):
         self.model = model or config.FRONTIER_MODEL
         self.reasoning_effort = reasoning_effort or config.REASONING_EFFORT
         self.answer_length = answer_length or config.ANSWER_LENGTH
@@ -224,6 +231,13 @@ class SupportAgent:
         self.context_margin = config.CONTEXT_MARGIN if context_margin is None else context_margin
         self.passage_margin = config.PASSAGE_MARGIN if passage_margin is None else passage_margin
         self._sentences: dict[str, tuple[list[str], object]] = {}
+        # Spending limits. Mock runs use a throwaway in-memory ledger: estimated costs must
+        # never count against the real budget.
+        self.limits = None
+        if config.SPEND_LIMITS if limits is None else limits:
+            import spending_limits  # noqa: PLC0415
+            self.limits = spending_limits.SpendingLimits(
+                ":memory:" if mock else spending_limits.SPEND_PATH)
         self.prompt_layout = layout or config.PROMPT_LAYOUT
         if self.prompt_layout not in ("classic", "cache"):
             raise ValueError("layout must be 'classic' or 'cache'")
@@ -346,7 +360,7 @@ class SupportAgent:
         return self._client
 
     def ask(self, question: str, session_id: str | None = None,
-            history: list[dict] | None = None) -> Answer:
+            history: list[dict] | None = None, client_id: str | None = None) -> Answer:
         """Answer one question. `history` is the conversation so far, as OpenAI-style
         {"role": "user"|"assistant", "content": ...} messages. With Langfuse configured,
         also records a trace; `session_id` groups traces (one batch run, one chat)."""
@@ -356,7 +370,7 @@ class SupportAgent:
                                     system_prompt=self.system_prompt_name,
                                     answer_length=self.answer_length,
                                     session_id=session_id) as root:
-            result = self._answer(question, history or [])
+            result = self._answer(question, history or [], client_id)
             result.trace_id = root.trace_id
             root.update(
                 output=result.answer if not result.error else None,
@@ -422,8 +436,8 @@ class SupportAgent:
     def _product_entities(self, question: str) -> frozenset:
         return frozenset(d.id for d in self.named_products(question))
 
-    def _answer(self, question: str, history: list[dict]) -> Answer:
-        result = self._answer_uncached(question, history)
+    def _answer(self, question: str, history: list[dict], client_id: str | None = None) -> Answer:
+        result = self._answer_uncached(question, history, client_id)
         if history:
             # A follow-up depends on what came before ("and how long would that take?"), so it
             # is never stored or served on its own. FAQ and cache apply to first questions only.
@@ -439,7 +453,8 @@ class SupportAgent:
             result.cache_note = "; ".join(filter(None, [result.cache_note, stored]))
         return result
 
-    def _answer_uncached(self, question: str, history: list[dict] | None = None) -> Answer:
+    def _answer_uncached(self, question: str, history: list[dict] | None = None,
+                         client_id: str | None = None) -> Answer:
         history = history or []
         if self.faq is not None and self.faq.entries and not history:
             with tracing.observation("faq-shortcut", as_type="span", input=question) as step:
@@ -516,8 +531,29 @@ class SupportAgent:
         request = techniques.apply_length(request, self.answer_length, self.verbosity)
         request = techniques.apply_reasoning(request, self.reasoning_effort)
         messages = request["messages"]
+        result.client_id = client_id
+        if self.limits is not None:
+            import spending_limits  # noqa: PLC0415
+            def estimate(m):
+                return spending_limits.estimate_cost(m, messages)
+            with tracing.observation("spending-limit", as_type="guardrail", input=client_id) as step:
+                decision = self.limits.check(client_id, request["model"], estimate)
+                step.update(output=decision.action,
+                            metadata={"reason": decision.reason,
+                                      "estimate_usd": round(estimate(request["model"]), 6),
+                                      "spent_today": round(decision.client_spent, 6)})
+            result.limit_action, result.limit_reason = decision.action, decision.reason
+            if decision.action == "refuse":
+                # No model call: nothing spent.
+                result.answer = (LIMIT_SLOW_DOWN if "per minute" in decision.reason
+                                 else LIMIT_REACHED)
+                result.served_by = "limit"
+                return result
+            if decision.action == "downgrade":
+                request["model"] = result.model = decision.model
+        model = request["model"]
         self.last_request = request        # exactly what is sent (used by prompt_cache_sim.py)
-        with tracing.observation("llm", as_type="generation", model=self.model, input=messages,
+        with tracing.observation("llm", as_type="generation", model=model, input=messages,
                                  model_parameters={"max_tokens": config.MAX_TOKENS,
                                                    "reasoning_effort": self.reasoning_effort or "default",
                                                    "answer_length": self.answer_length,
@@ -528,7 +564,7 @@ class SupportAgent:
                 answer, pt, ct = MockCompletion(self).respond(question, context, retrieved, messages)
                 result.answer = answer
                 result.prompt_tokens, result.completion_tokens = pt, ct
-                result.cost_usd = round(config.price(self.model, pt, ct), 6)
+                result.cost_usd = round(config.price(model, pt, ct), 6)
                 result.cost_is_estimate = True
             else:
                 self._call_model(request, result)
@@ -536,8 +572,10 @@ class SupportAgent:
             # The summary call (memory mode "summary") is part of what this answer cost.
             result.memory_cost_usd = round(summary_cost[0], 6)
             result.cost_usd = round(result.cost_usd + summary_cost[0], 6)
+            if self.limits is not None:
+                self.limits.record(client_id, result.cost_usd)      # the actual cost
             usage, cost = tracing.usage_and_cost(
-                self.model, result.prompt_tokens, result.completion_tokens,
+                model, result.prompt_tokens, result.completion_tokens,
                 result.cached_prompt_tokens, result.reasoning_tokens, result.cache_write_tokens)
             gen.update(output=result.answer if not result.error else None,
                        usage_details=usage, cost_details=cost or None,
@@ -550,7 +588,7 @@ class SupportAgent:
     def _call_model(self, request: dict, result: Answer) -> None:
         try:
             resp, result.temperature_used = chat_completion(
-                self.client, self.model, request["messages"],
+                self.client, request["model"], request["messages"],
                 max_tokens=config.MAX_TOKENS, temperature=config.TEMPERATURE,
                 reasoning_effort=request.get("reasoning_effort"),
                 verbosity=request.get("verbosity"),
@@ -575,6 +613,6 @@ class SupportAgent:
                 result.cached_prompt_tokens = cached
                 result.completion_tokens = u.completion_tokens
                 result.cost_usd = round(config.price(
-                    self.model, u.prompt_tokens, u.completion_tokens, cached, written), 6)
+                    request["model"], u.prompt_tokens, u.completion_tokens, cached, written), 6)
         except Exception as exc:                       # noqa: BLE001
             result.error = f"{type(exc).__name__}: {exc}"

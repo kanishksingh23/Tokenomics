@@ -97,6 +97,16 @@ CONTEXT_MARGIN = float(os.getenv("CONTEXT_MARGIN")) if os.getenv("CONTEXT_MARGIN
 # lines) whose similarity to the question is within PASSAGE_MARGIN of the document's best
 # sentence; the first sentence always stays. Empty = off (whole documents).
 PASSAGE_MARGIN = float(os.getenv("PASSAGE_MARGIN")) if os.getenv("PASSAGE_MARGIN") else None
+
+# Technique 12, spending limits (spending_limits.py), checked BEFORE each model call.
+# The app-wide daily cap is the runaway-loop guard and applies to everything, scripts too;
+# per-client limits apply when a client is known (each demo visitor, later each API key).
+SPEND_LIMITS = os.getenv("SPEND_LIMITS", "on").strip().lower() != "off"
+GLOBAL_DAILY_BUDGET_USD = float(os.getenv("GLOBAL_DAILY_BUDGET_USD", "5.00"))
+CLIENT_DAILY_BUDGET_USD = float(os.getenv("CLIENT_DAILY_BUDGET_USD", "0.05"))   # ~20 Sol answers
+SOFT_LIMIT_RATIO = float(os.getenv("SOFT_LIMIT_RATIO", "0.8"))    # past this: cheap model
+CLIENT_RPM = float(os.getenv("CLIENT_RPM", "20"))                  # requests per minute
+EXPECTED_OUTPUT_TOKENS = int(os.getenv("EXPECTED_OUTPUT_TOKENS", "200"))  # for the estimate
 # Upper bound on output tokens, including any hidden reasoning tokens. Reasoning
 # models can spend hundreds of tokens thinking before writing; a low cap yields an
 # EMPTY answer that is still billed. You pay only for tokens actually produced,

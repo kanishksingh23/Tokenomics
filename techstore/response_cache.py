@@ -29,6 +29,7 @@ import hashlib
 import json
 import re
 import sqlite3
+import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -164,7 +165,10 @@ class ResponseCache:
         self.path = Path(path)
         if str(path) != ":memory:":
             self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.db = sqlite3.connect(str(path))
+        # Shared across threads (Streamlit answers each message on a new thread); the lock
+        # makes each read-and-update a single step.
+        self.db = sqlite3.connect(str(path), check_same_thread=False)
+        self._lock = threading.RLock()
         self.db.execute("""CREATE TABLE IF NOT EXISTS entries (
             namespace TEXT, question TEXT, norm TEXT, entities TEXT, answer TEXT, model TEXT,
             vector BLOB, created REAL, expires REAL, hits INTEGER DEFAULT 0,
@@ -183,76 +187,81 @@ class ResponseCache:
 
     def lookup(self, question: str, namespace: str, extra_entities=frozenset(),
                private: bool = False) -> Lookup:
-        if private:
-            return Lookup(None, "skipped: private request")
-        why = uncacheable(question)
-        if why:
-            return Lookup(None, f"skipped: {why}")
-        now = time.time()
-        norm = normalise(question)
-        new_ents = entities(question, extra_entities)
-        row = self.db.execute(
-            "SELECT answer, question, model, entities FROM entries "
-            "WHERE namespace=? AND norm=? AND expires>?", (namespace, norm, now)).fetchone()
-        # Same words are not enough: entities known from outside the text (e.g. the product
-        # being discussed) must match too.
-        if row and frozenset(json.loads(row[3])) == new_ents:
-            self.db.execute("UPDATE entries SET hits=hits+1 WHERE namespace=? AND norm=?",
-                            (namespace, norm))
-            self.db.commit()
-            return Lookup(CacheHit(row[0], "exact", 1.0, row[1], row[2]), "exact hit")
-        rows = self.db.execute(
-            "SELECT question, norm, entities, answer, model, vector FROM entries "
-            "WHERE namespace=? AND expires>?", (namespace, now)).fetchall()
-        if not rows:
-            return Lookup(None, "miss: nothing cached here yet")
-        vecs = np.stack([np.frombuffer(r[5], dtype=np.float32) for r in rows])
-        sims = vecs @ self._vec(question)
-        order = np.argsort(-sims)
-        best_reason = f"miss: closest {float(sims[order[0]]):.2f} < {self.threshold:.2f}"
-        for i in order:
-            sim = float(sims[i])
-            if sim < self.threshold:
-                break
-            q_old, norm_old, ents_old, answer, model, _ = rows[i]
-            problem = admission_problem(question, new_ents, q_old, frozenset(json.loads(ents_old)))
-            if problem:
-                best_reason = f"rejected: {problem} (similarity {sim:.2f})"
-                continue
-            self.db.execute("UPDATE entries SET hits=hits+1 WHERE namespace=? AND norm=?",
-                            (namespace, norm_old))
-            self.db.commit()
-            return Lookup(CacheHit(answer, "semantic", sim, q_old, model), "semantic hit")
-        return Lookup(None, best_reason)
+        with self._lock:
+            if private:
+                return Lookup(None, "skipped: private request")
+            why = uncacheable(question)
+            if why:
+                return Lookup(None, f"skipped: {why}")
+            now = time.time()
+            norm = normalise(question)
+            new_ents = entities(question, extra_entities)
+            row = self.db.execute(
+                "SELECT answer, question, model, entities FROM entries "
+                "WHERE namespace=? AND norm=? AND expires>?", (namespace, norm, now)).fetchone()
+            # Same words are not enough: entities known from outside the text (e.g. the product
+            # being discussed) must match too.
+            if row and frozenset(json.loads(row[3])) == new_ents:
+                self.db.execute("UPDATE entries SET hits=hits+1 WHERE namespace=? AND norm=?",
+                                (namespace, norm))
+                self.db.commit()
+                return Lookup(CacheHit(row[0], "exact", 1.0, row[1], row[2]), "exact hit")
+            rows = self.db.execute(
+                "SELECT question, norm, entities, answer, model, vector FROM entries "
+                "WHERE namespace=? AND expires>?", (namespace, now)).fetchall()
+            if not rows:
+                return Lookup(None, "miss: nothing cached here yet")
+            vecs = np.stack([np.frombuffer(r[5], dtype=np.float32) for r in rows])
+            sims = vecs @ self._vec(question)
+            order = np.argsort(-sims)
+            best_reason = f"miss: closest {float(sims[order[0]]):.2f} < {self.threshold:.2f}"
+            for i in order:
+                sim = float(sims[i])
+                if sim < self.threshold:
+                    break
+                q_old, norm_old, ents_old, answer, model, _ = rows[i]
+                problem = admission_problem(question, new_ents, q_old, frozenset(json.loads(ents_old)))
+                if problem:
+                    best_reason = f"rejected: {problem} (similarity {sim:.2f})"
+                    continue
+                self.db.execute("UPDATE entries SET hits=hits+1 WHERE namespace=? AND norm=?",
+                                (namespace, norm_old))
+                self.db.commit()
+                return Lookup(CacheHit(answer, "semantic", sim, q_old, model), "semantic hit")
+            return Lookup(None, best_reason)
 
     def store(self, question: str, answer: str, namespace: str, model: str,
               extra_entities=frozenset(), private: bool = False) -> str:
         """Save an answer for reuse. Returns what happened."""
-        if private:
-            return "not stored: private request"
-        why = uncacheable(question)
-        if why:
-            return f"not stored: {why}"
-        if not answer.strip():
-            return "not stored: empty answer"
-        now = time.time()
-        self.db.execute(
-            "INSERT OR REPLACE INTO entries (namespace, question, norm, entities, answer, model, "
-            "vector, created, expires, hits) VALUES (?,?,?,?,?,?,?,?,?,0)",
-            (namespace, question, normalise(question),
-             json.dumps(sorted(entities(question, extra_entities))), answer, model,
-             self._vec(question).tobytes(), now, now + self.ttl))
-        self.db.commit()
-        return "stored"
+        with self._lock:
+            if private:
+                return "not stored: private request"
+            why = uncacheable(question)
+            if why:
+                return f"not stored: {why}"
+            if not answer.strip():
+                return "not stored: empty answer"
+            now = time.time()
+            self.db.execute(
+                "INSERT OR REPLACE INTO entries (namespace, question, norm, entities, answer, model, "
+                "vector, created, expires, hits) VALUES (?,?,?,?,?,?,?,?,?,0)",
+                (namespace, question, normalise(question),
+                 json.dumps(sorted(entities(question, extra_entities))), answer, model,
+                 self._vec(question).tobytes(), now, now + self.ttl))
+            self.db.commit()
+            return "stored"
 
     def stats(self) -> dict:
-        n, hits = self.db.execute("SELECT COUNT(*), COALESCE(SUM(hits),0) FROM entries").fetchone()
-        live = self.db.execute("SELECT COUNT(*) FROM entries WHERE expires>?", (time.time(),)).fetchone()[0]
-        return {"entries": n, "live": live, "hits_served": hits}
+        with self._lock:
+            n, hits = self.db.execute("SELECT COUNT(*), COALESCE(SUM(hits),0) FROM entries").fetchone()
+            live = self.db.execute("SELECT COUNT(*) FROM entries WHERE expires>?",
+                                   (time.time(),)).fetchone()[0]
+            return {"entries": n, "live": live, "hits_served": hits}
 
     def clear(self) -> None:
-        self.db.execute("DELETE FROM entries")
-        self.db.commit()
+        with self._lock:
+            self.db.execute("DELETE FROM entries")
+            self.db.commit()
 
 
 def namespace_key(**parts) -> str:

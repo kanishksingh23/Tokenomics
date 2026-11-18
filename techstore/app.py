@@ -86,7 +86,8 @@ if question:
         for turn in st.session_state.history:
             history += [{"role": "user", "content": turn.question},
                         {"role": "assistant", "content": turn.error or turn.answer}]
-        result = agent.ask(question, session_id=sid, history=history)
+        # Each browser session is one client with its own daily budget (spending limits).
+        result = agent.ask(question, session_id=sid, history=history, client_id=sid)
     st.session_state.history.append(result)
     st.session_state.spend += result.cost_usd
 
@@ -141,9 +142,13 @@ with right:
             for o in r.orders_used:
                 st.markdown(f"`#{o}`")
         st.caption(f"Retrieval {r.retrieval_ms:.2f} ms via **{r.retriever}** · `{r.model}`")
-        if r.served_by != "model":
+        if r.served_by == "limit":
+            st.caption(f"⛔ Spending limit: {r.limit_reason}. No model was called.")
+        elif r.served_by != "model":
             st.caption(f"⚡ Answered by the **{r.served_by}** with no model call "
                        f"({r.faq_id or r.cache_kind}).")
+        elif r.limit_action == "downgrade":
+            st.caption(f"↘️ Downgraded to `{r.model}`: {r.limit_reason}.")
         if r.turn > 1:
             st.caption(f"Turn {r.turn} · memory **{r.memory_mode}**"
                        + (f" · {r.memory_dropped_turns} earlier turn(s) shrunk"
