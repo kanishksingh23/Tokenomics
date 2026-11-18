@@ -416,3 +416,60 @@ def test_refusal_opening_rule():
     assert cap(config.REFUSAL_OFF_TOPIC, "decline_off_topic", "correct") == "correct"
     assert cap("TechStore ships within India only.", None, "correct") == "correct"
     assert cap(ans, None, "wrong") == "wrong"                    # never raises a verdict
+
+
+def _bow_encoder():
+    """Tiny stand-in for MiniLM: bag-of-words unit vectors, so tests need no model."""
+    import numpy as np
+    vocab = {}
+
+    def encode(texts):
+        rows = []
+        for t in texts:
+            words = [w.strip("?.,!").lower() for w in t.split()]
+            for w in words:
+                vocab.setdefault(w, len(vocab))
+            rows.append(words)
+        out = np.zeros((len(texts), 512))
+        for i, words in enumerate(rows):
+            for w in words:
+                out[i, vocab[w] % 512] += 1
+        return out / np.maximum(np.linalg.norm(out, axis=1, keepdims=True), 1e-9)
+    return encode
+
+
+def test_faq_shortcut_gates():
+    from faq_shortcut import FaqShortcut
+    entries = [
+        {"id": "faq_ship", "question": "do you ship internationally", "examples": [],
+         "answer": "India only.", "sources": ["ship_international"], "status": "approved"},
+        {"id": "faq_pay", "question": "which payment methods do you accept", "examples": [],
+         "answer": "UPI, cards.", "sources": ["bill_payment_methods"], "status": "approved"},
+        {"id": "faq_draft", "question": "what are your store hours", "examples": [],
+         "answer": "None.", "sources": ["about_techstore"], "status": "draft"},
+    ]
+    sc = FaqShortcut(entries, encode=_bow_encoder(), threshold=0.6, margin=0.05,
+                     block=lambda q: "names a product" if "pulsebook" in q.lower() else None)
+    assert [e["id"] for e in sc.entries] == ["faq_ship", "faq_pay"]      # drafts never served
+    assert sc.lookup("Do you ship internationally?").entry["id"] == "faq_ship"
+    assert sc.lookup("Do you ship internationally? Which payment methods?").entry is None
+    assert "number" in sc.lookup("do you ship internationally to 48712").reason
+    assert sc.lookup("do you ship the pulsebook internationally").reason == "names a product"
+    assert sc.lookup("my laptop screen flickers").entry is None           # not close enough
+    only_drafts = FaqShortcut([entries[2]], encode=_bow_encoder())
+    assert only_drafts.lookup("what are your store hours").reason == "no approved FAQ entries"
+
+
+def test_faq_answers_cite_real_documents():
+    from faq_shortcut import load_faq
+    from review_results import load_jsonl
+    kb = {d["id"] for d in load_jsonl(config.KB_PATH)}
+    dev = {q["question"].strip().lower() for q in load_jsonl(config.DEV_QUESTIONS_PATH)}
+    faq = load_faq()
+    assert len({e["id"] for e in faq}) == len(faq)
+    for e in faq:
+        assert e["status"] in ("draft", "approved") and e["answer"] and e["sources"]
+        assert set(e["sources"]) <= kb, e["id"]
+        assert not ({e["question"].lower(), *map(str.lower, e["examples"])} & dev), e["id"]
+        if e["status"] == "approved":
+            assert e["approved_by"] and e["approved_on"], e["id"]

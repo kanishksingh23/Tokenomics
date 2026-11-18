@@ -1322,7 +1322,7 @@ Every technique follows the same loop: **build → run on the 64 dev questions �
 | 5 | **Adaptive context**: fewer documents for simple questions | Input | Tokenomics / app | |
 | 6 | **Prompt compression** (LLMLingua-2) | Input | Tokenomics | Mentor to confirm |
 | 7 | **Response cache**, exact + semantic, with the admission controller of [§3](#layer-1-two-tier-caching-system) | Everything, for repeats | Tokenomics | |
-| 8 | **FAQ shortcut**: cache pre-filled with human-approved answers to the top FAQs; zero model calls from the first ask | Everything, for FAQs | Tokenomics | Approved |
+| 8 | **FAQ shortcut**: cache pre-filled with human-approved answers to the top FAQs; zero model calls from the first ask | Everything, for FAQs | Tokenomics | ✅ Built (`faq_shortcut.py`): 22 answers drafted, **awaiting human approval**; threshold 0.75 → 0 wrong matches on dev; −3.8% tokens on the hard-skewed dev set |
 | 9 | **Conversation memory**: TechStore becomes multi-turn; Tokenomics keeps recent turns verbatim and summarises older ones, preserving order numbers and amounts | Input (grows every turn) | Tokenomics (+ app for multi-turn) | |
 | 10 | **Provider prompt caching**: stable content first so OpenAI's cached-input price applies | Cost (tokens unchanged) | Tokenomics | Applies once prompts pass ~1,024 tokens (step 9) |
 | 11 | **Batch API** for non-urgent work (benchmarks, reports) | Cost (−50%) | Tokenomics | |

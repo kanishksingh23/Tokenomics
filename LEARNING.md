@@ -305,7 +305,23 @@ greeting and an offer of more help.
 call**, so it only pays off if answers shrink by more than ~11 tokens on average (output costs 5× input).
 Measuring it waits for OpenAI credit.
 
-### Cost per correct answer
+### FAQ shortcut (pre-filled cache)
+**What it is:** answers to the most common questions, written in advance from the documents and **approved by a
+person**, served instantly with **no model call**: zero tokens, zero cost. Unlike a normal cache, it works from
+the very first time a question is asked.
+**Example:** a shop's printed "Frequently Asked Questions" card. The staff hand it over instead of explaining
+from scratch each time.
+**How a question qualifies:** its meaning must be very close to one FAQ, it must not contain numbers (an order
+number needs a personal answer), it must be one question, and it must not name a specific product.
+**In our project:** `faq_shortcut.py`, 22 answers in `data/faq.jsonl`. Answered 3 of our 64 (hard-skewed)
+dev questions in ~8 ms each, saving 3.8% of tokens, with 0 wrong matches.
+
+### Similarity threshold
+**What it is:** the "how close is close enough?" setting when matching by meaning (0 = unrelated, 1 = identical).
+Higher means safer but fewer matches.
+**In our project:** the FAQ shortcut uses 0.75. At 0.70 one question nearly got the wrong saved answer, and a
+wrong saved answer reaches the customer unchecked, while a missed match only costs a normal model call.
+
 **What it is:** total cost ÷ number of answers graded correct. Our **headline measure**, because it combines money
 and quality in one number: a trick that makes answers cheaper but wrong makes this number *worse*.
 **Example:** 64 answers for $0.172 with 63 correct = $0.00273 per correct answer. If a cheaper setup costs $0.10 but
@@ -1401,5 +1417,6 @@ names over made-up ones; if a fact changes (like a price or a count), update it 
 | 2026-10-09 | Added from the similar-projects research: prompt compression, cascade, drafter/verifier, speculative execution, Thompson sampling, GitHub stars and archived repos. |
 | 2026-10-15 | Added Langfuse setup terms: observation, generation, session, environment, flush, no-op. |
 | 2026-10-15 | Added reasoning effort. |
+| 2026-11-17 | Added FAQ shortcut and similarity threshold. |
 | 2026-11-17 | Added answer-length control, cost per correct answer, automatic quality check, AI grader and evidence pack, run-to-run variation. |
 | 2026-10-15 | Updated token figures with the measured baseline (877 input tokens; prompt split; no prompt caching; Luna's reasoning tokens). |

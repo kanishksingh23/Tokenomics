@@ -38,6 +38,18 @@ streamlit run app.py                                     # the demo
 Retrieval and context assembly work with **zero dependencies and no API key** —
 `--dry-run` and `validate_data.py` are the loop to iterate on the corpus in.
 
+### FAQ shortcut
+
+Common questions can be answered from saved, **human-approved** answers (`data/faq.jsonl`) with
+no model call at all. Nothing is served until a person approves it:
+
+```bash
+python faq_shortcut.py --review                            # FAQ_REVIEW.md: each answer beside its sources
+python faq_shortcut.py --approve faq_cancel,faq_emi --by Kanishk
+python faq_shortcut.py --eval                              # what it would do with each dev question
+python cli.py --mock --faq-drafts --batch data/questions_dev.jsonl --out /tmp/x.jsonl   # try drafts, mock only
+```
+
 ### Checking quality automatically
 
 Every token-saving experiment is checked against a graded baseline run without grading
@@ -98,7 +110,7 @@ downloaded once so the container starts offline).
 ```bash
 pip install -r requirements-dev.txt
 ruff check .              # add --fix for import order and similar
-python -m pytest          # 32 tests, no key, no network, < 1 s
+python -m pytest          # 35 tests, no key, no network, < 1 s
 python validate_data.py
 ```
 
@@ -117,6 +129,7 @@ techstore/
 ├── tracing.py           Langfuse traces (no-op without keys)
 ├── techniques.py        token-saving techniques applied to the request (moves into the gateway later)
 ├── quality_check.py     compare an experiment with a graded baseline; cost per correct answer
+├── faq_shortcut.py      FAQ shortcut: approved saved answers, no model call
 ├── validate_data.py     corpus integrity; dev/test progress; --freeze locks the test set
 ├── check_setup.py       pre-flight: packages, key, model ids exist, prices present
 ├── review_results.py    batch review: cost, output length, flags, grading sheet
@@ -124,10 +137,11 @@ techstore/
 ├── system_prompt.txt
 ├── data/
 │   ├── knowledge_base.jsonl    86 policy / product / billing / API documents
+│   ├── faq.jsonl               22 FAQ answers (draft until approved)
 │   ├── orders.jsonl            40 orders incl. the multi-charge dispute case
 │   ├── questions_dev.jsonl     dev set (target 100): tuning only
 │   └── questions_test.jsonl    test set (target 36): frozen, final results only
-├── tests/test_agent.py  32 tests, no API calls, run by CI on every push
+├── tests/test_agent.py  35 tests, no API calls, run by CI on every push
 ├── Dockerfile           Streamlit demo image (CPU torch, MiniLM baked in)
 ├── pyproject.toml       ruff + pytest settings
 └── requirements-dev.txt pytest, ruff (all CI needs)

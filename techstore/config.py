@@ -57,6 +57,12 @@ RETRIEVER = os.getenv("RETRIEVER", "embedding")   # embedding | keyword | auto
 # cut (q036: Standard Warranty Terms 0.481 vs 0.487). Dev-set recall 83.3% -> 87.5%
 # for ~7% more cost per question, paid equally by every arm of the benchmark.
 TOP_K = int(os.getenv("TOP_K", "4"))
+
+# Technique 8, the FAQ shortcut (faq_shortcut.py). Only human-approved answers in
+# data/faq.jsonl are ever served. 0.75 gave 0 wrong matches on the dev set with a safety
+# margin; at 0.70 one question sat on the edge of the wrong FAQ.
+FAQ_SHORTCUT = os.getenv("FAQ_SHORTCUT", "on").strip().lower() != "off"
+FAQ_THRESHOLD = float(os.getenv("FAQ_THRESHOLD", "0.75"))
 # Upper bound on output tokens, including any hidden reasoning tokens. Reasoning
 # models can spend hundreds of tokens thinking before writing; a low cap yields an
 # EMPTY answer that is still billed. You pay only for tokens actually produced,

@@ -137,6 +137,9 @@ class Answer:
     retrieval_ms: float = 0.0
     error: str | None = None
     trace_id: str | None = None       # Langfuse trace, when tracing is on
+    served_by: str = "model"          # "faq": answered by the FAQ shortcut, no model call
+    faq_id: str | None = None
+    faq_score: float | None = None
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), ensure_ascii=False)
@@ -182,7 +185,8 @@ class SupportAgent:
     def __init__(self, model: str | None = None, retriever_mode: str | None = None,
                  top_k: int | None = None, mock: bool = False,
                  reasoning_effort: str | None = None, system_prompt: str | None = None,
-                 answer_length: str | None = None, verbosity: str | None = None):
+                 answer_length: str | None = None, verbosity: str | None = None,
+                 faq: bool | None = None, faq_drafts: bool = False):
         self.model = model or config.FRONTIER_MODEL
         self.reasoning_effort = reasoning_effort or config.REASONING_EFFORT
         self.answer_length = answer_length or config.ANSWER_LENGTH
@@ -202,6 +206,17 @@ class SupportAgent:
         self.system_prompt_sha = hashlib.sha256(self.system_prompt.encode()).hexdigest()[:8]
         self.mock = mock
         self._client = None
+        # FAQ shortcut: off if disabled or if the embedding library is missing (e.g. in CI).
+        # faq_drafts serves unapproved answers too: for measuring only, never for customers.
+        self.faq = None
+        if (config.FAQ_SHORTCUT if faq is None else faq):
+            try:
+                from faq_shortcut import FaqShortcut, load_faq  # noqa: PLC0415
+                self.faq = FaqShortcut(
+                    load_faq(), threshold=config.FAQ_THRESHOLD, include_drafts=faq_drafts,
+                    block=lambda q: "names a product" if self.named_products(q) else None)
+            except ImportError:
+                self.faq = None
 
     # -- context assembly -------------------------------------------------
     def _orders_in(self, question: str) -> list[dict]:
@@ -282,6 +297,22 @@ class SupportAgent:
         return result
 
     def _answer(self, question: str) -> Answer:
+        if self.faq is not None and self.faq.entries:
+            with tracing.observation("faq-shortcut", as_type="span", input=question) as step:
+                t0 = time.perf_counter()
+                match = self.faq.lookup(question)
+                lookup_ms = round((time.perf_counter() - t0) * 1000, 1)
+                step.update(output=match.entry["answer"] if match.entry else None,
+                            metadata={"served": bool(match.entry), "faq_id": match.best_id,
+                                      "score": round(match.score, 3), "reason": match.reason})
+            if match.entry:
+                # No model call: zero tokens, zero cost.
+                return Answer(question=question, answer=match.entry["answer"], model=self.model,
+                              retriever="faq", retrieved=list(match.entry["sources"]),
+                              served_by="faq", faq_id=match.entry["id"],
+                              faq_score=round(match.score, 3), latency_ms=lookup_ms,
+                              system_prompt=self.system_prompt_name,
+                              system_prompt_sha=self.system_prompt_sha)
         with tracing.observation("retrieve", as_type="retriever", input=question) as step:
             context, retrieved, orders_used, retrieval_ms = self.build_context(question)
             step.update(output={"documents": retrieved, "orders": orders_used},
