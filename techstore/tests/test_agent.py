@@ -473,3 +473,47 @@ def test_faq_answers_cite_real_documents():
         assert not ({e["question"].lower(), *map(str.lower, e["examples"])} & dev), e["id"]
         if e["status"] == "approved":
             assert e["approved_by"] and e["approved_on"], e["id"]
+
+
+def test_response_cache_safety_rules():
+    import response_cache as rc
+    cache = rc.ResponseCache(":memory:", encode=_bow_encoder(), threshold=0.6)
+    ns = "ns"
+    assert cache.store("Is delivery free?", "Free above 999.", ns, "m") == "stored"
+    hit = cache.lookup("is delivery free", ns).hit                       # exact (normalised)
+    assert hit and hit.kind == "exact"
+    assert cache.lookup("Is delivery free?", "other-namespace").hit is None   # never crosses apps/settings
+    # meaning flips are refused in BOTH directions
+    cache.store("How do I turn on noise cancellation?", "A", ns, "m")
+    assert cache.lookup("How do I turn off noise cancellation?", ns).hit is None
+    cache.store("How do I disable two-factor authentication?", "B", ns, "m")
+    assert cache.lookup("How do I enable two-factor authentication?", ns).hit is None
+    # different numbers or products -> different entities -> no reuse
+    cache.store("How much is delivery on a ₹500 order?", "C", ns, "m")
+    assert "entities" in cache.lookup("How much is delivery on a ₹1500 order?", ns).reason
+    cache.store("Is it good for video editing?", "D", ns, "m", frozenset({"prod_pulsebook_air13"}))
+    assert cache.lookup("Is it good for video editing?", ns, frozenset({"prod_novatab_mini8"})).hit is None
+    # personal / time-varying / private: never stored, never served
+    assert cache.store("Where is my order 48213?", "E", ns, "m").startswith("not stored")
+    assert cache.store("Will my refund arrive today?", "F", ns, "m").startswith("not stored")
+    assert cache.store("Why was I charged twice?", "G", ns, "m", private=True).startswith("not stored")
+    assert cache.lookup("Why was I charged twice?", ns).hit is None
+
+
+def test_response_cache_expiry():
+    import response_cache as rc
+    cache = rc.ResponseCache(":memory:", encode=_bow_encoder(), ttl_hours=-1)   # already expired
+    cache.store("Is delivery free?", "Free above 999.", "ns", "m")
+    assert cache.lookup("Is delivery free?", "ns").hit is None
+
+
+def test_agent_reuses_cached_answer(monkeypatch):
+    import response_cache as rc
+    monkeypatch.setattr(rc, "_minilm", _bow_encoder)          # no model download in CI
+    agent = SupportAgent(retriever_mode="keyword", mock=True, faq=False, cache=True)
+    first = agent.ask("Is delivery free?")
+    again = agent.ask("Is delivery free?")
+    assert first.served_by == "model" and "stored" in first.cache_note
+    assert again.served_by == "cache" and again.cache_kind == "exact" and again.cost_usd == 0
+    order = agent.ask("Where is my order 48213?")
+    assert order.served_by == "model" and "not stored" in order.cache_note

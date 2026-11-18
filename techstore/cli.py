@@ -28,6 +28,8 @@ def main() -> int:
     ap.add_argument("--verbosity", default=None,
                     help="provider length setting: low/medium/high (if the model accepts it)")
     ap.add_argument("--no-faq", action="store_true", help="turn the FAQ shortcut off")
+    ap.add_argument("--cache", action="store_true",
+                    help="use the safe response cache (off by default so experiments always call the model)")
     ap.add_argument("--faq-drafts", action="store_true",
                     help="also serve FAQ answers not yet approved (measuring only, never customers)")
     ap.add_argument("--system-prompt", default=None,
@@ -47,12 +49,14 @@ def main() -> int:
                          top_k=args.top_k, mock=args.mock,
                          reasoning_effort=args.reasoning_effort, system_prompt=args.system_prompt,
                          answer_length=args.answer_length, verbosity=args.verbosity,
-                         faq=False if args.no_faq else None, faq_drafts=args.faq_drafts)
+                         faq=False if args.no_faq else None, faq_drafts=args.faq_drafts,
+                         cache=True if args.cache else None)
     print(f"model={agent.model}{' (MOCK)' if agent.mock else ''}  "
           f"retriever={agent.retriever.name}  docs={len(agent.docs)}  "
           f"top_k={agent.top_k}  effort={agent.reasoning_effort or 'default'}  "
           f"prompt={agent.system_prompt_name}  length={agent.answer_length}"
           f"{'  verbosity=' + agent.verbosity if agent.verbosity else ''}"
+          f"  cache={'on' if agent.cache else 'off'}"
           f"  faq={len(agent.faq.entries) if agent.faq else 0} answers"
           f"{' (incl. drafts)' if args.faq_drafts else ''}", file=sys.stderr)
 
@@ -64,7 +68,7 @@ def main() -> int:
         for i, row in enumerate(rows, 1):
             res = agent.ask(row["question"], session_id=session)
             total += res.cost_usd
-            tag = " FAQ" if res.served_by == "faq" else ""
+            tag = {"faq": " FAQ", "cache": f" CACHE-{(res.cache_kind or '').upper()}"}.get(res.served_by, "")
             print(f"[{i}/{len(rows)}]{tag} ${res.cost_usd:.6f}  {res.latency_ms:7.1f}ms  "
                   f"{row['question'][:60]}", file=sys.stderr)
             if out:

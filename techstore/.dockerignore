@@ -12,3 +12,4 @@ review*.csv
 runs/
 tests/
 .DS_Store
+.cache/

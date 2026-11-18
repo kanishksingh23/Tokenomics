@@ -50,6 +50,20 @@ python faq_shortcut.py --eval                              # what it would do wi
 python cli.py --mock --faq-drafts --batch data/questions_dev.jsonl --out /tmp/x.jsonl   # try drafts, mock only
 ```
 
+### Safe response cache
+
+Reuses an earlier answer when the same question comes again (zero tokens). **Off by default** so
+experiment runs always call the model; turn it on with `--cache`.
+
+```bash
+python cli.py --cache "Is delivery free?"        # first time: model; next time: cache
+python response_cache.py --safety                 # 45 dangerous look-alike pairs must never share an answer
+python response_cache.py --stats                  # what is stored (techstore/.cache/, not in git)
+```
+
+Never cached: questions with order numbers or "my order"/"today"-style wording, and any answer
+built from a customer's order records.
+
 ### Checking quality automatically
 
 Every token-saving experiment is checked against a graded baseline run without grading
@@ -110,7 +124,7 @@ downloaded once so the container starts offline).
 ```bash
 pip install -r requirements-dev.txt
 ruff check .              # add --fix for import order and similar
-python -m pytest          # 35 tests, no key, no network, < 1 s
+python -m pytest          # 38 tests, no key, no network, < 1 s
 python validate_data.py
 ```
 
@@ -130,6 +144,7 @@ techstore/
 ├── techniques.py        token-saving techniques applied to the request (moves into the gateway later)
 ├── quality_check.py     compare an experiment with a graded baseline; cost per correct answer
 ├── faq_shortcut.py      FAQ shortcut: approved saved answers, no model call
+├── response_cache.py    safe response cache: exact + meaning-based reuse with safety checks
 ├── validate_data.py     corpus integrity; dev/test progress; --freeze locks the test set
 ├── check_setup.py       pre-flight: packages, key, model ids exist, prices present
 ├── review_results.py    batch review: cost, output length, flags, grading sheet
@@ -138,10 +153,11 @@ techstore/
 ├── data/
 │   ├── knowledge_base.jsonl    86 policy / product / billing / API documents
 │   ├── faq.jsonl               22 FAQ answers (draft until approved)
+│   ├── cache_pairs.jsonl       75 cache safety pairs (45 must never share an answer)
 │   ├── orders.jsonl            40 orders incl. the multi-charge dispute case
 │   ├── questions_dev.jsonl     dev set (target 100): tuning only
 │   └── questions_test.jsonl    test set (target 36): frozen, final results only
-├── tests/test_agent.py  35 tests, no API calls, run by CI on every push
+├── tests/test_agent.py  38 tests, no API calls, run by CI on every push
 ├── Dockerfile           Streamlit demo image (CPU torch, MiniLM baked in)
 ├── pyproject.toml       ruff + pytest settings
 └── requirements-dev.txt pytest, ruff (all CI needs)

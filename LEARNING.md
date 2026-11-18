@@ -305,7 +305,27 @@ greeting and an offer of more help.
 call**, so it only pays off if answers shrink by more than ~11 tokens on average (output costs 5× input).
 Measuring it waits for OpenAI credit.
 
-### FAQ shortcut (pre-filled cache)
+### Safety suite (adversarial pairs)
+**What it is:** a list of question pairs that **look alike but need different answers** ("turn on" vs "turn off",
+order 48213 vs 48217, UPI vs Paytm), used to attack our own cache. If the cache ever reuses an answer across one
+of these pairs, the test fails. Plus true rephrasings that *should* reuse an answer.
+**Example:** a bank testing its own locks by hiring someone to try to break in.
+**In our project:** `data/cache_pairs.jsonl`, 45 dangerous pairs + 30 rephrasings. CI runs it on every push with
+the real embedding model; one false hit fails the build.
+
+### Namespace (cache)
+**What it is:** a label for "everything apart from the question that changes the right answer": the app's
+instructions, the knowledge-base version, the model, and settings like answer length. Answers are only ever
+reused within the same namespace.
+**Why:** if we edit a policy document, the knowledge-base version changes, so old answers based on the old
+policy can never be served again. No manual clean-up needed.
+
+### Repeat rate
+**What it is:** how often customers ask a question that was already asked (in the same or other words). A
+cache's saving equals the repeat rate of the questions it is allowed to store.
+**In our project:** our test questions are all different on purpose, so the cache saved 0 on them. Measuring it
+needs a "repeat traffic" set; real support traffic repeats a lot.
+
 **What it is:** answers to the most common questions, written in advance from the documents and **approved by a
 person**, served instantly with **no model call**: zero tokens, zero cost. Unlike a normal cache, it works from
 the very first time a question is asked.
@@ -1418,5 +1438,6 @@ names over made-up ones; if a fact changes (like a price or a count), update it 
 | 2026-10-15 | Added Langfuse setup terms: observation, generation, session, environment, flush, no-op. |
 | 2026-10-15 | Added reasoning effort. |
 | 2026-11-17 | Added FAQ shortcut and similarity threshold. |
+| 2026-11-18 | Added safety suite, cache namespace, repeat rate. |
 | 2026-11-17 | Added answer-length control, cost per correct answer, automatic quality check, AI grader and evidence pack, run-to-run variation. |
 | 2026-10-15 | Updated token figures with the measured baseline (877 input tokens; prompt split; no prompt caching; Luna's reasoning tokens). |

@@ -1,0 +1,75 @@
+{"a": "Is delivery free?", "b": "Is the delivery free?", "should_hit": true, "kind": "paraphrase"}
+{"a": "What payment methods do you accept?", "b": "Which payment methods do you accept?", "should_hit": true, "kind": "paraphrase"}
+{"a": "Do you ship outside India?", "b": "Do you deliver outside India?", "should_hit": true, "kind": "paraphrase"}
+{"a": "How long does a refund take?", "b": "How long do refunds take?", "should_hit": true, "kind": "paraphrase"}
+{"a": "How do I reset my password?", "b": "How can I reset my password?", "should_hit": true, "kind": "paraphrase"}
+{"a": "Do you offer EMI?", "b": "Is EMI offered?", "should_hit": true, "kind": "paraphrase"}
+{"a": "What is your return policy?", "b": "What's your return policy?", "should_hit": true, "kind": "paraphrase"}
+{"a": "How does order tracking work?", "b": "How does tracking an order work?", "should_hit": true, "kind": "paraphrase"}
+{"a": "Does the warranty cover water damage?", "b": "Is water damage covered by the warranty?", "should_hit": true, "kind": "paraphrase"}
+{"a": "Do you have a physical store?", "b": "Do you have any physical stores?", "should_hit": true, "kind": "paraphrase"}
+{"a": "What are your customer support hours?", "b": "What are the customer support hours?", "should_hit": true, "kind": "paraphrase"}
+{"a": "Can I use two promo codes in one order?", "b": "Can I use two coupon codes in one order?", "should_hit": true, "kind": "paraphrase"}
+{"a": "Do gift cards expire?", "b": "Do your gift cards expire?", "should_hit": true, "kind": "paraphrase"}
+{"a": "How do I enable two-factor authentication?", "b": "How can I enable two-factor authentication?", "should_hit": true, "kind": "paraphrase"}
+{"a": "Can I get a GST invoice?", "b": "Can I get an invoice with GST?", "should_hit": true, "kind": "paraphrase"}
+{"a": "Do you price match?", "b": "Do you offer price matching?", "should_hit": true, "kind": "paraphrase"}
+{"a": "Can I exchange a product for a different colour?", "b": "Can I swap a product for a different colour?", "should_hit": true, "kind": "paraphrase"}
+{"a": "Can opened headphones be returned?", "b": "Can headphones be returned once opened?", "should_hit": true, "kind": "paraphrase"}
+{"a": "Do you accept cash on delivery?", "b": "Is cash on delivery accepted?", "should_hit": true, "kind": "paraphrase"}
+{"a": "What happens if a delivery attempt fails?", "b": "What happens when a delivery attempt fails?", "should_hit": true, "kind": "paraphrase"}
+{"a": "Do you sell refurbished products?", "b": "Do you sell refurbished items?", "should_hit": true, "kind": "paraphrase"}
+{"a": "How do I raise a warranty claim?", "b": "How can I raise a warranty claim?", "should_hit": true, "kind": "paraphrase"}
+{"a": "Is express delivery available?", "b": "Do you have express delivery?", "should_hit": true, "kind": "paraphrase"}
+{"a": "Can I change the delivery address after ordering?", "b": "Can the delivery address be changed after ordering?", "should_hit": true, "kind": "paraphrase"}
+{"a": "Is international shipping available?", "b": "Do you offer international shipping?", "should_hit": true, "kind": "paraphrase"}
+{"a": "How do I delete an account?", "b": "How can I delete an account?", "should_hit": true, "kind": "paraphrase"}
+{"a": "Do you sell gaming consoles?", "b": "Do you sell game consoles?", "should_hit": true, "kind": "paraphrase"}
+{"a": "What is the warranty on the AuraWatch Pro?", "b": "What warranty does the AuraWatch Pro have?", "should_hit": true, "kind": "paraphrase"}
+{"a": "is delivery free", "b": "Is delivery free?", "should_hit": true, "kind": "paraphrase"}
+{"a": "WHAT PAYMENT METHODS DO YOU ACCEPT", "b": "What payment methods do you accept?", "should_hit": true, "kind": "paraphrase"}
+{"a": "Where is my order 48213?", "b": "Where is my order 48217?", "should_hit": false, "kind": "order/personal"}
+{"a": "What is the status of order 48712?", "b": "What is the status of order 48713?", "should_hit": false, "kind": "order/personal"}
+{"a": "Can I cancel order 48390?", "b": "Can I cancel order 48391?", "should_hit": false, "kind": "order/personal"}
+{"a": "Refund status for order 48455", "b": "Refund status for order 48456", "should_hit": false, "kind": "order/personal"}
+{"a": "I was charged three times for order 48712", "b": "I was charged three times for order 48721", "should_hit": false, "kind": "order/personal"}
+{"a": "Why was I charged twice for my order?", "b": "Why was I charged twice for my order?", "should_hit": false, "kind": "order/personal"}
+{"a": "How much is delivery on a ₹500 order?", "b": "How much is delivery on a ₹1500 order?", "should_hit": false, "kind": "amount/date"}
+{"a": "Can I pay cash on delivery for a ₹25,000 order?", "b": "Can I pay cash on delivery for a ₹15,000 order?", "should_hit": false, "kind": "amount/date"}
+{"a": "Is EMI available on a ₹4,000 order?", "b": "Is EMI available on a ₹6,000 order?", "should_hit": false, "kind": "amount/date"}
+{"a": "Can I return an item after 25 days?", "b": "Can I return an item after 35 days?", "should_hit": false, "kind": "amount/date"}
+{"a": "My power bank is 18 months old, is it under warranty?", "b": "My power bank is 6 months old, is it under warranty?", "should_hit": false, "kind": "amount/date"}
+{"a": "Can I return something delivered on 2 September?", "b": "Can I return something delivered on 2 August?", "should_hit": false, "kind": "amount/date"}
+{"a": "How do I enable two-factor authentication?", "b": "How do I disable two-factor authentication?", "should_hit": false, "kind": "negation/antonym"}
+{"a": "How do I turn on noise cancellation?", "b": "How do I turn off noise cancellation?", "should_hit": false, "kind": "negation/antonym"}
+{"a": "Can I return opened headphones?", "b": "Can I return unopened headphones?", "should_hit": false, "kind": "negation/antonym"}
+{"a": "Can I cancel before the order ships?", "b": "Can I cancel after the order ships?", "should_hit": false, "kind": "negation/antonym"}
+{"a": "Do you accept international cards?", "b": "Do you accept domestic cards?", "should_hit": false, "kind": "negation/antonym"}
+{"a": "Is the warranty valid with the receipt?", "b": "Is the warranty valid without the receipt?", "should_hit": false, "kind": "negation/antonym"}
+{"a": "How do I add a delivery address?", "b": "How do I remove a delivery address?", "should_hit": false, "kind": "negation/antonym"}
+{"a": "Does the warranty include battery wear?", "b": "Does the warranty exclude battery wear?", "should_hit": false, "kind": "negation/antonym"}
+{"a": "Can I get a refund for a faulty item?", "b": "Can I get an exchange for a faulty item?", "should_hit": false, "kind": "negation/antonym"}
+{"a": "Can I pay by credit card on EMI?", "b": "Can I pay by debit card on EMI?", "should_hit": false, "kind": "negation/antonym"}
+{"a": "Can I return headphones?", "b": "Can't I return headphones?", "should_hit": false, "kind": "negation/antonym"}
+{"a": "What is the battery life of the AuraWatch Pro?", "b": "What is the battery life of the Studio Buds?", "should_hit": false, "kind": "product swap"}
+{"a": "Is the PulseBook Air good for video editing?", "b": "Is the NovaTab Mini good for video editing?", "should_hit": false, "kind": "product swap"}
+{"a": "How much does the VoltBank weigh?", "b": "How much does the AuraWatch Pro weigh?", "should_hit": false, "kind": "product swap"}
+{"a": "Does the SoundWave X200 have noise cancellation?", "b": "Does the SoundWave Y500 have noise cancellation?", "should_hit": false, "kind": "product swap"}
+{"a": "What is the price of the ClearView 27?", "b": "What is the price of the ClearView 32?", "should_hit": false, "kind": "product swap"}
+{"a": "Is the PulseBook Air available in silver?", "b": "Is the NovaTab Mini available in silver?", "should_hit": false, "kind": "product swap"}
+{"a": "How long does delivery take?", "b": "How long does a refund take?", "should_hit": false, "kind": "different intent"}
+{"a": "How do I reset my password?", "b": "How do I reset my headphones?", "should_hit": false, "kind": "different intent"}
+{"a": "Can I return a laptop?", "b": "Can I repair a laptop?", "should_hit": false, "kind": "different intent"}
+{"a": "What does the warranty cover?", "b": "What does accidental damage protection cover?", "should_hit": false, "kind": "different intent"}
+{"a": "Do you sell laptops?", "b": "Do you sell phones?", "should_hit": false, "kind": "different intent"}
+{"a": "Do you sell tablets?", "b": "Do you sell televisions?", "should_hit": false, "kind": "different intent"}
+{"a": "Can I pay with UPI?", "b": "Can I pay with Paytm?", "should_hit": false, "kind": "different intent"}
+{"a": "What is the return window for laptops?", "b": "What is the return window for earbuds?", "should_hit": false, "kind": "different intent"}
+{"a": "Can I return a smartwatch?", "b": "Can I return a fitness band?", "should_hit": false, "kind": "different intent"}
+{"a": "How long is the warranty on headphones?", "b": "How long is the warranty on laptops?", "should_hit": false, "kind": "different intent"}
+{"a": "Do you sell gaming consoles?", "b": "Do you sell gaming laptops?", "should_hit": false, "kind": "different intent"}
+{"a": "Do you deliver to Pune?", "b": "Do you deliver to Dubai?", "should_hit": false, "kind": "different intent"}
+{"a": "Do you ship to APO addresses?", "b": "Do you ship to PO box addresses?", "should_hit": false, "kind": "different intent"}
+{"a": "Is the PulseBook Air in stock?", "b": "Is the PulseBook Air in stock?", "should_hit": false, "kind": "time-varying"}
+{"a": "What is the latest delivery estimate for Mumbai?", "b": "What is the latest delivery estimate for Mumbai?", "should_hit": false, "kind": "time-varying"}
+{"a": "Will my refund arrive today?", "b": "Will my refund arrive today?", "should_hit": false, "kind": "time-varying"}

@@ -137,9 +137,13 @@ class Answer:
     retrieval_ms: float = 0.0
     error: str | None = None
     trace_id: str | None = None       # Langfuse trace, when tracing is on
-    served_by: str = "model"          # "faq": answered by the FAQ shortcut, no model call
+    served_by: str = "model"          # "faq" / "cache": answered without a model call
     faq_id: str | None = None
     faq_score: float | None = None
+    cache_kind: str | None = None     # "exact" or "semantic" when served_by == "cache"
+    cache_score: float | None = None
+    cached_question: str | None = None
+    cache_note: str | None = None     # why the cache missed, skipped, or did not store
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), ensure_ascii=False)
@@ -186,7 +190,7 @@ class SupportAgent:
                  top_k: int | None = None, mock: bool = False,
                  reasoning_effort: str | None = None, system_prompt: str | None = None,
                  answer_length: str | None = None, verbosity: str | None = None,
-                 faq: bool | None = None, faq_drafts: bool = False):
+                 faq: bool | None = None, faq_drafts: bool = False, cache: bool | None = None):
         self.model = model or config.FRONTIER_MODEL
         self.reasoning_effort = reasoning_effort or config.REASONING_EFFORT
         self.answer_length = answer_length or config.ANSWER_LENGTH
@@ -217,6 +221,23 @@ class SupportAgent:
                     block=lambda q: "names a product" if self.named_products(q) else None)
             except ImportError:
                 self.faq = None
+        # Safe response cache. Mock runs use a throwaway in-memory cache so fake answers
+        # are never saved where a real run could reuse them.
+        self.cache = None
+        if (config.RESPONSE_CACHE if cache is None else cache):
+            try:
+                from response_cache import ResponseCache, namespace_key  # noqa: PLC0415
+                self.cache = ResponseCache(":memory:" if mock else config.BASE_DIR / ".cache" /
+                                           "responses.sqlite", threshold=config.CACHE_THRESHOLD,
+                                           ttl_hours=config.CACHE_TTL_HOURS)
+                kb_version = hashlib.sha256(config.KB_PATH.read_bytes()).hexdigest()[:12]
+                # Everything except the question that changes the right answer.
+                self.cache_namespace = namespace_key(
+                    app="techstore", prompt=self.system_prompt_sha, kb=kb_version,
+                    model=self.model, effort=self.reasoning_effort, length=self.answer_length,
+                    verbosity=self.verbosity, top_k=self.top_k, retriever=self.retriever.name)
+            except ImportError:
+                self.cache = None
 
     # -- context assembly -------------------------------------------------
     def _orders_in(self, question: str) -> list[dict]:
@@ -296,7 +317,23 @@ class SupportAgent:
             )
         return result
 
+    def _product_entities(self, question: str) -> frozenset:
+        return frozenset(d.id for d in self.named_products(question))
+
     def _answer(self, question: str) -> Answer:
+        result = self._answer_uncached(question)
+        if self.cache is not None and result.served_by == "model":
+            ok = not result.error and result.finish_reason != "length" and not result.cost_is_estimate
+            if ok or self.mock:
+                stored = self.cache.store(
+                    question, result.answer, self.cache_namespace, self.model,
+                    self._product_entities(question), private=bool(result.orders_used))
+            else:
+                stored = "not stored: error or cut-off answer"
+            result.cache_note = "; ".join(filter(None, [result.cache_note, stored]))
+        return result
+
+    def _answer_uncached(self, question: str) -> Answer:
         if self.faq is not None and self.faq.entries:
             with tracing.observation("faq-shortcut", as_type="span", input=question) as step:
                 t0 = time.perf_counter()
@@ -313,6 +350,27 @@ class SupportAgent:
                               faq_score=round(match.score, 3), latency_ms=lookup_ms,
                               system_prompt=self.system_prompt_name,
                               system_prompt_sha=self.system_prompt_sha)
+        cache_note = None
+        if self.cache is not None:
+            with tracing.observation("response-cache", as_type="span", input=question) as step:
+                t0 = time.perf_counter()
+                look = self.cache.lookup(question, self.cache_namespace,
+                                         self._product_entities(question))
+                lookup_ms = round((time.perf_counter() - t0) * 1000, 1)
+                hit = look.hit
+                step.update(output=hit.answer if hit else None,
+                            metadata={"result": look.reason, "kind": hit.kind if hit else None,
+                                      "score": round(hit.score, 3) if hit else None,
+                                      "cached_question": hit.cached_question if hit else None})
+            if hit:
+                # No model call: zero tokens, zero cost.
+                return Answer(question=question, answer=hit.answer, model=hit.model,
+                              retriever="cache", served_by="cache", cache_kind=hit.kind,
+                              cache_score=round(hit.score, 3), cached_question=hit.cached_question,
+                              cache_note=look.reason, latency_ms=lookup_ms,
+                              system_prompt=self.system_prompt_name,
+                              system_prompt_sha=self.system_prompt_sha)
+            cache_note = look.reason
         with tracing.observation("retrieve", as_type="retriever", input=question) as step:
             context, retrieved, orders_used, retrieval_ms = self.build_context(question)
             step.update(output={"documents": retrieved, "orders": orders_used},
@@ -325,6 +383,7 @@ class SupportAgent:
                         retriever=self.retriever.name,
                         retrieved=retrieved, orders_used=orders_used,
                         retrieval_ms=round(retrieval_ms, 2))
+        result.cache_note = cache_note
         # The request passes through the token-saving techniques exactly as the gateway
         # will apply them to any app's request (techniques.py).
         request = {"model": self.model,

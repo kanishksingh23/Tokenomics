@@ -13,6 +13,7 @@ problems for under $0.001).
 | 2 | **Run-to-run variation** | How many answers change by chance alone, with nothing changed (GPT-6 rejects temperature). Tells us how much of an experiment's "changed" answers is noise. | `python cli.py --batch data/questions_dev.jsonl --out runs/<date>_variation/sol_rerun.jsonl --model gpt-6.1-sol` and the same with `--model gpt-6-luna` | ≈ $0.18 | |
 | 3 | **Answer-length control** (technique 3) | Do concise answers cut output tokens by more than the rule adds (55 input tokens)? | Sol and Luna, short prompt, `--answer-length concise`; if #1 passes, also `--verbosity low` | ≈ $0.16 (×2 with verbosity) | |
 | 4 | Sol `reasoning_effort=low` (technique 2) | Optional: Sol thinks only ~6 tokens per question, so little to gain | `--model gpt-6.1-sol --reasoning-effort low` | ≈ $0.15 | |
+| 5 | **Response cache on repeat traffic** (technique 7) | Real reuse rate and whether reused answers stay correct. Needs a "repeat traffic" set (rephrasings of ~12 test questions, written by Rahul). | `python cli.py --cache --batch <repeat_traffic>.jsonl --out runs/<date>_cache/sol_cache.jsonl` | ≈ $0.10 | |
 
 Then run `quality_check.py` against the graded baseline for each, and record the result in the
 run folder's NOTES.md and in `Tokenomics.md` §10.
