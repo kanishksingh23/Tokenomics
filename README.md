@@ -14,6 +14,7 @@ OpenAI-compatible gateway, with model routing last. Every saving is checked for 
 | [`tokenomics/`](tokenomics/) | **The product**: the techniques (each works on any OpenAI-style request) and the gateway |
 | [`techstore/`](techstore/) | **The test app**: a pretend electronics shop's support chatbot, its data, experiments and results |
 | [`Tokenomics.md`](Tokenomics.md) | The full specification and roadmap (§10) |
+| [`TECHNIQUES.md`](TECHNIQUES.md) | Every cost and token technique explained: what it attacks, how it works, what we measured |
 
 Install the package once from the repo root: `pip install -e ".[gateway,embeddings]"`.
 **Already have a copy from before 18 Nov 2026?** Run that once after `git pull`: the shared code
