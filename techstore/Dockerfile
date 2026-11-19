@@ -1,5 +1,6 @@
-# TechStore support agent: the Streamlit demo plus the CLI tools.
+# TechStore support agent: the Streamlit demo plus the CLI tools, on the Tokenomics package.
 #   docker compose up --build          (from the repo root)  ->  http://localhost:8501
+# Build context is the repo root: the image needs both tokenomics/ and techstore/.
 FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -7,19 +8,23 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     HF_HOME=/opt/hf
 
-WORKDIR /app
+WORKDIR /app/techstore
 
 # CPU-only torch first: the default wheel bundles CUDA (~2 GB) we never use.
 RUN pip install --index-url https://download.pytorch.org/whl/cpu torch
-COPY requirements.txt .
+COPY techstore/requirements.txt .
 RUN pip install -r requirements.txt
+# The product package (tokenomics/), installed from the repo root.
+COPY pyproject.toml /app/
+COPY tokenomics /app/tokenomics
+RUN pip install "/app[gateway]"
 
 # Download MiniLM at build time so the container starts offline and fast.
 RUN python -c "from sentence_transformers import SentenceTransformer; \
 SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2', device='cpu')" \
  && chmod -R a+rX /opt/hf
 
-COPY . .
+COPY techstore/ .
 RUN useradd --create-home app && chown -R app /app
 USER app
 ENV HF_HUB_OFFLINE=1

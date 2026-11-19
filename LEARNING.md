@@ -511,6 +511,31 @@ passes through it, it can inspect, redirect, block or cache.
 **Example:** the reception desk of an office building.
 **In our project:** the router *is* a gateway sitting between apps and AI providers.
 
+### Tokenomics gateway (the product)
+**What it is:** our own server that speaks exactly like OpenAI. An app sends its requests there instead of to
+OpenAI; the gateway applies the techniques (cache, memory trimming, spending limits) and forwards what's left.
+**In our project:** `tokenomics/gateway.py`. TechStore switched to it by changing two settings (the server
+address and the key), with no code changes, and repeated questions came back free in milliseconds.
+
+### Gateway key and fingerprint
+**What it is:** the gateway gives each app its own key ("tk-..."), so apps never see the real OpenAI key. The
+gateway stores only a **fingerprint** (SHA-256 hash) of each key: enough to recognise it, useless to a thief.
+**Example:** a bank keeps a scrambled version of your PIN, not the PIN itself.
+
+### Health vs readiness check
+**What it is:** `/health` answers "is the server running?"; `/ready` answers "can it actually do its job?" (provider
+key set, client keys created). A server can be healthy but not ready.
+**In our project:** `/ready` caught a real bug: it reported "no client keys" because two parts of the code used
+different names for the keys file.
+
+### Mock provider
+**What it is:** a stand-in for OpenAI inside the gateway that answers instantly, counts real input tokens and costs
+nothing. Lets us test the whole product end to end without credits.
+
+### Installable package
+**What it is:** code arranged so Python can install it (`pip install -e .`) and any program can `import` it. We moved
+the techniques out of the test app into `tokenomics/`, so the product no longer depends on TechStore.
+
 ### Proxy / reverse proxy
 **What it is:** a middleman that forwards requests. A plain proxy forwards blindly.
 **Our difference:** our router *thinks* before forwarding: which model, cached already, is the answer good enough?
@@ -1503,4 +1528,5 @@ names over made-up ones; if a fact changes (like a price or a count), update it 
 | 2026-11-18 | Added multi-turn conversation, memory trimming, rolling summary. |
 | 2026-11-18 | Updated prompt caching with the official rules; added cache write vs read, prompt layout. |
 | 2026-11-18 | Added spending limits (soft and hard). |
+| 2026-11-18 | Added Tokenomics gateway, gateway key and fingerprint, health vs readiness, mock provider, installable package. |
 | 2026-11-18 | Added adaptive context and proxy measure; restored three headings lost in earlier edits (safety suite, FAQ shortcut, cost per correct answer). |

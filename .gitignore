@@ -221,3 +221,7 @@ __marimo__/
 # Pre-git safety copies of the spec; git history replaces them.
 *.backup.md
 .DS_Store
+
+# Tokenomics gateway: key fingerprints and local state (cache, spend ledger)
+gateway_keys.json
+.tokenomics/

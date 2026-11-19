@@ -26,9 +26,11 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: pip install -r requirements-dev.txt
       - name: Lint
-        run: ruff check .
+        run: ruff check . ../tokenomics ../tests
       - name: Unit tests (no API calls)
         run: python -m pytest
+      - name: Gateway tests (in-process, stand-in provider)
+        run: python -m pytest ../tests -q
       - name: Data integrity
         run: python validate_data.py
 
@@ -47,9 +49,9 @@ jobs:
       - name: Install CPU torch and sentence-transformers
         run: |
           pip install --index-url https://download.pytorch.org/whl/cpu torch
-          pip install sentence-transformers numpy
+          pip install sentence-transformers numpy -e ..
       - name: Adversarial pairs must never share an answer (fails on any false hit)
-        run: python response_cache.py --safety
+        run: python cache_safety.py
 
   docker:
     name: docker build + health check
@@ -58,7 +60,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build image
-        run: docker build -t techstore ./techstore
+        run: docker build -f techstore/Dockerfile -t techstore .
       - name: Container answers a question (mock mode, no key)
         run: |
           docker run --rm techstore python cli.py --mock "Can I return opened headphones?" | tail -6
@@ -70,4 +72,14 @@ jobs:
             sleep 2
           done
           docker logs ts
+          exit 1
+      - name: Gateway health check (mock provider)
+        run: |
+          docker run -d --name gw -p 8000:8000 -e TOKENOMICS_UPSTREAM=mock techstore \
+            uvicorn tokenomics.gateway:create_app --factory --host 0.0.0.0 --port 8000
+          for i in $(seq 1 45); do
+            curl -fs http://localhost:8000/health && exit 0
+            sleep 2
+          done
+          docker logs gw
           exit 1

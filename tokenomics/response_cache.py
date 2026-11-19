@@ -18,13 +18,10 @@ Some questions are never cached at all, in either tier:
 Storage is one SQLite file (stdlib). The gateway step can swap in Redis/ChromaDB behind
 the same methods.
 
-    python response_cache.py --safety    # run the adversarial pairs; exit 1 on any false hit
-    python response_cache.py --stats     # what is stored
-    python response_cache.py --clear
+The adversarial safety suite for TechStore lives in techstore/cache_safety.py.
 """
 from __future__ import annotations
 
-import argparse
 import hashlib
 import json
 import re
@@ -36,10 +33,6 @@ from pathlib import Path
 
 import numpy as np
 
-import config
-
-CACHE_PATH = config.BASE_DIR / ".cache" / "responses.sqlite"
-PAIRS_PATH = config.DATA_DIR / "cache_pairs.jsonl"
 DEFAULT_THRESHOLD = 0.88          # most similar dangerous pair 0.79; least similar paraphrase 0.86
 DEFAULT_TTL_HOURS = 24
 MAX_LENGTH_RATIO = 3.5
@@ -160,7 +153,7 @@ def _minilm():
 
 
 class ResponseCache:
-    def __init__(self, path: Path | str = CACHE_PATH, encode=None,
+    def __init__(self, path: Path | str = ":memory:", encode=None,
                  threshold: float = DEFAULT_THRESHOLD, ttl_hours: float = DEFAULT_TTL_HOURS):
         self.path = Path(path)
         if str(path) != ":memory:":
@@ -267,57 +260,3 @@ class ResponseCache:
 def namespace_key(**parts) -> str:
     """Everything that changes the right answer apart from the question itself."""
     return hashlib.sha256(json.dumps(parts, sort_keys=True).encode()).hexdigest()[:16]
-
-
-def run_safety(threshold: float) -> int:
-    """Each pair: cache side A, ask side B. Pairs marked must_not_hit must miss.
-    Returns the number of false hits (the suite fails on any)."""
-    from agent import SupportAgent  # noqa: PLC0415
-
-    agent = SupportAgent(retriever_mode="keyword", mock=True, faq=False)
-    extra = lambda q: frozenset(d.id for d in agent.named_products(q))  # noqa: E731
-    with open(PAIRS_PATH, encoding="utf-8") as fh:
-        pairs = [json.loads(line) for line in fh if line.strip()]
-    encode = _minilm()
-    false_hits, good_hits, paraphrases = [], 0, 0
-    for i, p in enumerate(pairs):
-        cache = ResponseCache(":memory:", encode=encode, threshold=threshold)
-        cache.store(p["a"], "ANSWER-A", f"ns{i}", "m", extra(p["a"]))
-        res = cache.lookup(p["b"], f"ns{i}", extra(p["b"]))
-        if p["should_hit"]:
-            paraphrases += 1
-            good_hits += bool(res.hit)
-            mark = "hit " if res.hit else "miss"
-        else:
-            if res.hit:
-                false_hits.append(p)
-            mark = "FALSE HIT" if res.hit else "blocked"
-        print(f"{mark:9} [{p['kind']:16}] {p['a']!r} / {p['b']!r}  ->  {res.reason}")
-    n_adv = len(pairs) - paraphrases
-    print(f"\nthreshold {threshold}: adversarial pairs blocked {n_adv - len(false_hits)}/{n_adv}"
-          f" · paraphrases reused {good_hits}/{paraphrases}")
-    if false_hits:
-        print(f"FAIL: {len(false_hits)} false hit(s)")
-    return len(false_hits)
-
-
-def main() -> int:
-    ap = argparse.ArgumentParser(description="safe response cache")
-    ap.add_argument("--safety", action="store_true", help="run the adversarial pair suite")
-    ap.add_argument("--stats", action="store_true")
-    ap.add_argument("--clear", action="store_true")
-    ap.add_argument("--threshold", type=float, default=DEFAULT_THRESHOLD)
-    args = ap.parse_args()
-    if args.safety:
-        return 1 if run_safety(args.threshold) else 0
-    cache = ResponseCache(encode=lambda texts: np.zeros((len(texts), 384)))
-    if args.clear:
-        cache.clear()
-        print("cache cleared")
-    if args.stats:
-        print(cache.stats())
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

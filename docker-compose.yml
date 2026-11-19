@@ -1,8 +1,11 @@
-# docker compose up --build   ->  http://localhost:8501
-# The API key is read from techstore/.env when the container runs; it is never copied into the image.
+# docker compose up --build            ->  TechStore demo at http://localhost:8501
+# docker compose up --build gateway    ->  Tokenomics gateway at http://localhost:8000
+# Keys are read from techstore/.env when a container runs; they are never copied into the image.
 services:
   techstore:
-    build: ./techstore
+    build:
+      context: .                          # repo root: the image needs tokenomics/ and techstore/
+      dockerfile: techstore/Dockerfile
     image: tokenomics-techstore
     ports:
       - "8501:8501"
@@ -10,4 +13,21 @@ services:
       - path: techstore/.env
         required: false   # without it the app still runs in mock mode
     volumes:
-      - ./techstore/runs:/app/runs   # batch results written in the container land on your disk
+      - ./techstore/runs:/app/techstore/runs   # batch results written in the container land on your disk
+
+  gateway:
+    image: tokenomics-techstore          # same image: it contains the tokenomics package
+    build:
+      context: .
+      dockerfile: techstore/Dockerfile
+    command: ["uvicorn", "tokenomics.gateway:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: techstore/.env             # OPENAI_API_KEY: the gateway's own provider key
+        required: false
+    environment:
+      TOKENOMICS_KEYS: /data/gateway_keys.json
+      TOKENOMICS_STATE_DIR: /data/state
+    volumes:
+      - ./.tokenomics:/data              # keys (fingerprints only), cache and spend ledger

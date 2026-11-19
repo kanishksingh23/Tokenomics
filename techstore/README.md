@@ -20,8 +20,9 @@ comes back — with tokens, cost and latency recorded for every call.
 ## Quick start
 
 ```bash
+pip install -e ..                 # the Tokenomics package (repo root), once
 pip install -r requirements.txt
-cp .env.example .env          # add your API key
+cp .env.example .env              # add your API key
 
 python check_setup.py                                # free pre-flight: key, model ids, pricing, data
 python check_setup.py --ping                         # plus one tiny real call (< $0.001)
@@ -60,6 +61,19 @@ python cli.py --mock --conversations data/conversations_dev.jsonl --memory facts
 #   --memory off | window | facts | summary     --keep-turns 2   (techniques.py)
 ```
 
+### Through the Tokenomics gateway
+
+Start the gateway (see `../tokenomics/README.md`), create a key, and change two settings:
+
+```bash
+OPENAI_BASE_URL=http://localhost:8000/v1
+OPENAI_API_KEY=tk-...        # a Tokenomics key: python -m tokenomics.keys create --client techstore
+```
+
+The agent then leaves caching and spending limits to the gateway, tells it the customer's own
+question, the knowledge version and whether an order record is attached (never cached), and
+reads back who answered and the true cost.
+
 ### Spending limits
 
 Checked before every model call: an app-wide daily cap (default $5, also stops runaway scripts),
@@ -94,8 +108,8 @@ experiment runs always call the model; turn it on with `--cache`.
 
 ```bash
 python cli.py --cache "Is delivery free?"        # first time: model; next time: cache
-python response_cache.py --safety                 # 45 dangerous look-alike pairs must never share an answer
-python response_cache.py --stats                  # what is stored (techstore/.cache/, not in git)
+python cache_safety.py                            # 45 dangerous look-alike pairs must never share an answer
+python cache_safety.py --stats                    # what is stored (techstore/.cache/, not in git)
 ```
 
 Never cached: questions with order numbers or "my order"/"today"-style wording, and any answer
@@ -177,13 +191,10 @@ techstore/
 ├── agent.py             retrieve -> assemble context -> call model -> Answer record
 ├── cli.py               single question, --dry-run, or --batch over JSONL
 ├── app.py               Streamlit chat + inspector panel
-├── tracing.py           Langfuse traces (no-op without keys)
-├── techniques.py        token-saving techniques applied to the request (moves into the gateway later)
 ├── quality_check.py     compare an experiment with a graded baseline; cost per correct answer
-├── faq_shortcut.py      FAQ shortcut: approved saved answers, no model call
-├── response_cache.py    safe response cache: exact + meaning-based reuse with safety checks
+├── faq_shortcut.py      TechStore's FAQ answers: evaluate, review, approve (matcher: tokenomics/faq.py)
+├── cache_safety.py      the cache's adversarial safety suite on TechStore questions
 ├── prompt_cache_sim.py  prices our real prompts under OpenAI's prompt-caching rules
-├── spending_limits.py   budgets checked before each call: downgrade, refuse, per-minute limit
 ├── validate_data.py     corpus integrity; dev/test progress; --freeze locks the test set
 ├── check_setup.py       pre-flight: packages, key, model ids exist, prices present
 ├── review_results.py    batch review: cost, output length, flags, grading sheet

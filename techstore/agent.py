@@ -19,9 +19,12 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 import config
-import techniques
-import tracing
 from retriever import Doc, build_retriever, load_docs
+from tokenomics import techniques, tracing
+from tokenomics.tokens import MSG_OVERHEAD as _MSG_OVERHEAD
+from tokenomics.tokens import REPLY_PRIMING as _REPLY_PRIMING
+from tokenomics.tokens import TOKEN_COUNTER, count_tokens  # noqa: F401  (re-exported)
+from tokenomics.upstream import _QUIRKS, chat_completion  # noqa: F401  (re-exported)
 
 ORDER_ID = re.compile(r"\b(?:order\s*#?\s*)?(\d{5})\b", re.I)
 
@@ -65,60 +68,9 @@ def _pretty_date(iso: str) -> str:
     return f"{d} {months[m - 1]} {y}"
 
 # Chat formatting overhead: ~3 tokens per message plus 3 to prime the reply.
-_MSG_OVERHEAD = 3
-_REPLY_PRIMING = 3
 
 
-def _make_counter():
-    """Real tokenizer when available; otherwise a word-count heuristic.
-    Measured on the seed set, words x 4/3 undercounts by ~14%, so the
-    fallback uses 1.5 tokens per word."""
-    try:
-        import tiktoken  # noqa: PLC0415
-        enc = tiktoken.get_encoding("o200k_base")
-        return (lambda t: len(enc.encode(t))), "tiktoken/o200k_base"
-    except Exception:                                   # noqa: BLE001
-        return (lambda t: (len(t.split()) * 3 + 1) // 2), "heuristic/1.5-per-word"
 
-
-count_tokens, TOKEN_COUNTER = _make_counter()
-
-
-# Parameter quirks, learned at runtime per model. Newer OpenAI reasoning models
-# reject `temperature` and `max_tokens` (wanting `max_completion_tokens`); some
-# OpenAI-compatible servers reject `max_completion_tokens`. Each quirk costs one
-# rejected request (400s are not billed) and is then remembered.
-_QUIRKS: dict[str, dict] = {}
-
-
-def chat_completion(client, model: str, messages: list[dict], max_tokens: int,
-                    temperature: float | None, reasoning_effort: str | None = None, **extra):
-    """Returns (response, temperature actually sent or None). `extra` passes provider
-    parameters such as verbosity through unchanged; unsupported ones fail loudly."""
-    q = _QUIRKS.setdefault(model, {"temperature": True, "limit": "max_completion_tokens"})
-    for _ in range(4):
-        kwargs = {"model": model, "messages": messages, q["limit"]: max_tokens}
-        if q["temperature"] and temperature is not None:
-            kwargs["temperature"] = temperature
-        if reasoning_effort:
-            # Never dropped silently: an unsupported value fails loudly.
-            kwargs["reasoning_effort"] = reasoning_effort
-        kwargs.update({k: v for k, v in extra.items() if v is not None})
-        try:
-            return client.chat.completions.create(**kwargs), kwargs.get("temperature")
-        except Exception as exc:                        # noqa: BLE001
-            if getattr(exc, "status_code", None) != 400:
-                raise
-            msg = str(exc).lower()
-            if q["temperature"] and "temperature" in msg:
-                q["temperature"] = False
-                continue
-            if f"'{q['limit']}'" in msg or f'"{q["limit"]}"' in msg or f" {q['limit']} " in f" {msg} ":
-                q["limit"] = ("max_tokens" if q["limit"] == "max_completion_tokens"
-                              else "max_completion_tokens")
-                continue
-            raise
-    raise RuntimeError(f"{model}: could not find request parameters the model accepts")
 
 
 @dataclass
@@ -165,6 +117,7 @@ class Answer:
     client_id: str | None = None      # whose budget this counts against (None: app cap only)
     limit_action: str | None = None   # spending limits: allow / downgrade / refuse
     limit_reason: str | None = None
+    via_gateway: bool = False         # answered through the Tokenomics gateway
     prompt_layout: str = "classic"
     sent_user_message: str = ""       # the final user message as sent; with layout "cache", put
                                       # THIS in the history so the next prompt reuses the prefix
@@ -234,10 +187,14 @@ class SupportAgent:
         # Spending limits. Mock runs use a throwaway in-memory ledger: estimated costs must
         # never count against the real budget.
         self.limits = None
-        if config.SPEND_LIMITS if limits is None else limits:
-            import spending_limits  # noqa: PLC0415
+        # Through the gateway, budgets are enforced there; doing it here too would double-count.
+        if (config.SPEND_LIMITS if limits is None else limits) and not (config.VIA_GATEWAY and not mock):
+            from tokenomics import spending_limits  # noqa: PLC0415
             self.limits = spending_limits.SpendingLimits(
-                ":memory:" if mock else spending_limits.SPEND_PATH)
+                ":memory:" if mock else config.BASE_DIR / ".cache" / "spend.sqlite",
+                client_daily_usd=config.CLIENT_DAILY_BUDGET_USD,
+                global_daily_usd=config.GLOBAL_DAILY_BUDGET_USD, soft_ratio=config.SOFT_LIMIT_RATIO,
+                rpm=config.CLIENT_RPM, downgrade_model=config.ECONOMY_MODEL)
         self.prompt_layout = layout or config.PROMPT_LAYOUT
         if self.prompt_layout not in ("classic", "cache"):
             raise ValueError("layout must be 'classic' or 'cache'")
@@ -266,18 +223,19 @@ class SupportAgent:
         self.faq = None
         if (config.FAQ_SHORTCUT if faq is None else faq):
             try:
-                from faq_shortcut import FaqShortcut, load_faq  # noqa: PLC0415
+                from faq_shortcut import FAQ_PATH  # noqa: PLC0415
+                from tokenomics.faq import FaqShortcut, load_faq  # noqa: PLC0415
                 self.faq = FaqShortcut(
-                    load_faq(), threshold=config.FAQ_THRESHOLD, include_drafts=faq_drafts,
+                    load_faq(FAQ_PATH), threshold=config.FAQ_THRESHOLD, include_drafts=faq_drafts,
                     block=lambda q: "names a product" if self.named_products(q) else None)
             except ImportError:
                 self.faq = None
         # Safe response cache. Mock runs use a throwaway in-memory cache so fake answers
         # are never saved where a real run could reuse them.
         self.cache = None
-        if (config.RESPONSE_CACHE if cache is None else cache):
+        if (config.RESPONSE_CACHE if cache is None else cache) and not (config.VIA_GATEWAY and not mock):
             try:
-                from response_cache import ResponseCache, namespace_key  # noqa: PLC0415
+                from tokenomics.response_cache import ResponseCache, namespace_key  # noqa: PLC0415
                 self.cache = ResponseCache(":memory:" if mock else config.BASE_DIR / ".cache" /
                                            "responses.sqlite", threshold=config.CACHE_THRESHOLD,
                                            ttl_hours=config.CACHE_TTL_HOURS)
@@ -533,9 +491,10 @@ class SupportAgent:
         messages = request["messages"]
         result.client_id = client_id
         if self.limits is not None:
-            import spending_limits  # noqa: PLC0415
+            from tokenomics import spending_limits  # noqa: PLC0415
+
             def estimate(m):
-                return spending_limits.estimate_cost(m, messages)
+                return spending_limits.estimate_cost(m, messages, config.EXPECTED_OUTPUT_TOKENS)
             with tracing.observation("spending-limit", as_type="guardrail", input=client_id) as step:
                 decision = self.limits.check(client_id, request["model"], estimate)
                 step.update(output=decision.action,
@@ -585,6 +544,21 @@ class SupportAgent:
                                  "temperature_used": result.temperature_used})
         return result
 
+    def _gateway_headers(self, result: Answer) -> dict | None:
+        """Hints for the Tokenomics gateway (ignored by any other server): the customer's own
+        words for cache matching, the knowledge version, whether the prompt holds a customer's
+        order records, and who is asking (per-visitor budgets)."""
+        if not config.VIA_GATEWAY:
+            return None
+        kb = hashlib.sha256(config.KB_PATH.read_bytes()).hexdigest()[:12]
+        h = {"X-Tokenomics-Question": result.question[:500],
+             "X-Tokenomics-Namespace": f"techstore:{self.system_prompt_sha}:{kb}:{self.top_k}:"
+                                       f"{self.retriever.name}:{self.prompt_layout}",
+             "X-Tokenomics-Private": "true" if result.orders_used or result.turn > 1 else "false"}
+        if result.client_id:
+            h["X-Tokenomics-Client"] = result.client_id
+        return h
+
     def _call_model(self, request: dict, result: Answer) -> None:
         try:
             resp, result.temperature_used = chat_completion(
@@ -592,6 +566,7 @@ class SupportAgent:
                 max_tokens=config.MAX_TOKENS, temperature=config.TEMPERATURE,
                 reasoning_effort=request.get("reasoning_effort"),
                 verbosity=request.get("verbosity"),
+                extra_headers=self._gateway_headers(result),
             )
             result.answer = (resp.choices[0].message.content or "").strip()
             result.finish_reason = resp.choices[0].finish_reason
@@ -614,5 +589,22 @@ class SupportAgent:
                 result.completion_tokens = u.completion_tokens
                 result.cost_usd = round(config.price(
                     request["model"], u.prompt_tokens, u.completion_tokens, cached, written), 6)
+            # Through the gateway: it reports who answered (model or cache), the model it
+            # actually used (spending limits may downgrade) and the true cost.
+            note = getattr(resp, "tokenomics", None)
+            if isinstance(note, dict):
+                result.via_gateway = True
+                result.served_by = "cache" if note.get("served_by") == "cache" else "model"
+                result.model = note.get("model") or result.model
+                result.cost_usd = round(note.get("cost_usd", result.cost_usd), 6)
+                if note.get("cache_kind"):
+                    result.cache_kind, result.cache_score = note["cache_kind"], note.get("cache_score")
+                limit = note.get("limit") or {}
+                result.limit_action, result.limit_reason = limit.get("action"), limit.get("reason")
         except Exception as exc:                       # noqa: BLE001
+            if getattr(exc, "status_code", None) == 429 and "spending limit" in str(exc).lower():
+                # The gateway's spending limit: show the customer the same polite message.
+                result.answer, result.served_by, result.via_gateway = LIMIT_REACHED, "limit", True
+                result.limit_action, result.limit_reason = "refuse", "gateway spending limit"
+                return
             result.error = f"{type(exc).__name__}: {exc}"

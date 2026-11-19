@@ -13,7 +13,7 @@ not a bill). For every request that would call a model:
 After the call the ACTUAL cost is recorded, so estimates never drift from the bill.
 Answers from the FAQ shortcut or the cache cost nothing and are never counted.
 
-Spend is kept in a small SQLite file (techstore/.cache/spend.sqlite; mock runs use memory).
+Spend is kept in a small SQLite file chosen by the caller (in memory by default).
 Days are UTC calendar days.
 """
 from __future__ import annotations
@@ -25,9 +25,12 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-import config
+from tokenomics.pricing import PRICING
+from tokenomics.tokens import prompt_tokens
 
-SPEND_PATH = config.BASE_DIR / ".cache" / "spend.sqlite"
+# Defaults; callers (the TechStore agent, the gateway) pass their own settings.
+DEFAULTS = {"client_daily_usd": 0.05, "global_daily_usd": 5.00, "soft_ratio": 0.8, "rpm": 20,
+            "expected_output_tokens": 200}
 GLOBAL = "__all__"                  # the row holding the whole app's spend
 
 
@@ -59,7 +62,7 @@ class TokenBucket:
 
 
 class SpendingLimits:
-    def __init__(self, path: Path | str = SPEND_PATH, client_daily_usd: float | None = None,
+    def __init__(self, path: Path | str = ":memory:", client_daily_usd: float | None = None,
                  global_daily_usd: float | None = None, soft_ratio: float | None = None,
                  rpm: float | None = None, downgrade_model: str | None = None,
                  clock=time.time, bucket_clock=time.monotonic):
@@ -71,11 +74,12 @@ class SpendingLimits:
         self._lock = threading.RLock()
         self.db.execute("CREATE TABLE IF NOT EXISTS spend (client TEXT, day TEXT, usd REAL, "
                         "requests INTEGER, PRIMARY KEY (client, day))")
-        self.client_daily = config.CLIENT_DAILY_BUDGET_USD if client_daily_usd is None else client_daily_usd
-        self.global_daily = config.GLOBAL_DAILY_BUDGET_USD if global_daily_usd is None else global_daily_usd
-        self.soft_ratio = config.SOFT_LIMIT_RATIO if soft_ratio is None else soft_ratio
-        self.rpm = config.CLIENT_RPM if rpm is None else rpm
-        self.downgrade_model = downgrade_model or config.ECONOMY_MODEL
+        pick = lambda v, k: DEFAULTS[k] if v is None else v  # noqa: E731
+        self.client_daily = pick(client_daily_usd, "client_daily_usd")
+        self.global_daily = pick(global_daily_usd, "global_daily_usd")
+        self.soft_ratio = pick(soft_ratio, "soft_ratio")
+        self.rpm = pick(rpm, "rpm")
+        self.downgrade_model = downgrade_model    # None: never downgrade, refuse instead
         self.clock, self.bucket_clock = clock, bucket_clock
         self._buckets: dict[str, TokenBucket] = {}
 
@@ -88,9 +92,10 @@ class SpendingLimits:
                                   (client, self._day())).fetchone()
             return row[0] if row else 0.0
 
-    def check(self, client: str | None, model: str, estimate) -> Decision:
+    def check(self, client: str | None, model: str, estimate, budget: float | None = None) -> Decision:
         """Decide before the call. `estimate(model) -> usd` prices this request on any model.
-        `client` None means no per-client limits (e.g. a script); the app cap still applies."""
+        `client` None means no per-client limits (e.g. a script); the app cap still applies.
+        `budget` overrides the default per-client budget for this check (e.g. a key's own)."""
         with self._lock:
             est = estimate(model)
             total = self.spent(GLOBAL)
@@ -103,16 +108,18 @@ class SpendingLimits:
                 bucket = self._buckets.setdefault(client, TokenBucket(self.rpm, self.bucket_clock))
                 if not bucket.take():
                     return Decision("refuse", f"more than {self.rpm:g} requests per minute")
-            mine, budget = self.spent(client), self.client_daily
+            mine = self.spent(client)
+            budget = self.client_daily if budget is None else budget
             if not budget or mine + est <= budget * self.soft_ratio:
                 return Decision("allow", "within budget", mine, budget)
-            if model != self.downgrade_model:
+            if self.downgrade_model and model != self.downgrade_model:
                 # Past the soft limit: the cheap model, if that still fits the budget.
                 if mine + estimate(self.downgrade_model) <= budget:
                     return Decision("downgrade", f"past {self.soft_ratio:.0%} of the daily budget",
                                     mine, budget, self.downgrade_model)
             elif mine + est <= budget:
-                return Decision("allow", "already the cheap model, within budget", mine, budget)
+                # No cheap model configured, or already using it: allow up to the budget.
+                return Decision("allow", "past the soft limit, within budget", mine, budget)
             return Decision("refuse", f"daily budget ${budget:.2f} reached", mine, budget)
 
     def record(self, client: str | None, usd: float) -> None:
@@ -127,10 +134,8 @@ class SpendingLimits:
 
 def estimate_cost(model: str, messages: list[dict], expected_output_tokens: int | None = None) -> float:
     """Cost before the call: real input tokens plus an expected answer length."""
-    from agent import _MSG_OVERHEAD, _REPLY_PRIMING, count_tokens  # noqa: PLC0415
-    p = config.PRICING.get(model)
+    p = PRICING.get(model)
     if not p:
         return 0.0
-    out = config.EXPECTED_OUTPUT_TOKENS if expected_output_tokens is None else expected_output_tokens
-    tokens_in = sum(count_tokens(m["content"]) + _MSG_OVERHEAD for m in messages) + _REPLY_PRIMING
-    return (tokens_in * p["input"] + out * p["output"]) / 1e6
+    out = DEFAULTS["expected_output_tokens"] if expected_output_tokens is None else expected_output_tokens
+    return (prompt_tokens(messages) * p["input"] + out * p["output"]) / 1e6

@@ -332,7 +332,7 @@ def test_catalogue_agrees_with_product_pages():
 
 
 def test_tracing_off_is_a_no_op():
-    import tracing
+    from tokenomics import tracing
     assert not tracing.enabled()
     with tracing.observation("x", as_type="span") as step:
         step.update(output="ignored")
@@ -343,7 +343,7 @@ def test_tracing_off_is_a_no_op():
 
 
 def test_trace_cost_split_matches_billing():
-    import tracing
+    from tokenomics import tracing
     model = config.FRONTIER_MODEL
     usage, cost = tracing.usage_and_cost(model, prompt_tokens=1000, completion_tokens=300,
                                          cached_tokens=400, reasoning_tokens=100)
@@ -388,7 +388,7 @@ def test_cost_per_correct():
 
 
 def test_answer_length_technique():
-    import techniques
+    from tokenomics import techniques
     req = {"model": "m", "messages": [{"role": "system", "content": "Rules."},
                                       {"role": "user", "content": "hi"}]}
     out = techniques.apply_length(req, "concise", verbosity="low")
@@ -439,7 +439,7 @@ def _bow_encoder():
 
 
 def test_faq_shortcut_gates():
-    from faq_shortcut import FaqShortcut
+    from tokenomics.faq import FaqShortcut
     entries = [
         {"id": "faq_ship", "question": "do you ship internationally", "examples": [],
          "answer": "India only.", "sources": ["ship_international"], "status": "approved"},
@@ -476,7 +476,7 @@ def test_faq_answers_cite_real_documents():
 
 
 def test_response_cache_safety_rules():
-    import response_cache as rc
+    from tokenomics import response_cache as rc
     cache = rc.ResponseCache(":memory:", encode=_bow_encoder(), threshold=0.6)
     ns = "ns"
     assert cache.store("Is delivery free?", "Free above 999.", ns, "m") == "stored"
@@ -501,14 +501,14 @@ def test_response_cache_safety_rules():
 
 
 def test_response_cache_expiry():
-    import response_cache as rc
+    from tokenomics import response_cache as rc
     cache = rc.ResponseCache(":memory:", encode=_bow_encoder(), ttl_hours=-1)   # already expired
     cache.store("Is delivery free?", "Free above 999.", "ns", "m")
     assert cache.lookup("Is delivery free?", "ns").hit is None
 
 
 def test_agent_reuses_cached_answer(monkeypatch):
-    import response_cache as rc
+    from tokenomics import response_cache as rc
     monkeypatch.setattr(rc, "_minilm", _bow_encoder)          # no model download in CI
     agent = SupportAgent(retriever_mode="keyword", mock=True, faq=False, cache=True)
     first = agent.ask("Is delivery free?")
@@ -528,7 +528,7 @@ def _chat(n):
 
 
 def test_memory_modes():
-    import techniques as t
+    from tokenomics import techniques as t
     req = {"model": "m", "messages": _chat(5)}             # 4 earlier turns + the new question
     same, info = t.apply_memory(req, "off")
     assert same == req and info["dropped_turns"] == 0
@@ -546,7 +546,7 @@ def test_memory_modes():
 
 
 def test_memory_summary_is_rolling():
-    import techniques as t
+    from tokenomics import techniques as t
     calls, cache = [], {}
 
     def summarise(prev, msgs):
@@ -573,7 +573,7 @@ def test_agent_conversation():
 
 
 def test_cache_write_and_read_billing():
-    import tracing
+    from tokenomics import tracing
     m = config.FRONTIER_MODEL                      # Sol: input $2, write $2.50, read $0.10 per 1M
     p = config.PRICING[m]
     cost = config.price(m, 2000, 100, cached_prompt_tokens=1200, cache_write_tokens=500)
@@ -645,7 +645,7 @@ def test_passage_keeps_first_sentence():
 
 
 def test_token_bucket():
-    from spending_limits import TokenBucket
+    from tokenomics.spending_limits import TokenBucket
     now = [0.0]
     bucket = TokenBucket(2, clock=lambda: now[0])           # 2 requests per minute
     assert bucket.take() and bucket.take() and not bucket.take()
@@ -654,7 +654,7 @@ def test_token_bucket():
 
 
 def test_spending_limit_decisions():
-    from spending_limits import SpendingLimits
+    from tokenomics.spending_limits import SpendingLimits
     now = [1_800_000_000.0]
     lim = SpendingLimits(":memory:", client_daily_usd=1.0, global_daily_usd=5.0, soft_ratio=0.8,
                          rpm=0, downgrade_model="cheap", clock=lambda: now[0])
@@ -675,9 +675,10 @@ def test_spending_limit_decisions():
 
 def test_agent_spending_limits():
     from agent import LIMIT_REACHED
-    from spending_limits import SpendingLimits
+    from tokenomics.spending_limits import SpendingLimits
     agent = SupportAgent(retriever_mode="keyword", mock=True, faq=False)
-    agent.limits = SpendingLimits(":memory:", client_daily_usd=0.006, global_daily_usd=1.0, rpm=0)
+    agent.limits = SpendingLimits(":memory:", client_daily_usd=0.006, global_daily_usd=1.0, rpm=0,
+                                  downgrade_model=config.ECONOMY_MODEL)
     seen = []
     for _ in range(60):          # after the downgrade, cheap answers stretch the budget a long way
         r = agent.ask("How do I reset my password?", client_id="visitor-1")
@@ -694,8 +695,8 @@ def test_stores_work_across_threads():
     """Streamlit answers each message on a new thread; the stores must allow that."""
     import threading
 
-    import response_cache as rc
-    from spending_limits import SpendingLimits
+    from tokenomics import response_cache as rc
+    from tokenomics.spending_limits import SpendingLimits
     lim = SpendingLimits(":memory:", rpm=0)
     cache = rc.ResponseCache(":memory:", encode=_bow_encoder())
     errors = []
@@ -714,3 +715,14 @@ def test_stores_work_across_threads():
     for t in threads:
         t.join()
     assert not errors and abs(lim.spent("visitor") - 0.04) < 1e-9
+
+
+def test_spending_limit_without_cheap_model():
+    """No downgrade model configured: allow up to the budget, then refuse; never 'downgrade'."""
+    from tokenomics.spending_limits import SpendingLimits
+    lim = SpendingLimits(":memory:", client_daily_usd=1.0, soft_ratio=0.5, rpm=0)
+    est = {"big": 0.10}.get
+    lim.record("a", 0.85)                                   # past the soft limit, room left
+    assert lim.check("a", "big", est).action == "allow"
+    lim.record("a", 0.10)
+    assert lim.check("a", "big", est).action == "refuse"    # 0.95 + 0.10 > 1.00

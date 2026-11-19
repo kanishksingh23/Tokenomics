@@ -15,8 +15,8 @@ import uuid
 import streamlit as st
 
 import config
-import tracing
 from agent import SupportAgent
+from tokenomics import tracing
 
 st.set_page_config(page_title="TechStore Support", page_icon="🎧", layout="wide")
 

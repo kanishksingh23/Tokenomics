@@ -12,8 +12,8 @@ import json
 import sys
 from pathlib import Path
 
-import tracing
 from agent import SupportAgent
+from tokenomics import tracing
 
 
 def main() -> int:

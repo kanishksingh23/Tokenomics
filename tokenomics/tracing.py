@@ -4,7 +4,7 @@ Optional. Without the langfuse package or its keys in .env, every function here
 is a no-op, so tests, CI and anyone without an account run unchanged.
 Set LANGFUSE_TRACING=off to disable it even when the keys are present.
 
-Costs are sent explicitly (from config.PRICING) rather than left for Langfuse to
+Costs are sent explicitly (from tokenomics.pricing) rather than left for Langfuse to
 infer, because its built-in price list may not know our models.
 """
 from __future__ import annotations
@@ -86,7 +86,6 @@ def usage_and_cost(model: str, prompt_tokens: int, completion_tokens: int,
                    cached_tokens: int = 0, reasoning_tokens: int = 0,
                    cache_write_tokens: int = 0) -> tuple[dict, dict]:
     """Token counts and USD cost in Langfuse's format, split the way they are billed."""
-    import config  # noqa: PLC0415
     cached = min(max(cached_tokens, 0), prompt_tokens)
     written = min(max(cache_write_tokens, 0), prompt_tokens - cached)
     reasoning = min(max(reasoning_tokens, 0), completion_tokens)
@@ -98,7 +97,8 @@ def usage_and_cost(model: str, prompt_tokens: int, completion_tokens: int,
         "output_reasoning_tokens": reasoning,
     }
     usage["total"] = sum(usage.values())
-    p = config.PRICING.get(model)
+    from tokenomics.pricing import PRICING  # noqa: PLC0415
+    p = PRICING.get(model)
     if not p:
         return usage, {}
     cost = {
