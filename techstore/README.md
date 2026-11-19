@@ -20,7 +20,7 @@ comes back — with tokens, cost and latency recorded for every call.
 ## Quick start
 
 ```bash
-pip install -e ..                 # the Tokenomics package (repo root), once
+pip install -e "..[gateway,embeddings]"   # the Tokenomics package (repo root), once
 pip install -r requirements.txt
 cp .env.example .env              # add your API key
 

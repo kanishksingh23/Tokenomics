@@ -2,7 +2,13 @@
 import os
 from pathlib import Path
 
-from tokenomics.pricing import PRICING, PRICING_AS_OF, price  # noqa: F401  (re-exported)
+try:
+    from tokenomics.pricing import PRICING, PRICING_AS_OF, price  # noqa: F401  (re-exported)
+except ImportError as exc:      # the package lives at the repo root since 2026-11-18
+    raise ImportError(
+        "The Tokenomics package isn't installed. Run this once from the repo root:\n"
+        "    pip install -e \".[gateway,embeddings]\"\n"
+        "(or `pip install -e ..` from inside techstore/), then try again.") from exc
 
 try:
     from dotenv import load_dotenv

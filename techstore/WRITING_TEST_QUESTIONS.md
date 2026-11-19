@@ -257,6 +257,15 @@ The examples in this guide show the format only. **Don't use them as test questi
 
 ## Process
 
+**One-time setup** (needed for `validate_data.py`): after `git pull`, run this once from the
+repo root (the `Tokenomics` folder, not `techstore`):
+
+```bash
+pip install -e ".[gateway,embeddings]"
+```
+
+If you skip it, the scripts stop with a message telling you to run exactly this.
+
 1. **Write one category at a time.** Roughly 3–4 minutes per question: about 2–2½ hours for all 36.
 2. After each batch, run:
    ```bash

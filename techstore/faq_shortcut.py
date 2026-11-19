@@ -63,6 +63,8 @@ def write_review(path=config.BASE_DIR / "FAQ_REVIEW.md") -> None:
            "every fact is in the source text below it; nothing important from the source is missing",
            "for this question; the tone is right. Then approve, e.g.:",
            "", "```", "python faq_shortcut.py --approve faq_cancel,faq_emi --by Kanishk", "```", "",
+           "(Run it from `techstore/`. One-time setup after pulling: "
+           "`pip install -e \".[gateway,embeddings]\"` from the repo root.)", "",
            "To change an answer, edit it in `data/faq.jsonl` first (keep `sources` accurate).", ""]
     for e in load_faq():
         out += [f"## {e['id']}: {e['question']}  ({e['status']})", "",

@@ -16,6 +16,8 @@ OpenAI-compatible gateway, with model routing last. Every saving is checked for 
 | [`Tokenomics.md`](Tokenomics.md) | The full specification and roadmap (§10) |
 
 Install the package once from the repo root: `pip install -e ".[gateway,embeddings]"`.
+**Already have a copy from before 18 Nov 2026?** Run that once after `git pull`: the shared code
+moved from `techstore/` into the `tokenomics/` package, and the TechStore scripts need it installed.
 
 - **Run the gateway** (any OpenAI-compatible app switches with two settings):
   [tokenomics/README.md](tokenomics/README.md)
