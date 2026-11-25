@@ -548,9 +548,9 @@ As of the store's date, 30 September 2026. Use these numbers in `order_ids`.
 
 ---
 
-## Appendix C: 30 Multiple Choice Test Questions
+## Appendix C: 36 Multiple Choice Test Questions
 
-Thirty multiple-choice questions (4 options each) created according to the rules, grounded in the TechStore knowledge base and orders as of 30 September 2026.
+Thirty-six multiple-choice questions (4 options each) created according to the rules, grounded in the TechStore knowledge base and orders as of 30 September 2026.
 
 ### 1. `simple_faq`
 
@@ -587,11 +587,22 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `economy`
 - **Key Points:** Free installation and demo is only provided for monitors above 27 inches · Laptops, tablets, headphones, and watches do not require installation · Installation request is raised from Orders and scheduled within 48 hours of delivery
 
+#### Q4 (`t004`)
+**Question:** can i check the package in front of delivery guy before accepting it?
+- A) Yes, open-box delivery is available in 22 cities on orders above ₹20,000, where the courier opens the package for inspection before handover.
+- B) No, courier rules strictly prohibit opening packages prior to signing delivery acknowledgment.
+- C) Open-box delivery is available nationwide on all orders regardless of price.
+- D) You can inspect packages only if you pay an additional inspection fee of ₹199 to the delivery agent.
+- **Correct Answer:** A
+- **Context Document:** `ship_open_box`
+- **Expected Tier:** `economy`
+- **Key Points:** Open-box delivery is available in 22 cities on orders above ₹20,000 · The courier opens the package in the customer's presence for inspection before handover · Refusal at inspection is free and open-box adds 1 business day to the delivery estimate
+
 ---
 
 ### 2. `order_status`
 
-#### Q4 (`t004`)
+#### Q5 (`t005`)
 **Question:** can i get tracking details and estimated arrival for order 48821
 - A) Status is Shipped via Ekart with tracking ID EK4449941868, expected delivery date is 3 October 2026.
 - B) It is currently Processing at the warehouse and expected to ship on 5 October 2026.
@@ -603,7 +614,7 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `economy`
 - **Key Points:** Status is Shipped via Ekart with tracking ID EK4449941868 · Expected delivery date is 3 October 2026 · Contains AuraWatch Pro Smartwatch with Cash on Delivery total of ₹15,999
 
-#### Q5 (`t005`)
+#### Q6 (`t006`)
 **Question:** i bought a novatab over two weeks back on 15 sep order 48845 and its still processing?? whats going on
 - A) Order 48845 was lost in transit and a replacement has been dispatched.
 - B) Order 48845 for NovaTab 11 is in Processing status with an expected delivery date of 6 October 2026; tracking will update upon dispatch.
@@ -615,7 +626,7 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `economy`
 - **Key Points:** Order 48845 is in Processing status for a NovaTab 11 · Estimated delivery date is 6 October 2026 · Tracking information is sent via email and SMS once dispatched
 
-#### Q6 (`t006`)
+#### Q7 (`t007`)
 **Question:** showing order 48849 as delivered yesterday but i was not home, which courier dropped it
 - A) It was delivered by BlueDart under tracking ID BD4471920381.
 - B) It was marked Delivered on 29 September 2026 by Delhivery under tracking ID EK4426213146.
@@ -627,7 +638,7 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `economy`
 - **Key Points:** Marked Delivered on 29 September 2026 · Delivered by Delhivery under tracking ID EK4426213146 · Item delivered was VoltBank 20000mAh Power Bank
 
-#### Q7 (`t007`)
+#### Q8 (`t008`)
 **Question:** i received order 48835 on 9th september, do i still have time left to return it if i dont want it?
 - A) Yes, 21 days have passed since delivery, so you have until 9 October 2026 within the 30-day return window.
 - B) No, TechStore only offers a 15-day return window for tablets.
@@ -643,7 +654,7 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 
 ### 3. `product_info`
 
-#### Q8 (`t008`)
+#### Q9 (`t009`)
 **Question:** does the novatab mini 8 support a pen or stylus for taking notes in college?
 - A) Yes, it includes an active stylus inside the retail box.
 - B) Yes, an active stylus can be purchased separately for ₹4,999.
@@ -654,7 +665,7 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `economy`
 - **Key Points:** Stylus is not supported on the NovaTab Mini 8 · Stylus support is exclusive to the NovaTab 11
 
-#### Q9 (`t009`)
+#### Q10 (`t010`)
 **Question:** can i wear the m100 earbuds during workouts or when it rains outside?
 - A) No, the M100 has no water or sweat resistance rating and must be kept completely dry.
 - B) Yes, the M100 has an IPX4 splash resistance rating, making it safe for workout sweat and light rain.
@@ -665,7 +676,7 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `economy`
 - **Key Points:** M100 has IPX4 splash resistance rating · Safe for sweat during workouts and light rain splashes
 
-#### Q10 (`t010`)
+#### Q11 (`t011`)
 **Question:** how much power delivery does the 32 inch clearview monitor give over usb c?
 - A) 65 W.
 - B) 90 W.
@@ -680,7 +691,7 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 
 ### 4. `product_comparison`
 
-#### Q11 (`t011`)
+#### Q12 (`t012`)
 **Question:** which voltcharge charger should i get to charge my pulsebook pro 16 at max speed?
 - A) VoltCharge 65W (₹2,499), because 65 W provides maximum speed for all PulseBook models.
 - B) VoltCharge 100W (₹3,999), because the PulseBook Pro 16 requires 100 W for full-speed charging.
@@ -691,7 +702,7 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `economy_escalation`
 - **Key Points:** VoltCharge 100W (₹3,999) is required for full-speed 100 W charging of PulseBook Pro 16 · VoltCharge 65W (₹2,499) is not sufficient to charge the Pro 16 at full speed
 
-#### Q12 (`t012`)
+#### Q13 (`t013`)
 **Question:** deciding between novatab mini 8 and the 11 inch one, what are the main screen and spec differences for the extra money?
 - A) NovaTab 11 (₹29,999) offers an 11-inch 2.5K 120 Hz display, 8 GB RAM, 256 GB storage, and stylus support, whereas Mini 8 (₹17,999) has an 8.4-inch 90 Hz display, 6 GB RAM, 128 GB storage, and no stylus support.
 - B) Both have identical screen sizes, but NovaTab 11 includes an OLED display and 5G cellular connectivity.
@@ -702,7 +713,7 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `economy_escalation`
 - **Key Points:** NovaTab 11 (₹29,999) has an 11-inch 2.5K 120 Hz screen, 8 GB RAM, 256 GB storage, and stylus support · NovaTab Mini 8 (₹17,999) has an 8.4-inch 90 Hz screen, 6 GB RAM, 128 GB storage, and lacks stylus support
 
-#### Q13 (`t013`)
+#### Q14 (`t014`)
 **Question:** are the studio buds pro worth the extra price over m100 if i need active noise cancelling and wireless charging?
 - A) No, both models feature identical active noise cancelling and wireless charging cases.
 - B) Yes, Studio Buds Pro (₹6,999) includes 30 dB ANC and a wireless charging case, while M100 (₹3,499) lacks ANC and only has a wired USB-C case.
@@ -713,11 +724,22 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `economy_escalation`
 - **Key Points:** Studio Buds Pro (₹6,999) features 30 dB ANC and a wireless charging case · M100 (₹3,499) has no active noise cancellation and only wired USB-C charging · Studio Buds Pro provides 9 hours battery (32 with case) vs 7 hours (28 with case) for M100
 
+#### Q15 (`t015`)
+**Question:** aurawatch 3 or aurawatch pro, which one is better if i do open water swimming and want longer battery?
+- A) AuraWatch Pro (₹15,999), as it offers 10 ATM water resistance and 18-day battery compared to 5 ATM and 14 days on AuraWatch 3 (₹8,999).
+- B) AuraWatch 3 is better for open water swimming because 5 ATM allows diving deeper than 10 ATM.
+- C) Both watches have identical 5 ATM water resistance and 14-day battery life.
+- D) Neither watch is water resistant; both cannot be used in water.
+- **Correct Answer:** A
+- **Context Documents:** `prod_aurawatch3`, `prod_aurawatch_pro`
+- **Expected Tier:** `economy_escalation`
+- **Key Points:** AuraWatch Pro has 10 ATM water resistance vs 5 ATM on AuraWatch 3 · AuraWatch Pro offers 18-day battery life vs 14 days on AuraWatch 3 · AuraWatch Pro costs ₹15,999 while AuraWatch 3 costs ₹8,999
+
 ---
 
 ### 5. `troubleshooting`
 
-#### Q14 (`t014`)
+#### Q16 (`t016`)
 **Question:** plugged my earbud case in after not using it for a couple months and the light isnt turning on at all, is it dead?
 - A) If the LED does not turn on within 5 seconds, the battery is permanently depleted and out of warranty.
 - B) A case left fully discharged for over a month may need up to 15 minutes before the LED responds; try a 5 V adapter and claim warranty if no LED lights up after 30 minutes on a known-good charger.
@@ -728,7 +750,7 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `economy`
 - **Key Points:** Cases uncharged for over a month may require up to 15 minutes before the LED responds · Confirm using a working USB-C cable and 5 V adapter · Raise a warranty claim if no LED lights up after 30 minutes on a known-good charger
 
-#### Q15 (`t015`)
+#### Q17 (`t017`)
 **Question:** my voltbank has 80% charge but when i plug my wireless earbuds into it they wont charge
 - A) The VoltBank 20000 does not support charging accessories like earbuds under any circumstances.
 - B) You need to double press the power button to enable low-draw charging mode for earbuds.
@@ -739,7 +761,7 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `economy`
 - **Key Points:** Double press the power button to enable low-draw charging mode for earbuds · Check that the capacity display shows active charge · Raise a warranty claim if no output occurs across all ports after pressing
 
-#### Q16 (`t016`)
+#### Q18 (`t018`)
 **Question:** connected my laptop to clearview 27 with type c cable, display works fine but laptop is not charging at all
 - A) The ClearView 27 does not support USB-C charging; you must use your laptop's original power adapter.
 - B) Check that USB-C power delivery is enabled in the monitor's on-screen menu (off by default in some firmware) and confirm the cable is rated for power delivery up to 90 W / 100 W.
@@ -754,7 +776,7 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 
 ### 6. `billing_dispute`
 
-#### Q17 (`t017`)
+#### Q19 (`t019`)
 **Question:** i cancelled my pulsebook order 48832 three days ago which was on no-cost emi, why havent i received the refund and why is the emi still showing on my card?
 - A) Refund of ₹64,999 takes 5 to 7 business days (due by 7 October 2026); TechStore absorbs the interest discount upfront, but the customer must contact the bank to cancel the EMI plan.
 - B) TechStore automatically cancels the bank EMI plan within 24 hours of order cancellation without requiring bank contact.
@@ -766,7 +788,7 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `frontier`
 - **Key Points:** Refund of ₹64,999 is initiated and scheduled to complete by 7 October 2026 (5 to 7 business days) · TechStore absorbs the interest discount upfront, but the customer must contact the bank to cancel the EMI plan · The bank may still levy interest already accrued prior to cancellation
 
-#### Q18 (`t018`)
+#### Q20 (`t020`)
 **Question:** my credit card that i used to pay was closed by my bank last week. can you please send my return refund to my new bank account instead?
 - A) Yes, support can immediately update the destination bank account in the system upon receiving your request.
 - B) Refunds must always be initiated to the original payment method; the issuing bank usually routes the credit to your linked account, and if rejected and returned to TechStore, support can arrange a verified bank transfer.
@@ -777,7 +799,7 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `frontier`
 - **Key Points:** Refunds must always be initiated to the original payment method and cannot be redirected directly · The issuing bank usually routes the credit to the customer's linked underlying account · If the bank rejects the credit, funds return to TechStore within 10 business days and support can arrange a bank transfer after ID verification
 
-#### Q19 (`t019`)
+#### Q21 (`t021`)
 **Question:** bought a pulsebook 14 five days ago on techstore and today you dropped the site price by 3000 rs. will you refund me the difference?
 - A) No, TechStore policies strictly prohibit any refunds for post-purchase price changes.
 - B) Yes, TechStore refunds the price difference if the site price drops within 7 days of purchase upon request (does not apply during flash sales, festive events, or clearance).
@@ -788,7 +810,7 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `frontier`
 - **Key Points:** TechStore refunds the price difference if the site price drops within 7 days of purchase · Applies once per order line upon request · Does not apply during flash sales, festive events, or clearance sales
 
-#### Q20 (`t020`)
+#### Q22 (`t022`)
 **Question:** returned my cash on delivery order last week, why havent you refunded to my upi yet? you have my phone number
 - A) TechStore automatically initiates refunds to whichever UPI ID is linked to the registered phone number.
 - B) COD orders cannot be refunded to UPI automatically; you must submit bank account number and IFSC via support's secure link for a bank transfer taking 5 to 7 business days.
@@ -799,11 +821,23 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `frontier`
 - **Key Points:** COD orders cannot be refunded to UPI automatically because no payment method was used at checkout · Refund is executed via bank transfer after the customer enters account number and IFSC via support's secure link · Transfers take 5 to 7 business days from verification (the ₹49 COD fee is non-refundable after dispatch)
 
+#### Q23 (`t023`)
+**Question:** i checked my credit card statement for order 48712 and you charged me 12999 three times!! why are there 3 charges and when do i get my money back?
+- A) TechStore created three separate orders for headphones and you must return two of them.
+- B) Only one charge of ₹12,999 is settled for order 48712; the other two are duplicate authorizations where one was already released on 29 September and the third will reverse automatically by 4 October 2026.
+- C) All three charges are permanent and duplicate charges cannot be reversed on credit cards.
+- D) You must file a chargeback with your issuing bank immediately because TechStore cannot release duplicate holds.
+- **Correct Answer:** B
+- **Order ID:** `48712`
+- **Context Document:** `bill_duplicate_charge`
+- **Expected Tier:** `frontier`
+- **Key Points:** Only one charge of ₹12,999 is settled for the actual order · One duplicate authorization was already released on 29 September 2026 · The third hold is pending reversal and reverses automatically by 4 October 2026
+
 ---
 
 ### 7. `technical_api`
 
-#### Q21 (`t021`)
+#### Q24 (`t024`)
 **Question:** trying to fetch all orders via GET /v1/orders?offset=100&limit=50 but page 2 still gives the first 50 results. how do we paginate?
 - A) You need to pass `page=2` rather than `offset=100`.
 - B) Offset-based pagination is not supported; use cursor-based pagination by passing the `next_cursor` value as `?cursor=<cursor>` on subsequent requests (max 100 records/page, expires in 30 minutes).
@@ -814,7 +848,7 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `frontier`
 - **Key Points:** Offset-based pagination is not supported · List endpoints return up to 100 records and a cursor in next_cursor · Pass the opaque cursor value as ?cursor= parameter; cursors expire after 30 minutes
 
-#### Q22 (`t022`)
+#### Q25 (`t025`)
 **Question:** POST /v1/orders is throwing 403 with error body {"code": "insufficient_scope"}. Can I update permissions on my existing bearer token?
 - A) Yes, send a PATCH request to `/v1/tokens` with the new scopes required.
 - B) No, token scopes cannot be widened or modified once a token is created; a new bearer token must be generated in the partner dashboard with `orders:write` scope.
@@ -825,7 +859,7 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `frontier`
 - **Key Points:** Token scopes cannot be widened or modified once a token is created · A new bearer token must be generated in the partner dashboard with 'orders:write' scope · 403 insufficient_scope indicates authentication succeeded but permissions are lacking
 
-#### Q23 (`t023`)
+#### Q26 (`t026`)
 **Question:** we are seeing a Sunset header in api responses for v1, what does that mean and how long do we have before our integration breaks?
 - A) It indicates the endpoint is rate-limited and will recover after midnight IST.
 - B) Sunset header indicates the current API version is deprecated; deprecated versions are supported for 12 months after the successor version is announced.
@@ -836,7 +870,7 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `frontier`
 - **Key Points:** Sunset header indicates the current API version is deprecated · Deprecated versions are supported for 12 months after the successor version is announced · Breaking changes are released under a new URL path version
 
-#### Q24 (`t024`)
+#### Q27 (`t027`)
 **Question:** our POST /v1/shipments calls occasionally hit a 30s timeout. is it safe to immediately retry the call?
 - A) Yes, retry immediately in a while-loop without modifying headers.
 - B) Server-side timeout occurs at 30 seconds and operation status is uncertain; retry using exponential backoff with jitter and include the identical `Idempotency-Key` header to prevent duplicate operations.
@@ -847,11 +881,22 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `frontier`
 - **Key Points:** Server-side timeout occurs at 30 seconds and does not indicate whether execution completed · POST retries must use the identical Idempotency-Key header to prevent duplicate operations · Retries must implement exponential backoff with jitter instead of immediate loops
 
+#### Q28 (`t028`)
+**Question:** hitting 429 Too Many Requests on bulk export endpoint after 70 calls in a minute. what are the rate limits and what happens if we keep hitting it?
+- A) Rate limit is 10,000 requests per day across all endpoints; hitting it revokes your API token.
+- B) Bulk export endpoints allow 60 requests per minute per token (standard endpoints allow 600/min); exceeding returns 429 with Retry-After header, and sustained violations over 15 minutes trigger a 1-hour block.
+- C) Bulk export endpoints have no rate limit in production; 429 indicates invalid authentication credentials.
+- D) You must create a new API token for each 50 bulk export calls to bypass rate limiting.
+- **Correct Answer:** B
+- **Context Document:** `api_rate_limits`
+- **Expected Tier:** `frontier`
+- **Key Points:** Bulk export limit is 60 requests per minute per token (vs 600/min for standard endpoints) · 429 responses return a Retry-After header in seconds · Sustained violations exceeding 15 minutes trigger a temporary 1-hour block
+
 ---
 
 ### 8. `policy_edge_case`
 
-#### Q25 (`t025`)
+#### Q29 (`t029`)
 **Question:** i preordered my headphones 45 days ago and was charged immediately, but package arrived only 10 days back. has my 30 day return window expired?
 - A) Yes, the 30-day return window is calculated from the date the payment is captured, so it expired 15 days ago.
 - B) No, the 30-day return window starts on the delivery date, not the preorder or charge date; you are eligible since only 10 days have elapsed since delivery (provided hygiene seal is intact).
@@ -862,7 +907,7 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `frontier`
 - **Key Points:** The 30-day return window starts on the delivery date, not the preorder or charge date · Eligible for return since only 10 days have elapsed since delivery · Item must be returned in original packaging with unbroken seal under hygiene policy
 
-#### Q26 (`t026`)
+#### Q30 (`t030`)
 **Question:** my soundwave earbuds arrived with the box crushed and the earbud casing cracked inside. i opened the plastic seal before seeing the crack, am i denied a replacement because hygiene rules say opened earphones cant be returned?
 - A) Yes, breaking the hygiene seal voids all return, replacement, and warranty rights permanently.
 - B) No, hygiene return exclusions do not apply to damaged or defective items delivered; report transit damage within 48 hours of delivery with photos for free pickup and immediate replacement.
@@ -873,7 +918,7 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `frontier`
 - **Key Points:** Hygiene return exclusions do not apply to damaged or defective items delivered · Report transit damage within 48 hours of delivery with photos of package and product · TechStore arranges a free pickup and immediately dispatches a replacement
 
-#### Q27 (`t027`)
+#### Q31 (`t031`)
 **Question:** our company bought 15 novatab tablets 20 days ago for staff. we want to return 5 of them that are unused in box, can we do that under the 30 day policy?
 - A) Yes, all unused products carry a standard 30-day return window regardless of quantity.
 - B) No, orders of more than 10 units of a single SKU are treated as business/bulk orders with a 15-day return window, so the request is ineligible after 20 days.
@@ -884,11 +929,22 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `frontier`
 - **Key Points:** Orders of more than 10 units of a single SKU are treated as business/bulk orders · Business orders have a 15-day return window rather than the standard 30-day window · The return request is ineligible because 20 days have passed since delivery
 
+#### Q32 (`t032`)
+**Question:** techstore just replaced my smartwatch under warranty when only 2 weeks were left on my 1 year warranty. does my replacement unit get a brand new 1 year warranty?
+- A) Yes, all replacement units receive a brand new full 1-year manufacturer warranty from delivery date.
+- B) No, replacements inherit the remaining original warranty, but because fewer than 90 days remained, the replacement gets a 90-day warranty from the replacement date.
+- C) No, once a warranty replacement is issued, warranty coverage terminates immediately with 0 days remaining.
+- D) Replacements carry a 30-day return window instead of warranty coverage.
+- **Correct Answer:** B
+- **Context Documents:** `pol_replacement_warranty`, `pol_warranty_terms`
+- **Expected Tier:** `frontier`
+- **Key Points:** Replacements inherit the remaining warranty of the original unit rather than starting a fresh 1-year term · If fewer than 90 days remain, the replacement receives a 90-day warranty from replacement date · Replacement units may be factory refurbished and functionally equivalent
+
 ---
 
 ### 9. `out_of_scope`
 
-#### Q28 (`t028`)
+#### Q33 (`t033`)
 **Question:** what is the speed of light in kilometers per second
 - A) Approximately 299,792 kilometers per second.
 - B) Declines; states that it can only help with TechStore orders, products, and support.
@@ -900,7 +956,7 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `economy`
 - **Key Points:** Declines; states that it can only help with TechStore orders, products, and support
 
-#### Q29 (`t029`)
+#### Q34 (`t034`)
 **Question:** can i get gift wrapping on my order with a custom birthday card included?
 - A) Yes, gift wrapping costs ₹49 and custom greeting cards cost ₹29 at checkout.
 - B) Admits unknown; states it does not have information regarding gift wrapping or personalized cards, and offers to connect the customer with a human support agent.
@@ -912,7 +968,7 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `economy`
 - **Key Points:** Admits unknown; states it does not have information regarding gift wrapping or personalized cards · Offers to connect the customer with a human support agent
 
-#### Q30 (`t030`)
+#### Q35 (`t035`)
 **Question:** do you sell refrigerators or microwave ovens?
 - A) Yes, TechStore stocks select compact refrigerators and microwave ovens online.
 - B) States that TechStore does not sell home appliances such as refrigerators, washing machines, or microwaves, and lists that TechStore exclusively sells headphones, laptops, tablets, smartwatches, monitors, and chargers/power banks.
@@ -924,3 +980,14 @@ Thirty multiple-choice questions (4 options each) created according to the rules
 - **Expected Tier:** `economy`
 - **Key Points:** States that TechStore does not sell home appliances such as refrigerators, washing machines, or microwaves · Lists that TechStore exclusively sells headphones, laptops, tablets, smartwatches, monitors, and chargers/power banks
 
+#### Q36 (`t036`)
+**Question:** what colors are available for the soundwave x200 and can i get custom name engraving on the headband?
+- A) SoundWave X200 is available in Midnight Black and Arctic White (₹12,999); custom engraving is not mentioned in documentation, so support must admit unknown regarding custom engraving and connect to an agent.
+- B) X200 comes only in Space Gray; laser engraving is available for ₹499.
+- C) X200 comes in six colors and includes free custom engraving on all preorders.
+- D) Custom engraving is only offered on the Y500 headphones.
+- **Correct Answer:** A
+- **Expected Behavior:** `partial`
+- **Context Document:** `prod_x200`
+- **Expected Tier:** `economy`
+- **Key Points:** Answers that SoundWave X200 is available in Midnight Black and Arctic White · Admits unknown or offers support contact regarding custom name engraving

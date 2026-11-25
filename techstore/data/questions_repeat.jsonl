@@ -1,0 +1,36 @@
+{"id": "r001", "repeat_of": "t001", "type": "same", "question": "do you refund the shipping fee if i cancel my order before dispatch?", "source": "ai_assisted"}
+{"id": "r002", "repeat_of": "t001", "type": "same", "question": "will i get back what i paid for delivery if i decide to cancel prior to shipping", "source": "ai_assisted"}
+{"id": "r003", "repeat_of": "t001", "type": "different", "question": "if i cancel an order after it gets shipped do i get the delivery charges back too", "source": "ai_assisted"}
+{"id": "r004", "repeat_of": "t004", "type": "same", "question": "is open-box delivery allowed so i can inspect the item with the courier present?", "source": "ai_assisted"}
+{"id": "r005", "repeat_of": "t004", "type": "same", "question": "am i allowed to open and inspect the parcel before signing for delivery", "source": "ai_assisted"}
+{"id": "r006", "repeat_of": "t004", "type": "different", "question": "can i check the package in front of delivery guy on an order of five thousand?", "source": "ai_assisted"}
+{"id": "r007", "repeat_of": "t009", "type": "same", "question": "can i use an active stylus with the novatab mini 8 to write notes?", "source": "ai_assisted"}
+{"id": "r008", "repeat_of": "t009", "type": "same", "question": "is pen input supported on novatab mini 8 for drawing and note taking", "source": "ai_assisted"}
+{"id": "r009", "repeat_of": "t009", "type": "different", "question": "does the novatab 11 support a pen or stylus for taking notes in college?", "source": "ai_assisted"}
+{"id": "r010", "repeat_of": "t010", "type": "same", "question": "are the m100 earbuds safe to use while sweating at the gym or in light rain", "source": "ai_assisted"}
+{"id": "r011", "repeat_of": "t010", "type": "same", "question": "is it fine to exercise with m100 earphones outdoors if it starts raining?", "source": "ai_assisted"}
+{"id": "r012", "repeat_of": "t010", "type": "different", "question": "can i wear the m100 earbuds while swimming in a pool?", "source": "ai_assisted"}
+{"id": "r013", "repeat_of": "t014", "type": "same", "question": "do studio buds pro offer active noise cancellation and case wireless charging compared to m100?", "source": "ai_assisted"}
+{"id": "r014", "repeat_of": "t014", "type": "same", "question": "if i want wireless charging and anc is upgrading from m100 to studio buds pro necessary?", "source": "ai_assisted"}
+{"id": "r015", "repeat_of": "t014", "type": "different", "question": "are the studio buds pro worth the extra price over m100 if i only care about splash resistance?", "source": "ai_assisted"}
+{"id": "r016", "repeat_of": "t016", "type": "same", "question": "left my earbud case discharged for months and now no charging led shows up when connected, what should i do?", "source": "ai_assisted"}
+{"id": "r017", "repeat_of": "t016", "type": "same", "question": "charging indicator not lighting up on earbud case after sitting in a drawer unused for months", "source": "ai_assisted"}
+{"id": "r018", "repeat_of": "t016", "type": "different", "question": "plugged my earbud case in after using it this morning and the light isnt turning on at all, is it dead?", "source": "ai_assisted"}
+{"id": "r019", "repeat_of": "t017", "type": "same", "question": "voltbank is showing 80% battery but it does not seem to charge my bluetooth earbuds", "source": "ai_assisted"}
+{"id": "r020", "repeat_of": "t017", "type": "same", "question": "why wont my voltbank charge my earbuds even though the screen shows 80% remaining", "source": "ai_assisted"}
+{"id": "r021", "repeat_of": "t017", "type": "different", "question": "my voltbank has 80% charge but when i plug my laptop into the usb-a port it wont charge", "source": "ai_assisted"}
+{"id": "r022", "repeat_of": "t020", "type": "same", "question": "the card i paid with is closed now, can techstore deposit my refund directly into another bank account?", "source": "ai_assisted"}
+{"id": "r023", "repeat_of": "t020", "type": "same", "question": "can i give you different bank details for my refund because my old credit card got cancelled by the bank", "source": "ai_assisted"}
+{"id": "r024", "repeat_of": "t020", "type": "different", "question": "my credit card that i used to pay was closed by my bank last week. will my bank still receive and route the refund to my savings account?", "source": "ai_assisted"}
+{"id": "r025", "repeat_of": "t022", "type": "same", "question": "i did cash on delivery and returned the parcel, why didnt the refund come to my phone number on upi?", "source": "ai_assisted"}
+{"id": "r026", "repeat_of": "t022", "type": "same", "question": "waiting for refund on a cod return, can you just transfer it to my upi ID linked to my phone", "source": "ai_assisted"}
+{"id": "r027", "repeat_of": "t022", "type": "different", "question": "returned my upi order last week, why havent you refunded to my upi yet? you have my phone number", "source": "ai_assisted"}
+{"id": "r028", "repeat_of": "t025", "type": "same", "question": "getting 403 insufficient_scope on POST /v1/orders, is it possible to add new scopes to our current token?", "source": "ai_assisted"}
+{"id": "r029", "repeat_of": "t025", "type": "same", "question": "our api token gets 403 with insufficient_scope on POST /v1/orders, can we edit the existing token permissions", "source": "ai_assisted"}
+{"id": "r030", "repeat_of": "t025", "type": "different", "question": "POST /v1/orders is throwing 403 with error body {\"code\": \"insufficient_scope\"}. Does this mean our api key or signature failed authentication?", "source": "ai_assisted"}
+{"id": "r031", "repeat_of": "t026", "type": "same", "question": "api v1 responses have a Sunset header returned, what is this and when will our integration stop working?", "source": "ai_assisted"}
+{"id": "r032", "repeat_of": "t026", "type": "same", "question": "what does the Sunset header in v1 api calls mean and how much migration time do we get?", "source": "ai_assisted"}
+{"id": "r033", "repeat_of": "t026", "type": "different", "question": "we are seeing new unknown fields in api responses for v1, what does that mean and will our integration break?", "source": "ai_assisted"}
+{"id": "r034", "repeat_of": "t030", "type": "same", "question": "soundwave earbuds were delivered physically damaged with broken case, but i already tore the seal. does hygiene policy block my replacement?", "source": "ai_assisted"}
+{"id": "r035", "repeat_of": "t030", "type": "same", "question": "my new earbuds arrived with a cracked shell and opened packaging, can i still get a replacement despite the hygiene return rules", "source": "ai_assisted"}
+{"id": "r036", "repeat_of": "t030", "type": "different", "question": "my soundwave earbuds arrived in perfect condition but they dont fit my ears comfortably. i opened the plastic seal, am i denied a return because hygiene rules say opened earphones cant be returned?", "source": "ai_assisted"}
