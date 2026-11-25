@@ -10,8 +10,9 @@ import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-import config  # noqa: E402
 from openai import OpenAI  # noqa: E402
+
+import config  # noqa: E402
 from tokenomics.pricing import price  # noqa: E402
 
 docs = [json.loads(line) for line in open(config.KB_PATH, encoding="utf-8") if line.strip()]
