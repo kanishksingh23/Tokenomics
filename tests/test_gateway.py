@@ -121,3 +121,11 @@ def test_keys_are_stored_as_fingerprints(tmp_path):
 def test_completion_shape():
     out = _completion("m", "hello", {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2})
     assert out["object"] == "chat.completion" and out["choices"][0]["message"]["content"] == "hello"
+
+
+def test_default_verbosity_low_unless_the_app_sets_it(gw):
+    c, key, _, seen = gw
+    r = _ask(c, key, "What colours does the Y500 come in?")
+    assert seen[-1]["verbosity"] == "low" and r.json()["tokenomics"]["verbosity"].startswith("low")
+    _ask(c, key, "How heavy is the Y500 exactly?", verbosity="high")
+    assert seen[-1]["verbosity"] == "high"                  # the app's own choice wins

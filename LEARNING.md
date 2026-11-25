@@ -300,6 +300,9 @@ first, then things that only grow (the conversation), and the parts that change 
 documents and question) go last, so each prompt starts exactly like the previous one.
 **In our project:** `--layout cache`. It sends more tokens but costs less on long chats, a reminder that
 **techniques interact**: trimming the memory saves tokens but stops cache reuse, and vice versa.
+**Measured (2026-11-25, two 13-turn chats on Sol):** −26.5% total cost, and 26/26 answers correct against 23/26
+for the classic layout (see *Taking back earlier answers*). The classic layout paid +14% extra input cost for
+cache writes that were never reused, because caching is on by default.
 
 **Don't confuse** this with *our own* response cache (Part 5), which skips the model completely.
 
@@ -321,7 +324,9 @@ figures in mock mode are marked as ESTIMATE.
 greeting and an offer of more help.
 **In our project:** `techniques.py`, option `--answer-length concise`. The rule itself costs **55 input tokens per
 call**, so it only pays off if answers shrink by more than ~11 tokens on average (output costs 5× input).
-Measuring it waits for OpenAI credit.
+**Measured (2026-11-25):** both GPT-6 models accept `verbosity`. On Sol the rule cut output 15% but its 55
+extra input tokens ate the saving (−0.5%); `verbosity=low` cut output as much with no extra input: **−5.5%**,
+64/64 correct. So we use `verbosity=low` and dropped the rule.
 
 ### Multi-turn conversation and memory trimming
 **What it is:** a chat where each message builds on the earlier ones. In the OpenAI format, every new message is
@@ -335,6 +340,16 @@ messages plus a sticky note with the order number.
 **In our project:** `techniques.apply_memory`. On our test chats input stays flat at ~880 tokens after turn 3
 instead of growing ~100 tokens per turn; projected −24% over a 10-turn chat, −46% over 20.
 
+
+### Taking back earlier answers (a multi-turn failure)
+**What it is:** in a chat, the agent says something correct in turn 3, then in turn 5 apologises and withdraws it
+("I'm sorry, I don't have information about the 30-day window") because this turn's documents don't include the
+policy it quoted before. Nothing was wrong; the evidence just moved out of view.
+**Example:** a shop assistant who told you the return policy, then forgets it when you ask a follow-up because the
+leaflet is no longer on the counter.
+**In our project:** found in the real runs of 2026-11-25 (c03, c06, c07, in every memory mode). The classic layout
+shows only the current turn's documents and tells the model to answer only from them. The **cache layout** keeps
+earlier turns' documents in the conversation, and the problem disappeared there (26/26 correct vs 23/26).
 ### Rolling summary
 **What it is:** instead of re-summarising the whole older conversation on every turn, keep the previous summary
 and only add the turn that just became "old". Each turn is summarised once.
@@ -383,7 +398,8 @@ wrong saved answer reaches the customer unchecked, while a missed match only cos
 match, up to four when several are close. Measured by how close each document's search score is to the best one.
 **Example:** a librarian handing you the one book you asked for, instead of always four books "just in case".
 **In our project:** `--context-margin 0.25`: 3.4 documents instead of 4 on average, 15% fewer document tokens,
-and no document a question needed was dropped.
+and no document a question needed was dropped. **Real runs (2026-11-25):** Sol cost −12.4% with 64/64 correct;
+together with `verbosity=low`, −16%. Adopted.
 
 ### Proxy measure
 **What it is:** a cheap, indirect check used when the real measurement is expensive or impossible right now.
@@ -955,6 +971,9 @@ only those go to a person.
 facts. Normally temperature 0 reduces this, but GPT-6 doesn't accept a temperature setting.
 **Why it matters:** when an experiment changes an answer, part of the change may just be chance, not the
 technique. To separate the two, re-run the unchanged baseline once and see how much changes by itself.
+**Noise floor:** the amount of change you see when nothing was changed. Any real effect has to be bigger than it.
+**In our project (2026-11-25):** with nothing changed, 30% of Sol's answers and 45% of Luna's changed wording or
+numbers, and the number of correct answers moved by ±1. Cost per 64 questions moved by under 0.5%.
 
 ### Grading rubric
 **What it is:** the agreed rules for grading. Ours has four grades:
@@ -1530,3 +1549,4 @@ names over made-up ones; if a fact changes (like a price or a count), update it 
 | 2026-11-18 | Added spending limits (soft and hard). |
 | 2026-11-18 | Added Tokenomics gateway, gateway key and fingerprint, health vs readiness, mock provider, installable package. |
 | 2026-11-18 | Added adaptive context and proxy measure; restored three headings lost in earlier edits (safety suite, FAQ shortcut, cost per correct answer). |
+| 2026-11-25 | Real-run results added to answer-length control (`verbosity`), run-to-run variation (noise floor), prompt layout, adaptive context; added taking back earlier answers. |

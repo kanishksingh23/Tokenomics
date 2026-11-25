@@ -8,7 +8,8 @@ An app switches by changing two settings, nothing else:
     OPENAI_API_KEY=<a Tokenomics key from `python -m tokenomics.keys create --client NAME`>
 
 Per request: check the key -> safe response cache -> conversation memory -> spending limits ->
-provider call -> record the actual cost, store the answer for reuse, trace it.
+provider call -> record the actual cost, store the answer for reuse, trace it. GPT-6 requests
+without a `verbosity` get "low" (TOKENOMICS_VERBOSITY, "off" to disable).
 
 Optional request headers (each ignored if absent):
     X-Tokenomics-Question   the end user's own words, for cache matching
@@ -72,6 +73,10 @@ class Settings:
     rpm: float = 60.0
     downgrade_model: str = "gpt-6-luna"
     memory: str = "off"                       # off | window | facts | summary
+    # Provider length setting added when the app sends none ("off" = never). "low" cut Sol's
+    # cost 5.5% with every answer still correct (real runs, 2026-11-25). GPT-6 models only:
+    # the parameter was checked on Sol and Luna; other providers may reject it.
+    verbosity: str = "low"
     keep_turns: int = 2
     expected_output_tokens: int = 200
     default_max_tokens: int = 2000
@@ -219,6 +224,11 @@ def create_app(settings: Settings | None = None, upstream=None, keys: KeyStore |
             return _error(400, "model and messages are required", "invalid_request_error")
         if client.allowed_models and model not in client.allowed_models:
             return _error(403, f"model {model!r} is not allowed for this key", "permission_error")
+        verbosity_note = None
+        if (s.verbosity.strip().lower() not in ("", "off", "none") and "verbosity" not in body
+                and str(model).startswith("gpt-6")):
+            body = {**body, "verbosity": s.verbosity}
+            verbosity_note = f"{s.verbosity} (gateway default)"
         end_user = h.get("x-tokenomics-client")
         spender = f"{client.client_id}:{end_user}" if end_user else client.client_id
         private = h.get("x-tokenomics-private", "").lower() in ("1", "true", "yes")
@@ -231,6 +241,8 @@ def create_app(settings: Settings | None = None, upstream=None, keys: KeyStore |
                            or hashlib.sha256(json.dumps(system).encode()).hexdigest()[:16],
                            **{k: body.get(k) for k in _ANSWER_PARAMS})
         note = {"served_by": "model", "requested_model": model}
+        if verbosity_note:
+            note["verbosity"] = verbosity_note
         with tracing.observation("tokenomics-gateway", as_type="span", input=question) as root:
             # 1. safe response cache: first questions only (a follow-up means nothing alone)
             if cache is not None and single_turn and not private:

@@ -12,6 +12,7 @@ import json
 import sys
 from pathlib import Path
 
+import config
 from agent import SupportAgent
 from tokenomics import tracing
 
@@ -27,7 +28,7 @@ def main() -> int:
     ap.add_argument("--answer-length", default=None, choices=["default", "concise"],
                     help="concise: add the short-answer rule (techniques.py)")
     ap.add_argument("--verbosity", default=None,
-                    help="provider length setting: low/medium/high (if the model accepts it)")
+                    help="provider length setting: low/medium/high, or off (default: low)")
     ap.add_argument("--no-faq", action="store_true", help="turn the FAQ shortcut off")
     ap.add_argument("--cache", action="store_true",
                     help="use the safe response cache (off by default so experiments always call the model)")
@@ -46,18 +47,24 @@ def main() -> int:
                     help="conversation memory: how earlier turns are kept (techniques.py)")
     ap.add_argument("--keep-turns", type=int, default=None,
                     help="earlier exchanges kept word for word (default 2)")
-    ap.add_argument("--context-margin", type=float, default=None,
-                    help="adaptive context: keep documents within this score of the best (e.g. 0.25)")
+    ap.add_argument("--context-margin", type=lambda v: -1.0 if v.lower() == "off" else float(v),
+                    default=None,
+                    help="adaptive context: keep documents within this score of the best "
+                         "(default 0.25 with the embedding retriever; off = always top-k)")
     ap.add_argument("--passage-margin", type=float, default=None,
                     help="smaller context: keep sentences within this score of the best (off by default)")
     ap.add_argument("--client", default=None,
                     help="client id for per-client spending limits (default: app-wide cap only)")
     ap.add_argument("--layout", default=None, choices=["classic", "cache"],
-                    help="cache: fixed instructions first, documents last (provider prompt caching)")
+                    help="cache: fixed instructions first, documents last (provider prompt caching). "
+                         "Default: classic for single questions; cache for --conversations "
+                         "when memory is off")
     ap.add_argument("--out", help="write results as JSONL")
     ap.add_argument("--session", help="Langfuse session that groups this run's traces "
                                       "(default for --batch: the --out file name)")
     args = ap.parse_args()
+    if args.layout is None and args.conversations and (args.memory or config.MEMORY_MODE) == "off":
+        args.layout = config.CHAT_LAYOUT     # chats: cache layout by default (config.py)
 
     agent = SupportAgent(model=args.model, retriever_mode=args.retriever,
                          top_k=args.top_k, mock=args.mock,

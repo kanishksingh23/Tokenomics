@@ -181,7 +181,6 @@ class SupportAgent:
         self.memory_mode = memory or config.MEMORY_MODE
         self.keep_turns = config.MEMORY_KEEP_TURNS if keep_turns is None else keep_turns
         self._summary_cache: dict = {}
-        self.context_margin = config.CONTEXT_MARGIN if context_margin is None else context_margin
         self.passage_margin = config.PASSAGE_MARGIN if passage_margin is None else passage_margin
         self._sentences: dict[str, tuple[list[str], object]] = {}
         # Spending limits. Mock runs use a throwaway in-memory ledger: estimated costs must
@@ -202,10 +201,17 @@ class SupportAgent:
             # Trimming rewrites earlier turns, which changes the prompt's beginning and
             # stops the provider reusing its cache. Combining the two is a later step.
             raise ValueError("layout 'cache' needs memory 'off' (trimming resets cache reuse)")
-        self.verbosity = verbosity or config.VERBOSITY
+        # "off" turns the provider length setting off; None means the configured default.
+        self.verbosity = (None if verbosity in ("off", "none", "default")
+                          else verbosity or config.VERBOSITY)
         self.top_k = top_k or config.TOP_K
         self.docs: list[Doc] = load_docs(config.KB_PATH)
         self.retriever = build_retriever(self.docs, retriever_mode or config.RETRIEVER)
+        # Adaptive context. The default margin is calibrated on embedding (cosine) scores, so
+        # it applies only to that retriever; an explicit margin applies to any. Negative = off.
+        if context_margin is None:
+            context_margin = config.CONTEXT_MARGIN if self.retriever.name == "embedding" else None
+        self.context_margin = None if context_margin is not None and context_margin < 0 else context_margin
         self.orders = _load_orders(config.ORDERS_PATH)
         # Product pages are always included when a question names the product.
         # Retrieval alone missed the PulseBook 14 page in "Is the Pro 16 worth

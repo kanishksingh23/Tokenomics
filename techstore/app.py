@@ -30,7 +30,10 @@ PRESETS = [
 
 @st.cache_resource
 def get_agent(model: str, retriever: str, top_k: int, mock: bool, memory: str) -> SupportAgent:
-    return SupportAgent(model=model, retriever_mode=retriever, top_k=top_k, mock=mock, memory=memory)
+    # Full history (memory off) uses the cache-friendly layout; trimming needs classic.
+    layout = config.CHAT_LAYOUT if memory == "off" else "classic"
+    return SupportAgent(model=model, retriever_mode=retriever, top_k=top_k, mock=mock,
+                        memory=memory, layout=layout)
 
 
 if "history" not in st.session_state:
@@ -51,10 +54,11 @@ with st.sidebar:
                              help="keyword: BM25, no dependencies. embedding: MiniLM on CPU. "
                                   "auto: embedding if installed, else keyword.")
     top_k = st.slider("Documents retrieved", 1, 6, config.TOP_K)
-    memory = st.selectbox("Conversation memory", ["facts", "window", "summary", "off"],
-                          help="How earlier turns are kept: the last 2 exchanges word for word, "
-                               "older ones as a facts note (facts), dropped (window), summarised "
-                               "by the cheap model (summary), or all resent every turn (off).")
+    memory = st.selectbox("Conversation memory", ["off", "facts", "window", "summary"],
+                          help="off (default): every earlier turn resent word for word, in the "
+                               "cache-friendly layout the provider bills cheaply. Or trim: keep "
+                               "the last 2 exchanges and turn older ones into a facts note "
+                               "(facts), drop them (window), or summarise them (summary).")
     mock = st.toggle("Mock mode (no API key, no spend)", value=not bool(config.API_KEY))
     if mock:
         st.caption("⚠️ Stub model. Retrieval and cost accounting are real; the answer text is not.")
@@ -84,7 +88,11 @@ if question:
         # The conversation so far, so follow-ups ("and the other one?") make sense.
         history = []
         for turn in st.session_state.history:
-            history += [{"role": "user", "content": turn.question},
+            # Cache layout: resend each message exactly as it was sent (documents included),
+            # so the prompt starts the same way every turn and the provider can reuse it.
+            sent = (turn.sent_user_message if getattr(turn, "prompt_layout", "") == "cache"
+                    and turn.sent_user_message else turn.question)
+            history += [{"role": "user", "content": sent},
                         {"role": "assistant", "content": turn.error or turn.answer}]
         # Each browser session is one client with its own daily budget (spending limits).
         result = agent.ask(question, session_id=sid, history=history, client_id=sid)

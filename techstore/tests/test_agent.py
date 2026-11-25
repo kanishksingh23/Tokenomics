@@ -726,3 +726,16 @@ def test_spending_limit_without_cheap_model():
     assert lim.check("a", "big", est).action == "allow"
     lim.record("a", 0.10)
     assert lim.check("a", "big", est).action == "refuse"    # 0.95 + 0.10 > 1.00
+
+
+def test_adopted_defaults():
+    # 2026-11-25 real runs: verbosity=low and adaptive context (0.25) are defaults.
+    agent = SupportAgent(retriever_mode="keyword", mock=True)
+    agent.ask("Is delivery free?")
+    assert agent.last_request.get("verbosity") == "low"
+    assert agent.context_margin is None          # default margin is for embedding scores only
+    off = SupportAgent(retriever_mode="keyword", mock=True, verbosity="off", context_margin=-1)
+    off.ask("Is delivery free?")
+    assert "verbosity" not in off.last_request and off.context_margin is None
+    assert config.CONTEXT_MARGIN == 0.25 and config.CHAT_LAYOUT == "cache"
+    assert config.PROMPT_LAYOUT == "classic"     # single questions keep the measured layout
