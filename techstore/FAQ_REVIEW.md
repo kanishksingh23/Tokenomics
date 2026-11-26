@@ -195,6 +195,15 @@ To change an answer, edit it in `data/faq.jsonl` first (keep `sources` accurate)
 > **Source `pol_price_match`: Price Match Guarantee**  
 > If a customer finds the identical product cheaper on a competing authorised Indian retailer within 7 days of their purchase, TechStore refunds the difference. The competing listing must be for a new, sealed unit sold and shipped by the retailer itself, not a marketplace seller. Price matching does not apply during flash sales or clearance events.
 
+## faq_price_drop: Will you refund the difference if your price drops after I buy?  (draft)
+
+**Answer:** Yes. If TechStore's own price for a product drops within 7 days of your purchase, we refund the difference on request. This applies once per order line and doesn't apply during flash sales, festive events or clearance. If you found it cheaper at another retailer instead, that's covered by our price match guarantee.
+
+*Also matches:* the price went down on your website after i bought it; you reduced the price after my purchase, can i get the difference back; price dropped on techstore after i ordered; do you refund the difference if the price falls later
+
+> **Source `bill_price_drop`: Price Drop After Purchase**  
+> If a product's TechStore price drops within 7 days of purchase, the difference is refunded on request. This applies once per order line and does not apply during flash sales, festive events or clearance. This is distinct from the price match guarantee, which covers competitor pricing.
+
 ## faq_gift_cards: How do gift cards work?  (approved)
 
 **Answer:** Gift cards are valid for 12 months from issue and can be used across multiple orders, but they can't be exchanged for cash. If an order paid partly by gift card is returned, the gift-card portion is refunded as store credit and the rest to the original payment method. Redeemed gift cards are non-returnable.

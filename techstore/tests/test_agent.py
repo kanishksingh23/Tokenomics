@@ -458,6 +458,19 @@ def test_faq_shortcut_gates():
     assert sc.lookup("my laptop screen flickers").entry is None           # not close enough
     only_drafts = FaqShortcut([entries[2]], encode=_bow_encoder())
     assert only_drafts.lookup("what are your store hours").reason == "no approved FAQ entries"
+    # A question closest to an unapproved answer gets no saved answer at all, never the
+    # nearest approved one (found reviewing PR #1: "you dropped the price" got price match).
+    near = [{"id": "faq_match", "question": "will you refund the price difference if cheaper elsewhere",
+             "examples": [], "answer": "Competitor price match.", "sources": ["pol_price_match"],
+             "status": "approved"},
+            {"id": "faq_drop", "question": "will you refund the price difference if your price drops",
+             "examples": [], "answer": "Own price drop.", "sources": ["bill_price_drop"],
+             "status": "draft"}]
+    guarded = FaqShortcut(near, encode=_bow_encoder(), threshold=0.6, margin=0.01)
+    miss = guarded.lookup("will you refund the price difference if your price drops")
+    assert miss.entry is None and "not approved" in miss.reason
+    hit = guarded.lookup("will you refund the price difference if cheaper elsewhere")
+    assert hit.entry["id"] == "faq_match"
 
 
 def test_faq_answers_cite_real_documents():
@@ -726,3 +739,16 @@ def test_spending_limit_without_cheap_model():
     assert lim.check("a", "big", est).action == "allow"
     lim.record("a", 0.10)
     assert lim.check("a", "big", est).action == "refuse"    # 0.95 + 0.10 > 1.00
+
+
+def test_adopted_defaults():
+    # 2026-11-25 real runs: verbosity=low and adaptive context (0.25) are defaults.
+    agent = SupportAgent(retriever_mode="keyword", mock=True)
+    agent.ask("Is delivery free?")
+    assert agent.last_request.get("verbosity") == "low"
+    assert agent.context_margin is None          # default margin is for embedding scores only
+    off = SupportAgent(retriever_mode="keyword", mock=True, verbosity="off", context_margin=-1)
+    off.ask("Is delivery free?")
+    assert "verbosity" not in off.last_request and off.context_margin is None
+    assert config.CONTEXT_MARGIN == 0.25 and config.CHAT_LAYOUT == "cache"
+    assert config.PROMPT_LAYOUT == "classic"     # single questions keep the measured layout

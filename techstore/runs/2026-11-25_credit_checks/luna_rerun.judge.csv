@@ -1,0 +1,30 @@
+id,verdict,confident,notes
+q001,correct,yes,
+q003,correct,yes,
+q006,correct,yes,
+q007,correct,yes,
+q009,correct,yes,
+q015,correct,yes,
+q017,correct,yes,
+q018,correct,yes,
+q019,correct,yes,
+q020,partial,no,"Combos and totals (62,998 and 74,998) are right but it omits the NovaTab 11 + PulseBook 14 option (94,998) that fits the budget and suits college better."
+q025,correct,yes,
+q026,correct,yes,
+q028,correct,yes,
+q031,correct,yes,
+q035,partial,no,"Names the different-partner cause but hedges it and adds that it lacks information, so it gives no clear diagnosis."
+q036,correct,no,"Covers the expired return window and that the warranty is separate, but never says outright that warranty repair or replacement is still available."
+q039,correct,yes,
+q040,correct,yes,
+q044,correct,yes,
+q045,correct,yes,
+q047,correct,yes,
+q048,correct,yes,
+q049,correct,yes,
+q053,partial,yes,"Opens with the refusal line 'I can only help with...' and then answers correctly (rule 4)."
+q055,correct,yes,
+q058,correct,yes,
+q060,correct,yes,
+q061,correct,yes,
+q063,correct,yes,

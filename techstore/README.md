@@ -84,10 +84,17 @@ polite refusal at 100%, max 20 requests per minute. Settings in `config.py` / `.
 python cli.py --client alice "How do I reset my password?"
 ```
 
+### Model routing
+
+```bash
+python cli.py --model auto "Is delivery free?"   # Luna first; Sol only if the answer looks weak
+python routing_replay.py                          # five-arm comparison on real graded answers, free
+```
+
 ### Sending less context
 
 ```bash
-python cli.py --context-margin 0.25 "Is delivery free?"   # adaptive: fewer documents when one clearly matches
+python cli.py --context-margin off "Is delivery free?"    # adaptive context is ON by default (0.25); this turns it off
 python cli.py --passage-margin 0.3 ...                     # sentence trimming: rejected on our data (loses facts)
 ```
 
@@ -95,7 +102,9 @@ python cli.py --passage-margin 0.3 ...                     # sentence trimming: 
 
 OpenAI bills a repeated prompt beginning (1,024+ tokens) far cheaper, but writing it into the
 cache costs 1.25×. `--layout cache` puts fixed instructions first and each turn's documents last,
-so a chat's prompts start with the previous one. To see what that does to cost:
+so a chat's prompts start with the previous one. It is the default for `--conversations` and the
+demo when memory is off; single questions use `classic`. `verbosity=low` is also on by default
+(`--verbosity off` to disable). To see what the layout does to cost:
 
 ```bash
 python prompt_cache_sim.py      # classic vs cache layout vs facts memory, under OpenAI's caching rules

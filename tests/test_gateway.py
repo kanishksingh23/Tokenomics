@@ -121,3 +121,44 @@ def test_keys_are_stored_as_fingerprints(tmp_path):
 def test_completion_shape():
     out = _completion("m", "hello", {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2})
     assert out["object"] == "chat.completion" and out["choices"][0]["message"]["content"] == "hello"
+
+
+def test_default_verbosity_low_unless_the_app_sets_it(gw):
+    c, key, _, seen = gw
+    r = _ask(c, key, "What colours does the Y500 come in?")
+    assert seen[-1]["verbosity"] == "low" and r.json()["tokenomics"]["verbosity"].startswith("low")
+    _ask(c, key, "How heavy is the Y500 exactly?", verbosity="high")
+    assert seen[-1]["verbosity"] == "high"                  # the app's own choice wins
+
+
+def test_auto_routes_cheap_first_and_escalates_weak_answers(tmp_path, monkeypatch):
+    monkeypatch.setattr(response_cache, "_minilm", lambda: _bow)
+    keys = KeyStore(tmp_path / "keys.json")
+    key = keys.create("app")
+    seen = []
+    s = Settings(upstream="mock", state_dir=":memory:", cache=False)
+
+    def upstream(req):
+        seen.append(req["model"])
+        q = req["messages"][-1]["content"]
+        weak = req["model"] == "gpt-6-luna" and "tricky" in q
+        text = ("I'm not sure. It might be 30 days, I think." if weak
+                else "Returns are accepted within 30 days.")
+        return _completion(req["model"], text, {"prompt_tokens": 100, "completion_tokens": 20,
+                                                "total_tokens": 120})
+    c = TestClient(create_app(s, upstream=upstream, keys=keys))
+    r = _ask(c, key, "How long is the return window?", model="auto").json()
+    assert seen == ["gpt-6-luna"] and r["tokenomics"]["route"]["escalated"] is False
+    seen.clear()
+    r = _ask(c, key, "A tricky one: return window for gifts?", model="auto",
+             headers={"X-Tokenomics-Conversation": "chat-1"}).json()
+    assert seen == ["gpt-6-luna", "gpt-6.1-sol"]                  # one escalation, both paid
+    route = r["tokenomics"]["route"]
+    assert route["escalated"] and route["first_model"] == "gpt-6-luna"
+    assert r["usage"]["prompt_tokens"] == 200 and r["choices"][0]["message"]["content"].startswith("Returns")
+    seen.clear()
+    _ask(c, key, "And for laptops?", model="auto", headers={"X-Tokenomics-Conversation": "chat-1"})
+    assert seen == ["gpt-6.1-sol"]                                # sticky after an escalation
+    seen.clear()
+    _ask(c, key, "How long is the return window?", model="gpt-6-luna")
+    assert seen == ["gpt-6-luna"]                                 # a concrete model is honoured

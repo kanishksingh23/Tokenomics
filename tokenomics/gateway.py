@@ -8,7 +8,8 @@ An app switches by changing two settings, nothing else:
     OPENAI_API_KEY=<a Tokenomics key from `python -m tokenomics.keys create --client NAME`>
 
 Per request: check the key -> safe response cache -> conversation memory -> spending limits ->
-provider call -> record the actual cost, store the answer for reuse, trace it.
+provider call -> record the actual cost, store the answer for reuse, trace it. GPT-6 requests
+without a `verbosity` get "low" (TOKENOMICS_VERBOSITY, "off" to disable).
 
 Optional request headers (each ignored if absent):
     X-Tokenomics-Question   the end user's own words, for cache matching
@@ -17,6 +18,10 @@ Optional request headers (each ignored if absent):
                             version (default: a fingerprint of the system messages)
     X-Tokenomics-Private    "true" when the prompt holds personal data: never cached
     X-Tokenomics-Client     the end user, for per-user budgets under the app's key
+    X-Tokenomics-Conversation  a chat id, so routing keeps an escalated chat on the frontier
+                            model for the next few turns
+Model "auto" turns on routing: the economy model answers first, and the frontier model is
+called once only if that answer looks weak (tokenomics/routing.py).
 Every response carries a "tokenomics" object: who answered, the model, the cost, and what each
 technique did. Streaming is not supported (out of scope, Tokenomics.md v2.9).
 """
@@ -37,6 +42,7 @@ from tokenomics import techniques, tracing
 from tokenomics.keys import KeyStore
 from tokenomics.pricing import PRICING, price
 from tokenomics.response_cache import ResponseCache, namespace_key
+from tokenomics.routing import Router
 from tokenomics.spending_limits import SpendingLimits, estimate_cost
 from tokenomics.tokens import count_tokens, prompt_tokens
 
@@ -72,6 +78,15 @@ class Settings:
     rpm: float = 60.0
     downgrade_model: str = "gpt-6-luna"
     memory: str = "off"                       # off | window | facts | summary
+    # Provider length setting added when the app sends none ("off" = never). "low" cut Sol's
+    # cost 5.5% with every answer still correct (real runs, 2026-11-25). GPT-6 models only:
+    # the parameter was checked on Sol and Luna; other providers may reject it.
+    verbosity: str = "low"
+    # Technique 14, model routing: requests for model "auto" go to the economy model first and
+    # escalate once to the frontier model when the answer looks weak (tokenomics/routing.py).
+    routing_economy: str = "gpt-6-luna"
+    routing_frontier: str = "gpt-6.1-sol"
+    routing_threshold: float = 0.5
     keep_turns: int = 2
     expected_output_tokens: int = 200
     default_max_tokens: int = 2000
@@ -167,6 +182,7 @@ def create_app(settings: Settings | None = None, upstream=None, keys: KeyStore |
     if cache is not None:
         cache.encode(["warm up"])     # load the embedding model now, not on the first request
     summary_cache: dict = {}
+    router = Router(economy=s.routing_economy, frontier=s.routing_frontier, threshold=s.routing_threshold)
     app = FastAPI(title="Tokenomics gateway", version="0.1.0")
     app.state.settings, app.state.cache, app.state.limits = s, cache, limits
 
@@ -217,8 +233,22 @@ def create_app(settings: Settings | None = None, upstream=None, keys: KeyStore |
         model, messages = body.get("model"), body.get("messages")
         if not model or not isinstance(messages, list) or not messages:
             return _error(400, "model and messages are required", "invalid_request_error")
-        if client.allowed_models and model not in client.allowed_models:
+        routed = model == "auto"
+        allowed = client.allowed_models
+        if allowed and any(m not in allowed for m in ([s.routing_economy, s.routing_frontier]
+                                                       if routed else [model])):
             return _error(403, f"model {model!r} is not allowed for this key", "permission_error")
+        conversation = h.get("x-tokenomics-conversation")
+        question0 = h.get("x-tokenomics-question") or next(
+            (m.get("content") or "" for m in reversed(messages) if m.get("role") == "user"), "")
+        route = router.choose(question0, body, conversation) if routed else None
+        if route is not None:
+            body = {**body, "model": route.model}     # the cache namespace still says "auto"
+        verbosity_note = None
+        if (s.verbosity.strip().lower() not in ("", "off", "none") and "verbosity" not in body
+                and str(body["model"]).startswith("gpt-6")):
+            body = {**body, "verbosity": s.verbosity}
+            verbosity_note = f"{s.verbosity} (gateway default)"
         end_user = h.get("x-tokenomics-client")
         spender = f"{client.client_id}:{end_user}" if end_user else client.client_id
         private = h.get("x-tokenomics-private", "").lower() in ("1", "true", "yes")
@@ -231,6 +261,10 @@ def create_app(settings: Settings | None = None, upstream=None, keys: KeyStore |
                            or hashlib.sha256(json.dumps(system).encode()).hexdigest()[:16],
                            **{k: body.get(k) for k in _ANSWER_PARAMS})
         note = {"served_by": "model", "requested_model": model}
+        if verbosity_note:
+            note["verbosity"] = verbosity_note
+        if route is not None:
+            note["route"] = {"tier": route.tier, "reason": route.reason, "escalated": False}
         with tracing.observation("tokenomics-gateway", as_type="span", input=question) as root:
             # 1. safe response cache: first questions only (a follow-up means nothing alone)
             if cache is not None and single_turn and not private:
@@ -250,6 +284,7 @@ def create_app(settings: Settings | None = None, upstream=None, keys: KeyStore |
                 note["cache"] = "skipped: private request"
             # 2. conversation memory
             req = {k: v for k, v in body.items() if k not in ("stream", "user", "metadata")}
+            req["model"] = body["model"]
             summary_cost = [0.0]
 
             def summarise(prev, msgs):
@@ -304,6 +339,48 @@ def create_app(settings: Settings | None = None, upstream=None, keys: KeyStore |
                 limits.record(spender, cost)
             answer = out["choices"][0]["message"].get("content") or ""
             finish = out["choices"][0].get("finish_reason")
+            # 4b. routing: check the economy answer; escalate once if it looks weak
+            if route is not None and route.tier == "economy":
+                chk = router.check(question, answer, finish)
+                note["route"].update(uncertainty=chk.uncertainty, signals=chk.signals,
+                                     suppressed_by=chk.suppressed_by)
+                if chk.escalate and limits is not None:
+                    d2 = limits.check(spender, s.routing_frontier,
+                                      lambda m: estimate_cost(m, req["messages"], s.expected_output_tokens),
+                                      budget)
+                    if d2.action != "allow":
+                        chk.escalate = False
+                        note["route"]["suppressed_by"] = f"spending limit: {d2.reason}"
+                if chk.escalate:
+                    req2 = {**req, "model": s.routing_frontier}
+                    with tracing.observation("escalation", as_type="generation", model=req2["model"],
+                                             input=req2["messages"]) as gen2:
+                        try:
+                            out2 = upstream(req2)
+                        except Exception as exc:               # noqa: BLE001
+                            out2 = None
+                            note["route"]["suppressed_by"] = f"frontier failed: {str(exc)[:200]}"
+                            gen2.update(level="ERROR", status_message=str(exc)[:300])
+                        if out2 is not None:
+                            pt2, ct2, ca2, cw2, rt2 = _usage_numbers(out2.get("usage") or {})
+                            cost2 = price(req2["model"], pt2, ct2, ca2, cw2)
+                            usage2, split2 = tracing.usage_and_cost(req2["model"], pt2, ct2, ca2, rt2, cw2)
+                            gen2.update(output=out2["choices"][0]["message"].get("content"),
+                                        usage_details=usage2, cost_details=split2 or None)
+                    if out2 is not None:
+                        if limits is not None:
+                            limits.record(spender, cost2)
+                        note["route"].update(escalated=True, first_model=req["model"],
+                                             first_cost_usd=round(cost, 8))
+                        u1, u2 = out.get("usage") or {}, out2.get("usage") or {}
+                        out2["usage"] = {k: (u1.get(k) or 0) + (u2.get(k) or 0)
+                                         for k in ("prompt_tokens", "completion_tokens", "total_tokens")}
+                        out, cost, req = out2, cost + cost2, req2
+                        answer = out["choices"][0]["message"].get("content") or ""
+                        finish = out["choices"][0].get("finish_reason")
+                router.record(conversation, note["route"]["escalated"])
+            elif route is not None:
+                router.record(conversation, False)
             # 5. keep the answer for reuse
             if cache is not None and single_turn and not private and finish != "length" and answer:
                 note["cache_store"] = cache.store(question, answer, ns, req["model"])

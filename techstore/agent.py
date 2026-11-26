@@ -55,6 +55,21 @@ LIMIT_REACHED = ("Sorry, this assistant has reached its usage limit for today. P
 LIMIT_SLOW_DOWN = "You're sending messages very quickly. Please wait a moment and try again."
 
 
+# Fixed sentences from system_prompt.txt, so the router can recognise them (technique 14).
+DECLINE_LINE = "I don't have that information. I can connect you with a human agent who can help."
+REFUSAL_LINE = "I can only help with TechStore orders, products, and support."
+MISSING_INFO = "I don't have information about"
+
+
+def make_router(threshold: float | None = None, **overrides):
+    """The model router (tokenomics/routing.py) configured with TechStore's fixed sentences."""
+    from tokenomics.routing import Router  # noqa: PLC0415
+    return Router(economy=config.ECONOMY_MODEL, frontier=config.FRONTIER_MODEL,
+                  threshold=config.ROUTING_THRESHOLD if threshold is None else threshold,
+                  decline_lines=(DECLINE_LINE,), refusal_lines=(REFUSAL_LINE,),
+                  missing_info_phrases=(MISSING_INFO,), **overrides)
+
+
 def _question_of(user_message: str) -> str:
     """The customer's words from a user message (layout "cache" puts documents before them)."""
     i = user_message.rfind(QUESTION_MARK)
@@ -121,6 +136,17 @@ class Answer:
     prompt_layout: str = "classic"
     sent_user_message: str = ""       # the final user message as sent; with layout "cache", put
                                       # THIS in the history so the next prompt reuses the prefix
+    # Technique 14, model routing (model "auto"). Costs, tokens and latency include both calls
+    # when escalated; the economy answer that was discarded is kept for inspection.
+    route_tier: str | None = None     # "economy" / "frontier": where the router sent it first
+    route_reason: str | None = None
+    route_uncertainty: float | None = None   # how weak the economy answer looked (0..1)
+    route_signals: dict | None = None        # which checks fired, with their strength
+    route_suppressed: str | None = None      # why a weak answer was NOT escalated
+    escalated: bool = False
+    first_model: str | None = None
+    first_answer: str | None = None
+    first_cost_usd: float = 0.0
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), ensure_ascii=False)
@@ -145,7 +171,7 @@ class MockCompletion:
         self.agent = agent
 
     def respond(self, question: str, context: str, retrieved: list[str],
-                messages: list[dict] | None = None) -> tuple[str, int, int]:
+                messages: list[dict] | None = None, model: str | None = None) -> tuple[str, int, int]:
         titles = [d.title for d in self.agent.docs if d.id in retrieved]
         body = (
             "[MOCK RESPONSE - no model was called]\n\n"
@@ -176,12 +202,13 @@ class SupportAgent:
                  layout: str | None = None, context_margin: float | None = None,
                  passage_margin: float | None = None, limits: bool | None = None):
         self.model = model or config.FRONTIER_MODEL
+        # model "auto": technique 14, the router picks the model per question.
+        self.router = make_router() if self.model == "auto" else None
         self.reasoning_effort = reasoning_effort or config.REASONING_EFFORT
         self.answer_length = answer_length or config.ANSWER_LENGTH
         self.memory_mode = memory or config.MEMORY_MODE
         self.keep_turns = config.MEMORY_KEEP_TURNS if keep_turns is None else keep_turns
         self._summary_cache: dict = {}
-        self.context_margin = config.CONTEXT_MARGIN if context_margin is None else context_margin
         self.passage_margin = config.PASSAGE_MARGIN if passage_margin is None else passage_margin
         self._sentences: dict[str, tuple[list[str], object]] = {}
         # Spending limits. Mock runs use a throwaway in-memory ledger: estimated costs must
@@ -202,10 +229,17 @@ class SupportAgent:
             # Trimming rewrites earlier turns, which changes the prompt's beginning and
             # stops the provider reusing its cache. Combining the two is a later step.
             raise ValueError("layout 'cache' needs memory 'off' (trimming resets cache reuse)")
-        self.verbosity = verbosity or config.VERBOSITY
+        # "off" turns the provider length setting off; None means the configured default.
+        self.verbosity = (None if verbosity in ("off", "none", "default")
+                          else verbosity or config.VERBOSITY)
         self.top_k = top_k or config.TOP_K
         self.docs: list[Doc] = load_docs(config.KB_PATH)
         self.retriever = build_retriever(self.docs, retriever_mode or config.RETRIEVER)
+        # Adaptive context. The default margin is calibrated on embedding (cosine) scores, so
+        # it applies only to that retriever; an explicit margin applies to any. Negative = off.
+        if context_margin is None:
+            context_margin = config.CONTEXT_MARGIN if self.retriever.name == "embedding" else None
+        self.context_margin = None if context_margin is not None and context_margin < 0 else context_margin
         self.orders = _load_orders(config.ORDERS_PATH)
         # Product pages are always included when a question names the product.
         # Retrieval alone missed the PulseBook 14 page in "Is the Pro 16 worth
@@ -328,7 +362,10 @@ class SupportAgent:
                                     system_prompt=self.system_prompt_name,
                                     answer_length=self.answer_length,
                                     session_id=session_id) as root:
-            result = self._answer(question, history or [], client_id)
+            # Routing stickiness is per conversation: only chats (history given, even empty)
+            # have one; batch questions sharing a session id are unrelated.
+            conversation = session_id if history is not None else None
+            result = self._answer(question, history or [], client_id, conversation)
             result.trace_id = root.trace_id
             root.update(
                 output=result.answer if not result.error else None,
@@ -394,8 +431,9 @@ class SupportAgent:
     def _product_entities(self, question: str) -> frozenset:
         return frozenset(d.id for d in self.named_products(question))
 
-    def _answer(self, question: str, history: list[dict], client_id: str | None = None) -> Answer:
-        result = self._answer_uncached(question, history, client_id)
+    def _answer(self, question: str, history: list[dict], client_id: str | None = None,
+                conversation_id: str | None = None) -> Answer:
+        result = self._answer_uncached(question, history, client_id, conversation_id)
         if history:
             # A follow-up depends on what came before ("and how long would that take?"), so it
             # is never stored or served on its own. FAQ and cache apply to first questions only.
@@ -404,7 +442,7 @@ class SupportAgent:
             ok = not result.error and result.finish_reason != "length" and not result.cost_is_estimate
             if ok or self.mock:
                 stored = self.cache.store(
-                    question, result.answer, self.cache_namespace, self.model,
+                    question, result.answer, self.cache_namespace, result.model,
                     self._product_entities(question), private=bool(result.orders_used))
             else:
                 stored = "not stored: error or cut-off answer"
@@ -412,7 +450,7 @@ class SupportAgent:
         return result
 
     def _answer_uncached(self, question: str, history: list[dict] | None = None,
-                         client_id: str | None = None) -> Answer:
+                         client_id: str | None = None, conversation_id: str | None = None) -> Answer:
         history = history or []
         if self.faq is not None and self.faq.entries and not history:
             with tracing.observation("faq-shortcut", as_type="span", input=question) as step:
@@ -488,8 +526,30 @@ class SupportAgent:
         result.memory_dropped_turns = memory["dropped_turns"]
         request = techniques.apply_length(request, self.answer_length, self.verbosity)
         request = techniques.apply_reasoning(request, self.reasoning_effort)
-        messages = request["messages"]
         result.client_id = client_id
+        route = None
+        if self.router is not None:
+            # Technique 14: the economy model first unless a hard rule says frontier.
+            route = self.router.choose(question, request, conversation_id)
+            request["model"] = result.model = route.model
+            result.route_tier, result.route_reason = route.tier, route.reason
+        if not self._within_limits(request, result, client_id):
+            return result
+        self._generate(request, result, question, context, retrieved, summary_cost[0], client_id)
+        if route is not None and route.tier == "economy" and not result.error:
+            check = self.router.check(question, result.answer, result.finish_reason)
+            result.route_uncertainty, result.route_signals = check.uncertainty, check.signals
+            result.route_suppressed = check.suppressed_by
+            if check.escalate:
+                self._escalate(request, result, question, context, retrieved, client_id)
+        if self.router is not None:
+            self.router.record(conversation_id, result.escalated)
+        return result
+
+    def _within_limits(self, request: dict, result: Answer, client_id: str | None) -> bool:
+        """Spending limits, checked before a call. False: refused (no call, nothing spent);
+        the customer-facing message is already in `result`. May downgrade the model."""
+        messages = request["messages"]
         if self.limits is not None:
             from tokenomics import spending_limits  # noqa: PLC0415
 
@@ -507,9 +567,15 @@ class SupportAgent:
                 result.answer = (LIMIT_SLOW_DOWN if "per minute" in decision.reason
                                  else LIMIT_REACHED)
                 result.served_by = "limit"
-                return result
+                return False
             if decision.action == "downgrade":
                 request["model"] = result.model = decision.model
+        return True
+
+    def _generate(self, request: dict, result: Answer, question: str, context: str,
+                  retrieved: list[str], extra_cost: float, client_id: str | None) -> None:
+        """One model call (or the mock), with its trace, cost and spending record."""
+        messages = request["messages"]
         model = request["model"]
         self.last_request = request        # exactly what is sent (used by prompt_cache_sim.py)
         with tracing.observation("llm", as_type="generation", model=model, input=messages,
@@ -520,7 +586,8 @@ class SupportAgent:
                                                    "system_prompt": self.system_prompt_name}) as gen:
             t0 = time.perf_counter()
             if self.mock:
-                answer, pt, ct = MockCompletion(self).respond(question, context, retrieved, messages)
+                answer, pt, ct = MockCompletion(self).respond(question, context, retrieved, messages,
+                                                                    model=model)
                 result.answer = answer
                 result.prompt_tokens, result.completion_tokens = pt, ct
                 result.cost_usd = round(config.price(model, pt, ct), 6)
@@ -529,8 +596,8 @@ class SupportAgent:
                 self._call_model(request, result)
             result.latency_ms = round((time.perf_counter() - t0) * 1000, 1)
             # The summary call (memory mode "summary") is part of what this answer cost.
-            result.memory_cost_usd = round(summary_cost[0], 6)
-            result.cost_usd = round(result.cost_usd + summary_cost[0], 6)
+            result.memory_cost_usd = round(extra_cost, 6)
+            result.cost_usd = round(result.cost_usd + extra_cost, 6)
             if self.limits is not None:
                 self.limits.record(client_id, result.cost_usd)      # the actual cost
             usage, cost = tracing.usage_and_cost(
@@ -542,7 +609,42 @@ class SupportAgent:
                        status_message=result.error,
                        metadata={"finish_reason": result.finish_reason,
                                  "temperature_used": result.temperature_used})
-        return result
+
+    def _escalate(self, request: dict, result: Answer, question: str, context: str,
+                  retrieved: list[str], client_id: str | None) -> None:
+        """Technique 14: the economy answer looked weak; ask the frontier model once.
+        Both calls are paid for, so both costs, tokens and latencies are added up."""
+        frontier = self.router.frontier
+        req = {**request, "model": frontier}
+        if self.limits is not None:
+            from tokenomics import spending_limits  # noqa: PLC0415
+            decision = self.limits.check(client_id, frontier, lambda m: spending_limits.estimate_cost(
+                m, req["messages"], config.EXPECTED_OUTPUT_TOKENS))
+            if decision.action != "allow":
+                # Cost-ceiling guard: keep the economy answer rather than overspend.
+                result.route_suppressed = f"spending limit: {decision.reason}"
+                return
+        second = Answer(question=question, answer="", model=frontier, retriever=result.retriever,
+                        retrieved=result.retrieved, orders_used=result.orders_used,
+                        turn=result.turn, client_id=client_id)
+        with tracing.observation("escalation", as_type="span", input=result.answer,
+                                 metadata={"uncertainty": result.route_uncertainty,
+                                           "signals": result.route_signals}):
+            self._generate(req, second, question, context, retrieved, 0.0, client_id)
+        if second.error:
+            result.route_suppressed = f"frontier failed, economy answer kept: {second.error[:120]}"
+            result.cost_usd = round(result.cost_usd + second.cost_usd, 6)
+            return
+        result.escalated = True
+        result.first_model, result.first_answer = result.model, result.answer
+        result.first_cost_usd = result.cost_usd
+        result.model, result.answer, result.finish_reason = frontier, second.answer, second.finish_reason
+        for f in ("prompt_tokens", "cached_prompt_tokens", "cache_write_tokens",
+                  "completion_tokens", "reasoning_tokens"):
+            setattr(result, f, getattr(result, f) + getattr(second, f))
+        result.cost_usd = round(result.cost_usd + second.cost_usd, 6)
+        result.latency_ms = round(result.latency_ms + second.latency_ms, 1)
+        result.temperature_used = second.temperature_used
 
     def _gateway_headers(self, result: Answer) -> dict | None:
         """Hints for the Tokenomics gateway (ignored by any other server): the customer's own

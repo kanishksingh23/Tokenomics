@@ -79,24 +79,28 @@ On Sol it barely matters.
 
 ---
 
-## 3. Answer-length control 🔨 built; needs credits to measure
+## 3. Answer-length control ✅ adopted (`verbosity=low`)
 
 **Attacks:** the visible answer, the most expensive kind of token.
 
 **How it works, two ways:**
 1. A "be brief" rule added to the instructions: start with the direct answer in one or two
    sentences, lists only when needed, no greeting or closing offer.
-2. OpenAI's `verbosity` setting (low/medium/high), if GPT-6 accepts it (not yet confirmed).
+2. OpenAI's `verbosity` setting (low/medium/high). Both GPT-6 models accept it.
 
 **The break-even:** the rule costs 55 input tokens per call (on Sol: 55 × $2/1M = $0.00011).
 Each output token saved is worth $0.00001, so answers must shrink by **at least ~11 tokens** on
-average. `verbosity` costs no input at all, if it works.
+average. `verbosity` costs no input at all.
 
 **Why it's promising:** Sol's answers average 88 visible tokens, often with greetings and
 "let me know if you need anything else". Cutting 30% would save about 10% of Sol's cost.
 
-**Status:** `techniques.apply_length`, usable by the gateway. Rows 1 and 3 of
-`techstore/runs/PENDING_CREDITS.md`.
+**Measured (real runs, 64 questions, 2026-11-25):** the rule cut Sol's output 15% but its 55
+extra input tokens ate the saving (−0.5% cost). `verbosity=low` cut output just as much with no
+extra input: **Sol −5.5% cost, 64/64 correct**. Luna −3% (its output is mostly hidden thinking).
+
+**Status:** **`verbosity=low` is the default** in TechStore and in the gateway (for GPT-6 requests
+that don't set it). The "be brief" rule is dropped.
 
 ---
 
@@ -115,7 +119,7 @@ evidence, before spending anything, is itself a result.
 
 ---
 
-## 5. Adaptive context ✅ candidate
+## 5. Adaptive context ✅ adopted (default)
 
 **Attacks:** the documents, by sending fewer *whole* documents (never cutting inside one).
 
@@ -136,7 +140,11 @@ and order records are always kept.
 was dropped**; the only losses were extra details Sol had borrowed from documents the question
 didn't need.
 
-**Status:** `--context-margin 0.25`; real-run quality check pending (≈ $0.17).
+**Real runs (2026-11-25):** **Sol −12.4% cost, 64/64 correct**; Luna −11%, 60 correct + 4
+partial vs 61 + 3 (within run-to-run noise). With `verbosity=low` on top: **Sol −16%**, 64/64.
+
+**Status:** **default, margin 0.25** with the embedding retriever (`--context-margin off` to
+disable). App-side only: the gateway never sees how an app picks its documents.
 
 ---
 
@@ -200,7 +208,7 @@ approval (`techstore/FAQ_REVIEW.md`).
 
 ---
 
-## 9. Conversation memory ✅ built; quality needs credits
+## 9. Conversation memory ✅ built; quality checked
 
 **Attacks:** conversation history. Every new message is sent with the whole chat so far:
 
@@ -218,12 +226,17 @@ Turn 6:  ...                                            1,191 tokens   (+~100 pe
 **Measured:** input stays **flat at ~880 tokens** after turn 3; turn 6 already −26%. Projected
 **−24% over a 10-turn chat, −46% over 20**.
 
-**Status:** `techniques.apply_memory`; TechStore is now multi-turn. Whether trimming loses
-something the model needs is pending a real run (≈ $0.45).
+**Real runs (8 chats, 36 turns, Sol, 2026-11-25):** **no context lost** in any mode. On these
+short 4–6-turn chats it saved almost nothing (−4% to +1%): trimming starts late, and an
+untrimmed chat gets reused by provider caching.
+
+**Status:** `techniques.apply_memory`; TechStore is multi-turn. Available, but **off by default**:
+for chats the cache layout (§10) is the default, and the two can't be combined yet (trimming
+rewrites the beginning). Later: trim only every N turns ("compaction").
 
 ---
 
-## 10. Provider prompt caching ✅ built + simulated; needs credits to verify
+## 10. Provider prompt caching ✅ verified; cache layout is the chat default
 
 **Attacks:** the price of repeated prompt beginnings (tokens unchanged, cost lower).
 
@@ -252,9 +265,15 @@ the last 30 minutes has the repeated part billed at **0.05×** on Sol (0.1× on 
 reuse), and **the cheapest setup sends the most tokens**, which is why cost, not tokens, is the
 headline measure.
 
-**Status:** honest write/read billing, `--layout cache` and `prompt_cache_sim.py` are built. How
-caching behaves in the Chat Completions API must be confirmed (< $0.01) and the simulator
-validated (≈ $0.25).
+**Real runs (2026-11-25):** caching is on by default in Chat Completions, and usage reports
+both cached and written tokens. The simulator was within 1% of the real bill. On 2 long chats
+(13 turns each, Sol): classic paid **+14%** for writes never reused; the **cache layout cost
+26.5% less and got 26/26 turns right vs 23/26**. Classic made the agent **take back its own
+correct earlier answers** when a turn's documents no longer held the policy it had quoted; the
+cache layout keeps earlier documents in the conversation.
+
+**Status:** **cache layout is the default for chats** (CLI `--conversations`, the demo) when
+memory is off; single questions keep the classic layout their 64-question results used.
 
 ---
 
@@ -286,6 +305,41 @@ benchmark. Built when credits return.
 
 ---
 
+## 14. Model routing ✅ built; evaluated on real answers (replay)
+
+**Attacks:** the **price per token**, the biggest lever: Sol costs 20× more than Luna.
+
+**What the data said first:** Luna was **never wrong** on the 64 dev questions (57–62 correct, the rest
+partial, over 7 graded runs), including the billing and API questions we expected to need Sol. Its weak answers
+had visible patterns: a refusal line before a real answer, or "I don't have information" when the documents had it.
+
+**How it works (cheap-first):**
+1. **Choose:** Luna, unless a hard rule says Sol: code in the question, a very long question, tools or a strict
+   JSON schema, or a chat that escalated in its last 3 turns.
+2. **Check Luna's answer:** warning signs (a refusal line followed by an answer, hedging such as "I'm not sure",
+   too short for a "compare/explain" question, unfinished or repeated text). If they add up to 0.5 or more,
+   **ask Sol once** and pay for both. No escalation when the answer was cut off by the length limit, when it is
+   a plain refusal (Sol would refuse too), or when the spending limit would be crossed.
+
+**Measured for free (replay of real, graded answers; 6 run pairs × 64 questions):**
+
+| Arm | Cost vs always-Sol | Correct (of 64) | Sent to Sol |
+|---|---|---|---|
+| Always Luna | −93% | 60–62 | 0 |
+| **Router** | **−88% to −92%** | **62–64, 0 wrong** | 1–3 |
+| Random, same number to Sol | −89% to −92% | 60–62 | 1–3 |
+| Oracle (knows the grades) | −87% to −91% | 64 | 2–4 |
+
+**The honest reading:** most of the saving is "Luna is good enough here"; the router is a cheap safety net
+(+1–2% cost) that repairs the weak answers it can see. A "careful" setting reaches 64/64 everywhere but costs
+~3.5× more (it escalates on a phrase that is usually legitimate). The checks were designed on the dev answers, so
+the fair number comes from Rahul's fresh test questions.
+
+**Status:** `tokenomics/routing.py`; `--model auto` in TechStore (CLI and demo), `"model": "auto"` in the
+gateway; `routing_replay.py`. A live run is in `techstore/runs/PENDING_CREDITS.md` (row 10).
+
+---
+
 ## The gateway: how the techniques reach any app ✅ built
 
 Not a technique itself but the delivery vehicle. An app changes two settings (the server address
@@ -314,18 +368,19 @@ were never cached, and limit refusals reached the customer as a polite message.
 |---|---|---|---|---|
 | 1 | Shorter instructions | Input, every call | −16% tokens, −15% cost per correct (Sol) | ✅ Default |
 | 2 | Reasoning control | Hidden output | Luna output −65%; −35% cost per correct; small quality dip | ✅ Simple questions only |
-| 3 | Answer-length control | Visible output | ≈ −10% cost if answers 30% shorter (estimate) | 🔨 Needs credits |
+| 3 | Answer-length control | Visible output | `verbosity=low`: Sol −5.5% cost, 64/64 | ✅ Default |
 | 4 | Sentence trimming | Documents | −13% doc tokens but lost facts | ❌ Rejected |
-| 5 | Adaptive context | Documents | −15% doc tokens (≈ −5% cost), nothing needed lost | ✅ Candidate |
+| 5 | Adaptive context | Documents | Sol −12.4% cost, 64/64 (−16% with #3) | ✅ Default |
 | 6 | Prompt compression | Documents | — | ❓ Mentor |
 | 7 | Safe response cache | Repeated questions | = repeat rate; 45/45 safety | ✅ Built |
 | 8 | FAQ shortcut | Common questions | −3.8% tokens on a hard set; 8 ms | ✅ Awaiting approval |
-| 9 | Conversation memory | Chat history | −24% at 10 turns, −46% at 20 | ✅ Quality pending |
-| 10 | Prompt caching | Price of repeats | −31% to −42% on long chats; avoids +22% waste | ✅ Verify with credits |
+| 9 | Conversation memory | Chat history | −24% at 10 turns, −46% at 20 (simulated); no context lost | ✅ Available, off |
+| 10 | Prompt caching | Price of repeats | Cache layout −26.5% on long chats (real), 26/26 | ✅ Chat default |
 | 11 | Batch API | Price, offline work | −50% on test runs | ⏳ |
 | 12 | Spending limits | Runaway total | Caps the bill ($29 bug → $1) | ✅ Built |
-| 14 | **Model routing** (next) | **Price per token** | Ceiling ≈ −87% cost | Last, per mentor |
+| 14 | **Model routing** (cheap-first + escalation) | **Price per token** | −88% to −92% cost vs always-Sol, 0 wrong (replay) | ✅ Built; live run pending |
 
-The techniques so far mostly cut **tokens**; together their saving is meaningful but moderate.
-**Routing** attacks the largest lever, the **20× price gap** between Sol and Luna, and also decides
-when the riskier techniques (no thinking, short answers) are safe to use. That is why it comes last.
+Techniques 1–12 mostly cut **tokens**; together their saving is meaningful but moderate (Sol −16% from
+adaptive context + `verbosity=low`). **Routing** attacks the largest lever, the **20× price gap** between Sol
+and Luna: on the dev set it cut cost ~90% with no wrong answers, because Luna turned out good enough for almost
+every question. Rahul's fresh test questions will show whether that holds on questions nobody tuned for.

@@ -78,8 +78,15 @@ Environment variables `TOKENOMICS_<NAME>` for every field of `gateway.Settings`,
 `TOKENOMICS_UPSTREAM` (`openai`/`mock`), `TOKENOMICS_CACHE` (`true`/`false`),
 `TOKENOMICS_CACHE_THRESHOLD` (0.88), `TOKENOMICS_GLOBAL_DAILY_USD` (5.0),
 `TOKENOMICS_CLIENT_DAILY_USD` (1.0 per key), `TOKENOMICS_END_USER_DAILY_USD` (0.05),
-`TOKENOMICS_RPM` (60), `TOKENOMICS_MEMORY` (`off`), `TOKENOMICS_STATE_DIR` (`.tokenomics`),
+`TOKENOMICS_RPM` (60), `TOKENOMICS_MEMORY` (`off`), `TOKENOMICS_VERBOSITY` (`low`, added to
+GPT-6 requests that set none; `off` to disable), `TOKENOMICS_STATE_DIR` (`.tokenomics`),
 `TOKENOMICS_KEYS` (`gateway_keys.json`), plus `OPENAI_API_KEY` for the provider.
+
+**Model routing:** send `"model": "auto"` and the gateway answers with `TOKENOMICS_ROUTING_ECONOMY`
+(`gpt-6-luna`) first, escalating once to `TOKENOMICS_ROUTING_FRONTIER` (`gpt-6.1-sol`) when the answer
+looks weak (`TOKENOMICS_ROUTING_THRESHOLD`, 0.5). Send `X-Tokenomics-Conversation: <chat id>` to keep an
+escalated chat on the frontier model for its next 3 turns. The response's `tokenomics.route` shows the
+decision, the warning signs and whether it escalated.
 
 ## Tests
 

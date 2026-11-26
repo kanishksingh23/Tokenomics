@@ -45,6 +45,9 @@ VIA_GATEWAY = API_KEY.startswith("tk-")
 # Week 10 benchmark. Pricing below is $ per 1M tokens, as of 2026-09.
 FRONTIER_MODEL = os.getenv("FRONTIER_MODEL", "gpt-6.1-sol")
 ECONOMY_MODEL = os.getenv("ECONOMY_MODEL", "gpt-6-luna")
+# Technique 14, model routing (tokenomics/routing.py): with model "auto", answer with the
+# economy model first and escalate to the frontier model only when the answer looks weak.
+ROUTING_THRESHOLD = float(os.getenv("ROUTING_THRESHOLD", "0.5"))
 
 # Prices and the cost formula belong to the product (tokenomics/pricing.py).
 
@@ -82,11 +85,19 @@ MEMORY_KEEP_TURNS = int(os.getenv("MEMORY_KEEP_TURNS", "2"))
 # then this turn's documents with the question, so each turn's prompt starts with the
 # previous turn's prompt and OpenAI's prefix cache can reuse it.
 PROMPT_LAYOUT = os.getenv("PROMPT_LAYOUT", "classic").strip().lower() or "classic"
+# Layout for multi-turn chats (CLI --conversations, the demo) when memory is "off". Default
+# "cache" since 2026-11-25: on 2 real 13-turn chats it cost 26.5% less than classic and got
+# 26/26 turns right vs 23/26 (classic made the agent take back its own earlier answers).
+# Single questions keep PROMPT_LAYOUT (classic), the setting all 64-question results used.
+CHAT_LAYOUT = os.getenv("CHAT_LAYOUT", "cache").strip().lower() or "cache"
 
 # Technique 5, adaptive context: instead of always sending TOP_K documents, keep only those
 # whose search score is within CONTEXT_MARGIN of the best one (at least 1, at most TOP_K).
-# Empty = off (always TOP_K). Scores are cosine similarities from the embedding retriever.
-CONTEXT_MARGIN = float(os.getenv("CONTEXT_MARGIN")) if os.getenv("CONTEXT_MARGIN") else None
+# Default 0.25 since 2026-11-25 (real runs: Sol -12.4% cost, 64/64 correct). "off" = always
+# TOP_K. Scores are cosine similarities, so the default applies only to the embedding
+# retriever; keyword (BM25) scores are on another scale.
+_margin = os.getenv("CONTEXT_MARGIN", "0.25").strip().lower()
+CONTEXT_MARGIN = None if _margin in ("", "off", "none") else float(_margin)
 
 # Technique 4, smaller context: inside each document, keep only sentences (catalogue: product
 # lines) whose similarity to the question is within PASSAGE_MARGIN of the document's best
@@ -133,6 +144,9 @@ TEMPERATURE = 0.0
 REASONING_EFFORT = os.getenv("REASONING_EFFORT", "").strip() or None
 
 # Answer-length control (techniques.py). "concise" adds a short-answer rule to the system
-# message; VERBOSITY sends the provider's own length setting (low/medium/high) if set.
+# message; VERBOSITY sends the provider's own length setting (low/medium/high).
+# VERBOSITY default "low" since 2026-11-25 (real runs: Sol -5.5% cost, 64/64 correct; the
+# concise rule saved nothing because it adds input). "off" = don't send it.
 ANSWER_LENGTH = os.getenv("ANSWER_LENGTH", "default").strip() or "default"
-VERBOSITY = os.getenv("VERBOSITY", "").strip() or None
+_verbosity = os.getenv("VERBOSITY", "low").strip().lower()
+VERBOSITY = None if _verbosity in ("", "off", "none", "default") else _verbosity

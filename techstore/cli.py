@@ -12,6 +12,7 @@ import json
 import sys
 from pathlib import Path
 
+import config
 from agent import SupportAgent
 from tokenomics import tracing
 
@@ -19,7 +20,8 @@ from tokenomics import tracing
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("question", nargs="?")
-    ap.add_argument("--model", default=None)
+    ap.add_argument("--model", default=None,
+                    help="a model name, or auto: cheap model first, escalate when needed (routing)")
     ap.add_argument("--retriever", default=None, choices=["embedding", "keyword", "auto"])
     ap.add_argument("--top-k", type=int, default=None)
     ap.add_argument("--reasoning-effort", default=None,
@@ -27,7 +29,7 @@ def main() -> int:
     ap.add_argument("--answer-length", default=None, choices=["default", "concise"],
                     help="concise: add the short-answer rule (techniques.py)")
     ap.add_argument("--verbosity", default=None,
-                    help="provider length setting: low/medium/high (if the model accepts it)")
+                    help="provider length setting: low/medium/high, or off (default: low)")
     ap.add_argument("--no-faq", action="store_true", help="turn the FAQ shortcut off")
     ap.add_argument("--cache", action="store_true",
                     help="use the safe response cache (off by default so experiments always call the model)")
@@ -46,18 +48,24 @@ def main() -> int:
                     help="conversation memory: how earlier turns are kept (techniques.py)")
     ap.add_argument("--keep-turns", type=int, default=None,
                     help="earlier exchanges kept word for word (default 2)")
-    ap.add_argument("--context-margin", type=float, default=None,
-                    help="adaptive context: keep documents within this score of the best (e.g. 0.25)")
+    ap.add_argument("--context-margin", type=lambda v: -1.0 if v.lower() == "off" else float(v),
+                    default=None,
+                    help="adaptive context: keep documents within this score of the best "
+                         "(default 0.25 with the embedding retriever; off = always top-k)")
     ap.add_argument("--passage-margin", type=float, default=None,
                     help="smaller context: keep sentences within this score of the best (off by default)")
     ap.add_argument("--client", default=None,
                     help="client id for per-client spending limits (default: app-wide cap only)")
     ap.add_argument("--layout", default=None, choices=["classic", "cache"],
-                    help="cache: fixed instructions first, documents last (provider prompt caching)")
+                    help="cache: fixed instructions first, documents last (provider prompt caching). "
+                         "Default: classic for single questions; cache for --conversations "
+                         "when memory is off")
     ap.add_argument("--out", help="write results as JSONL")
     ap.add_argument("--session", help="Langfuse session that groups this run's traces "
                                       "(default for --batch: the --out file name)")
     args = ap.parse_args()
+    if args.layout is None and args.conversations and (args.memory or config.MEMORY_MODE) == "off":
+        args.layout = config.CHAT_LAYOUT     # chats: cache layout by default (config.py)
 
     agent = SupportAgent(model=args.model, retriever_mode=args.retriever,
                          top_k=args.top_k, mock=args.mock,
@@ -89,8 +97,8 @@ def main() -> int:
                                 history=history, client_id=args.client)
                 total += res.cost_usd
                 n += 1
-                print(f"[{chat['id']} turn {turn}] {res.prompt_tokens:5d} in  ${res.cost_usd:.6f}  "
-                      f"{question[:55]}", file=sys.stderr)
+                print(f"[{chat['id']} turn {turn}]{_route_tag(res)} {res.prompt_tokens:5d} in  "
+                      f"${res.cost_usd:.6f}  {question[:55]}", file=sys.stderr)
                 # With layout "cache" the history keeps each message exactly as sent, so the
                 # next prompt starts with this one and the provider can reuse its cache.
                 sent = res.sent_user_message if agent.prompt_layout == "cache" else question
@@ -116,6 +124,7 @@ def main() -> int:
             res = agent.ask(row["question"], session_id=session, client_id=args.client)
             total += res.cost_usd
             tag = {"faq": " FAQ", "cache": f" CACHE-{(res.cache_kind or '').upper()}"}.get(res.served_by, "")
+            tag += _route_tag(res)
             print(f"[{i}/{len(rows)}]{tag} ${res.cost_usd:.6f}  {res.latency_ms:7.1f}ms  "
                   f"{row['question'][:60]}", file=sys.stderr)
             if out:
@@ -153,10 +162,28 @@ def main() -> int:
     print(f"\n-- {res.model} | {res.prompt_tokens}+{res.completion_tokens} tok "
           f"| ${res.cost_usd:.6f}{est} | {res.latency_ms:.0f}ms "
           f"| docs={','.join(res.retrieved)}", file=sys.stderr)
+    if res.route_tier:
+        line = f"-- routing: {res.route_tier} first ({res.route_reason})"
+        if res.route_uncertainty is not None:
+            line += f"; uncertainty {res.route_uncertainty:.2f} {res.route_signals or ''}"
+        if res.escalated:
+            line += f"; ESCALATED from {res.first_model} (that attempt cost ${res.first_cost_usd:.6f})"
+        if res.route_suppressed:
+            line += f"; not escalated: {res.route_suppressed}"
+        print(line, file=sys.stderr)
     url = tracing.trace_url(res.trace_id)
     if url:
         print(f"-- trace: {url}", file=sys.stderr)
     return 0
+
+
+def _route_tag(res) -> str:
+    """Short routing marker for batch/chat progress lines."""
+    if not res.route_tier:
+        return ""
+    if res.escalated:
+        return " ESCALATED"
+    return " SOL" if res.route_tier == "frontier" else " luna"
 
 
 if __name__ == "__main__":
