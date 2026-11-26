@@ -20,7 +20,8 @@ from tokenomics import tracing
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("question", nargs="?")
-    ap.add_argument("--model", default=None)
+    ap.add_argument("--model", default=None,
+                    help="a model name, or auto: cheap model first, escalate when needed (routing)")
     ap.add_argument("--retriever", default=None, choices=["embedding", "keyword", "auto"])
     ap.add_argument("--top-k", type=int, default=None)
     ap.add_argument("--reasoning-effort", default=None,
@@ -96,8 +97,8 @@ def main() -> int:
                                 history=history, client_id=args.client)
                 total += res.cost_usd
                 n += 1
-                print(f"[{chat['id']} turn {turn}] {res.prompt_tokens:5d} in  ${res.cost_usd:.6f}  "
-                      f"{question[:55]}", file=sys.stderr)
+                print(f"[{chat['id']} turn {turn}]{_route_tag(res)} {res.prompt_tokens:5d} in  "
+                      f"${res.cost_usd:.6f}  {question[:55]}", file=sys.stderr)
                 # With layout "cache" the history keeps each message exactly as sent, so the
                 # next prompt starts with this one and the provider can reuse its cache.
                 sent = res.sent_user_message if agent.prompt_layout == "cache" else question
@@ -123,6 +124,7 @@ def main() -> int:
             res = agent.ask(row["question"], session_id=session, client_id=args.client)
             total += res.cost_usd
             tag = {"faq": " FAQ", "cache": f" CACHE-{(res.cache_kind or '').upper()}"}.get(res.served_by, "")
+            tag += _route_tag(res)
             print(f"[{i}/{len(rows)}]{tag} ${res.cost_usd:.6f}  {res.latency_ms:7.1f}ms  "
                   f"{row['question'][:60]}", file=sys.stderr)
             if out:
@@ -160,10 +162,28 @@ def main() -> int:
     print(f"\n-- {res.model} | {res.prompt_tokens}+{res.completion_tokens} tok "
           f"| ${res.cost_usd:.6f}{est} | {res.latency_ms:.0f}ms "
           f"| docs={','.join(res.retrieved)}", file=sys.stderr)
+    if res.route_tier:
+        line = f"-- routing: {res.route_tier} first ({res.route_reason})"
+        if res.route_uncertainty is not None:
+            line += f"; uncertainty {res.route_uncertainty:.2f} {res.route_signals or ''}"
+        if res.escalated:
+            line += f"; ESCALATED from {res.first_model} (that attempt cost ${res.first_cost_usd:.6f})"
+        if res.route_suppressed:
+            line += f"; not escalated: {res.route_suppressed}"
+        print(line, file=sys.stderr)
     url = tracing.trace_url(res.trace_id)
     if url:
         print(f"-- trace: {url}", file=sys.stderr)
     return 0
+
+
+def _route_tag(res) -> str:
+    """Short routing marker for batch/chat progress lines."""
+    if not res.route_tier:
+        return ""
+    if res.escalated:
+        return " ESCALATED"
+    return " SOL" if res.route_tier == "frontier" else " luna"
 
 
 if __name__ == "__main__":

@@ -1,0 +1,28 @@
+q006 keep     U=0.30 luna=correct  sol=correct  {'missing_info': 0.3} 
+     'Order #48213 has shipped via BlueDart (tracking ID BD4471920381), with an estimated delivery date of 30 September 2026. Check the tracking link sent b'
+q019 keep     U=0.30 luna=correct  sol=correct  {'missing_info': 0.3} 
+     'The SoundWave X200 is lighter at 250 g, versus 268 g for the Y500—a difference of 18 g. For flights, the Y500 is recommended for noisy environments an'
+q021 keep     U=0.30 luna=correct  sol=correct  {'missing_info': 0.3} 
+     'If these are SoundWave headphones, try:\n\n1. Hold the power button for 7 seconds until the LED flashes blue and white.\n2. In your phone’s Bluetooth set'
+q023 keep     U=0.30 luna=correct  sol=correct  {'missing_info': 0.3} 
+     'If you have an AuraWatch 3, try these steps:\n\n1. Check that the companion app has Bluetooth and background-activity permissions.\n2. Confirm your phone'
+q024 keep     U=0.30 luna=correct  sol=correct  {'missing_info': 0.3} 
+     'If it’s a ClearView 27, try these steps:\n\n1. Check that the monitor’s input source matches the cable you’re using; change it in the on-screen menu if '
+q025 keep     U=0.30 luna=correct  sol=correct  {'missing_info': 0.3} 
+     'For SoundWave headphones, try these steps:\n\n1. Turn off active noise cancellation (ANC); it can reduce rated battery life by roughly 30%.\n2. Check for'
+q035 keep     U=0.30 luna=correct  sol=correct  {'missing_info': 0.3} 
+     "A 404 can mean the order ID is valid but belongs to a different partner. I don't have information about whether that’s the case for this order or why "
+q036 keep     U=0.30 luna=correct  sol=correct  {'missing_info': 0.3} 
+     'The **30-day return window** is counted from the delivery date on your tracking record, not the purchase date. If it has been 35 days since delivery, '
+q037 keep     U=0.30 luna=correct  sol=correct  {'missing_info': 0.3} 
+     'You’re not stuck with them. Y500 headphones are “non-returnable once the seal is opened,” but faulty items remain covered by the “2-year manufacturer '
+q050 keep     U=0.30 luna=correct  sol=correct  {'missing_info': 0.3} 
+     "The SoundWave X200 has up to 40-hour battery life. I don't have information about student discounts."
+q051 keep     U=0.30 luna=correct  sol=correct  {'missing_info': 0.3} 
+     "TechStore accepts returns within the **30-day return window**, counted from the delivery date shown in your tracking record. I don't have information "
+q052 keep     U=0.30 luna=partial  sol=correct  {'missing_info': 0.3} 
+     "If they’re earbuds, they’re **non-returnable once the seal is broken**. Faulty items remain covered by warranty. I don't have information about whethe"
+q053 ESCALATE U=0.80 luna=partial  sol=correct  {'refusal_then_answer': 0.8} 
+     'I can only help with TechStore orders, products, and support. Paytm wallet payments aren’t accepted; TechStore accepts UPI, major Indian credit and de'
+q057 keep     U=0.30 luna=correct  sol=correct  {'missing_info': 0.3} 
+     'If you submitted the payment page more than once, only one order is created; the extra authorisations reverse automatically within 5 to 7 business day'

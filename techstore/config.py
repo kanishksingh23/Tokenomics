@@ -45,6 +45,9 @@ VIA_GATEWAY = API_KEY.startswith("tk-")
 # Week 10 benchmark. Pricing below is $ per 1M tokens, as of 2026-09.
 FRONTIER_MODEL = os.getenv("FRONTIER_MODEL", "gpt-6.1-sol")
 ECONOMY_MODEL = os.getenv("ECONOMY_MODEL", "gpt-6-luna")
+# Technique 14, model routing (tokenomics/routing.py): with model "auto", answer with the
+# economy model first and escalate to the frontier model only when the answer looks weak.
+ROUTING_THRESHOLD = float(os.getenv("ROUTING_THRESHOLD", "0.5"))
 
 # Prices and the cost formula belong to the product (tokenomics/pricing.py).
 

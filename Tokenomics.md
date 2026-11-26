@@ -1328,7 +1328,7 @@ Every technique follows the same loop: **build → run on the 64 dev questions �
 | 11 | **Batch API** for non-urgent work (benchmarks, reports) | Cost (−50%) | Tokenomics | |
 | 12 | **Spending limits**: per-client budgets enforced before a request is sent; downgrade to the cheap model, then refuse | Runaway cost | Tokenomics | ✅ Built: app cap $5/day, client $0.05/day (80% → Luna, 100% → refuse), 20 req/min. Runaway loop stopped at the cap (10,000 calls would cost ~$29) |
 | 13 | **The gateway**: steps 2, 3, 5–12 behind the OpenAI-compatible endpoint; TechStore switches by one line (`OPENAI_BASE_URL`) | — (makes it a product) | Tokenomics | ✅ Built (`tokenomics/gateway.py`, FastAPI): keys (fingerprints only), safe cache, memory, spending limits, provider quirks, true cost, Langfuse. End to end: TechStore switched with two settings; cache hits $0 in 4–14 ms; private orders never cached; limits → 429 → polite message. Technique code moved into the installable `tokenomics/` package |
-| 14 | **Model routing + escalation** (Layers 2–3): Luna / Sol, plus a hosted open-weight model (Llama 3.1 8B on Groq, ~\$0.05/\$0.08 per 1M) for the easiest questions and as a backup | Price per token | Tokenomics | **Last**; ceiling ≈ −87% cost on draft grades |
+| 14 | **Model routing + escalation** (Layers 2–3): Luna / Sol, plus a hosted open-weight model (Llama 3.1 8B on Groq, ~\$0.05/\$0.08 per 1M) for the easiest questions and as a backup | Price per token | Tokenomics | ✅ **Built 2026-11-26 (cheap-first):** Luna answers, simple checks on the answer, Sol once if it looks weak; `model=auto` in TechStore and the gateway. **Replay on real graded answers (free):** −88% to −92% cost vs always-Sol, 62–64 correct, 0 wrong, 1–3 of 64 to Sol; beats random escalation, close to the oracle. Trained classifier, calibration, logprobs and the Groq model not built (too few weak answers to learn from; see `runs/2026-11-26_routing/NOTES.md`). Live run pending (≈ \$0.02) |
 | 15 | **Final proof** on the 36 fresh test questions: always-Sol, always-Luna, random-at-matched-cost, oracle, Tokenomics; human grading; cost per correct answer | — | — | |
 | 16 | Demo (Streamlit + Langfuse), report, video | — | — | |
 
@@ -1738,6 +1738,8 @@ $$\text{Break-even volume} = \frac{\$130}{\$0.001378} \approx \mathbf{94{,}400 \
 ### Project API Budget
 
 > **Update 25 Nov 2026:** new OpenAI key; the pending real-run tests were run (≈ \$1.50), results in `techstore/runs/2026-11-25_credit_checks/NOTES.md`. Now the code defaults: `verbosity=low` (TechStore and the gateway), adaptive context 0.25 (TechStore), cache layout for multi-turn chats (TechStore CLI and demo; memory trimming stays available but off).
+>
+> **Update 26 Nov 2026:** model routing built (technique 14, cheap-first with escalation). Replayed on real graded answers at no cost: about −90% cost vs always-Sol with no wrong answers on the dev set. Results in `techstore/runs/2026-11-26_routing/NOTES.md`.
 >
 > **⚠ Status, 17 Nov 2026:** OpenAI now rejects calls with *"You have no credits remaining"*, although only **≈ \$0.57** is recorded across all runs and the key was never committed (full git history scanned). Most likely the \$50 prepaid grant **expired**; to be confirmed under Billing → Credit grants and Usage. New model runs wait for a top-up; everything else continues in mock mode. **No Anthropic key yet** for the AI grader (≈ \$12 budgeted below).
 

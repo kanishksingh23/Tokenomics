@@ -49,7 +49,9 @@ with st.sidebar:
 
     st.divider()
     st.subheader("⚙️ Configuration")
-    model = st.selectbox("Model", [config.FRONTIER_MODEL, config.ECONOMY_MODEL])
+    model = st.selectbox("Model", ["auto", config.FRONTIER_MODEL, config.ECONOMY_MODEL],
+                         help="auto: the cheap model answers first; the expensive one is asked only "
+                              "if that answer looks weak (model routing).")
     retriever = st.selectbox("Retriever", ["embedding", "keyword", "auto"],
                              help="keyword: BM25, no dependencies. embedding: MiniLM on CPU. "
                                   "auto: embedding if installed, else keyword.")
@@ -68,6 +70,7 @@ with st.sidebar:
     if st.session_state.history and st.button("New conversation", use_container_width=True):
         st.session_state.history = []
         st.session_state.spend = 0.0
+        st.session_state.chat_no = st.session_state.get("chat_no", 0) + 1   # a new chat id
         st.rerun()
 
     st.divider()
@@ -95,7 +98,8 @@ if question:
             history += [{"role": "user", "content": sent},
                         {"role": "assistant", "content": turn.error or turn.answer}]
         # Each browser session is one client with its own daily budget (spending limits).
-        result = agent.ask(question, session_id=sid, history=history, client_id=sid)
+        result = agent.ask(question, session_id=f"{sid}-c{st.session_state.get('chat_no', 0)}",
+                           history=history, client_id=sid)
     st.session_state.history.append(result)
     st.session_state.spend += result.cost_usd
 
@@ -104,7 +108,7 @@ left, right = st.columns([3, 2], gap="large")
 
 with left:
     st.title("🎧 TechStore Support")
-    st.caption("Phase 0 — direct to model. No router, no cache, no escalation.")
+    st.caption("Model **auto** routes each question: cheap model first, the expensive one only when needed.")
 
     if not st.session_state.history:
         st.info("Ask a question below, or pick one from the sidebar.")
@@ -157,6 +161,16 @@ with right:
                        f"({r.faq_id or r.cache_kind}).")
         elif r.limit_action == "downgrade":
             st.caption(f"↘️ Downgraded to `{r.model}`: {r.limit_reason}.")
+        if r.route_tier:
+            if r.escalated:
+                st.caption(f"🔀 Routing: `{r.first_model}` answered first, but the answer looked weak "
+                           f"(uncertainty {r.route_uncertainty:.2f}: {', '.join(r.route_signals or {})}), "
+                           f"so `{r.model}` was asked. Both calls are in the cost.")
+                with st.expander("Discarded cheap answer"):
+                    st.write(r.first_answer)
+            else:
+                st.caption(f"🔀 Routing: **{r.route_tier}** model `{r.model}` ({r.route_reason})"
+                           + (f" · not escalated: {r.route_suppressed}" if r.route_suppressed else ""))
         if r.turn > 1:
             st.caption(f"Turn {r.turn} · memory **{r.memory_mode}**"
                        + (f" · {r.memory_dropped_turns} earlier turn(s) shrunk"

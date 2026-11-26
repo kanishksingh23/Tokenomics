@@ -305,6 +305,41 @@ benchmark. Built when credits return.
 
 ---
 
+## 14. Model routing ✅ built; evaluated on real answers (replay)
+
+**Attacks:** the **price per token**, the biggest lever: Sol costs 20× more than Luna.
+
+**What the data said first:** Luna was **never wrong** on the 64 dev questions (57–62 correct, the rest
+partial, over 7 graded runs), including the billing and API questions we expected to need Sol. Its weak answers
+had visible patterns: a refusal line before a real answer, or "I don't have information" when the documents had it.
+
+**How it works (cheap-first):**
+1. **Choose:** Luna, unless a hard rule says Sol: code in the question, a very long question, tools or a strict
+   JSON schema, or a chat that escalated in its last 3 turns.
+2. **Check Luna's answer:** warning signs (a refusal line followed by an answer, hedging such as "I'm not sure",
+   too short for a "compare/explain" question, unfinished or repeated text). If they add up to 0.5 or more,
+   **ask Sol once** and pay for both. No escalation when the answer was cut off by the length limit, when it is
+   a plain refusal (Sol would refuse too), or when the spending limit would be crossed.
+
+**Measured for free (replay of real, graded answers; 6 run pairs × 64 questions):**
+
+| Arm | Cost vs always-Sol | Correct (of 64) | Sent to Sol |
+|---|---|---|---|
+| Always Luna | −93% | 60–62 | 0 |
+| **Router** | **−88% to −92%** | **62–64, 0 wrong** | 1–3 |
+| Random, same number to Sol | −89% to −92% | 60–62 | 1–3 |
+| Oracle (knows the grades) | −87% to −91% | 64 | 2–4 |
+
+**The honest reading:** most of the saving is "Luna is good enough here"; the router is a cheap safety net
+(+1–2% cost) that repairs the weak answers it can see. A "careful" setting reaches 64/64 everywhere but costs
+~3.5× more (it escalates on a phrase that is usually legitimate). The checks were designed on the dev answers, so
+the fair number comes from Rahul's fresh test questions.
+
+**Status:** `tokenomics/routing.py`; `--model auto` in TechStore (CLI and demo), `"model": "auto"` in the
+gateway; `routing_replay.py`. A live run is in `techstore/runs/PENDING_CREDITS.md` (row 10).
+
+---
+
 ## The gateway: how the techniques reach any app ✅ built
 
 Not a technique itself but the delivery vehicle. An app changes two settings (the server address
@@ -343,8 +378,9 @@ were never cached, and limit refusals reached the customer as a polite message.
 | 10 | Prompt caching | Price of repeats | Cache layout −26.5% on long chats (real), 26/26 | ✅ Chat default |
 | 11 | Batch API | Price, offline work | −50% on test runs | ⏳ |
 | 12 | Spending limits | Runaway total | Caps the bill ($29 bug → $1) | ✅ Built |
-| 14 | **Model routing** (next) | **Price per token** | Ceiling ≈ −87% cost | Last, per mentor |
+| 14 | **Model routing** (cheap-first + escalation) | **Price per token** | −88% to −92% cost vs always-Sol, 0 wrong (replay) | ✅ Built; live run pending |
 
-The techniques so far mostly cut **tokens**; together their saving is meaningful but moderate.
-**Routing** attacks the largest lever, the **20× price gap** between Sol and Luna, and also decides
-when the riskier techniques (no thinking, short answers) are safe to use. That is why it comes last.
+Techniques 1–12 mostly cut **tokens**; together their saving is meaningful but moderate (Sol −16% from
+adaptive context + `verbosity=low`). **Routing** attacks the largest lever, the **20× price gap** between Sol
+and Luna: on the dev set it cut cost ~90% with no wrong answers, because Luna turned out good enough for almost
+every question. Rahul's fresh test questions will show whether that holds on questions nobody tuned for.

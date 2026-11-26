@@ -84,6 +84,13 @@ polite refusal at 100%, max 20 requests per minute. Settings in `config.py` / `.
 python cli.py --client alice "How do I reset my password?"
 ```
 
+### Model routing
+
+```bash
+python cli.py --model auto "Is delivery free?"   # Luna first; Sol only if the answer looks weak
+python routing_replay.py                          # five-arm comparison on real graded answers, free
+```
+
 ### Sending less context
 
 ```bash
