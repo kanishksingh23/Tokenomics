@@ -72,6 +72,6 @@ standard router**; the careful variant is one setting away (`missing_info_weight
 3. **Caveat: these checks were designed while looking at the dev answers.** The fair number
    comes from Rahul's 36 fresh test questions, written before any router tuning.
 4. Not built (from the original plan), and why: the trained neural classifier and calibration
-   (too few weak answers to learn from), per-token log-probabilities (unknown for GPT-6
-   reasoning models; the formula works without them), the learning loop (mentor decision
+   (too few weak answers to learn from), per-token log-probabilities (both GPT-6 models
+   reject `logprobs`, found 2026-10-15; the formula works without them), the learning loop (mentor decision
    pending), and a third, open-weight model on Groq (optional; needs a free key).

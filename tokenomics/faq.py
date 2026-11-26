@@ -7,7 +7,9 @@ served**: a saved answer reaches the customer without any model checking it.
 
 A question gets a saved answer only if ALL of these hold:
   1. its meaning is close to one FAQ (MiniLM similarity >= threshold)
-  2. it is clearly closer to that FAQ than to any other (no near-tie)
+  2. it is clearly closer to that FAQ than to any other (no near-tie), counting entries not
+     yet approved too: a question that best matches an unapproved answer gets no saved
+     answer, rather than the nearest approved one (which may be about something else)
   3. it contains no digits: order numbers and amounts need a personal answer
   4. it is a single question
   5. the caller does not block it (e.g. TechStore blocks questions naming a product)
@@ -50,20 +52,23 @@ class FaqShortcut:
         include_drafts: match draft entries too; for measuring only, never for customers.
         block: optional question -> reason|None, for app-specific exclusions."""
         self.entries = [e for e in entries if include_drafts or e.get("status") == "approved"]
+        # Unapproved entries are still matched against, never served: they stop a question
+        # about their topic from receiving a neighbouring approved answer.
+        self._candidates = self.entries + [e for e in entries if e not in self.entries]
         self.threshold, self.margin, self.block = threshold, margin, block
-        # The embedding model loads only if there is something to match against.
+        # The embedding model loads only if there is something to serve.
         self.encode = encode or (_minilm() if self.entries else None)
         # Every phrasing of every entry is a matching target; a question scores against
         # the closest phrasing of each entry.
         self._owner, texts = [], []
-        for i, e in enumerate(self.entries):
+        for i, e in enumerate(self._candidates if self.entries else []):
             for t in [e["question"], *e.get("examples", [])]:
                 self._owner.append(i)
                 texts.append(t)
         self._vecs = np.asarray(self.encode(texts)) if texts else np.zeros((0, 1))
 
     def scores(self, question: str) -> list[tuple[float, int]]:
-        """(best similarity, entry index) per entry, best first."""
+        """(best similarity, candidate index) per entry, best first; unapproved included."""
         if not self.entries:
             return []
         sims = self._vecs @ np.asarray(self.encode([question]))[0]
@@ -77,15 +82,17 @@ class FaqShortcut:
         if not ranked:
             return FaqMatch(None, None, 0.0, "no approved FAQ entries")
         score, idx = ranked[0]
-        best_id = self.entries[idx]["id"]
+        best_id = self._candidates[idx]["id"]
 
         def miss(reason):
             return FaqMatch(None, best_id, score, reason)
 
         if score < self.threshold:
             return miss(f"not close enough ({score:.2f} < {self.threshold:.2f})")
+        if idx >= len(self.entries):
+            return miss(f"closest FAQ ({best_id}) is not approved yet")
         if len(ranked) > 1 and score - ranked[1][0] < self.margin:
-            return miss(f"near-tie with {self.entries[ranked[1][1]]['id']}")
+            return miss(f"near-tie with {self._candidates[ranked[1][1]]['id']}")
         if re.search(r"\d", question):
             return miss("contains a number (order id or amount needs a personal answer)")
         if question.count("?") > 1:
@@ -94,4 +101,4 @@ class FaqShortcut:
             reason = self.block(question)
             if reason:
                 return miss(reason)
-        return FaqMatch(self.entries[idx], best_id, score, "served")
+        return FaqMatch(self._candidates[idx], best_id, score, "served")

@@ -42,3 +42,20 @@ more, so this understates real-world savings. Rahul's 36 fresh questions give th
   and the high threshold are what keep this safe.
 - Coverage grows by adding example phrasings, ideally real customer wordings taken from
   Langfuse traces, each approved by a person.
+
+## Update 2026-11-26: a gap found while reviewing the approvals (PR #1)
+
+With all 22 answers approved, "you dropped the price after I ordered, will you refund the price
+difference?" was served the **price-match** answer (0.81), which is about competitors' prices;
+TechStore's own price drops follow a different rule (`bill_price_drop`). The matcher only
+compared questions with approved answers, so a topic without an approved answer fell to its
+nearest approved neighbour. Two fixes:
+
+1. **Unapproved answers now count when matching, but are never served.** A question closest to
+   an answer that isn't approved yet gets no saved answer and goes to the model.
+2. **New draft answer `faq_price_drop`** (source `bill_price_drop`), waiting for Rahul's approval.
+
+Dev-set evaluation unchanged (3/64 served, 0 wrong). Tests now build agents with the FAQ
+shortcut off (`tests/conftest.py`): with approved answers, questions like "Is delivery free?"
+were answered without a model request, which broke four tests on machines with the embedding
+model. CI did not notice because it does not install that model.
