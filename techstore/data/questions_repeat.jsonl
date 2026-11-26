@@ -13,9 +13,9 @@
 {"id": "r013", "repeat_of": "t013", "type": "same", "question": "comparing novatab mini 8 with the 11 inch model, what extra screen and hardware specs do i get for the higher price", "source": "ai_assisted"}
 {"id": "r014", "repeat_of": "t013", "type": "same", "question": "whats different in display and specs between novatab mini 8 and the 11 inch tablet to justify the cost", "source": "ai_assisted"}
 {"id": "r015", "repeat_of": "t013", "type": "different", "question": "deciding between novatab mini 8 and the 11 inch one, which one comes with a free stylus inside the box?", "source": "ai_assisted"}
-{"id": "r016", "repeat_of": "t015", "type": "same", "question": "for open water swimming and better battery life should i pick aurawatch 3 or the pro", "source": "ai_assisted"}
-{"id": "r017", "repeat_of": "t015", "type": "same", "question": "between aurawatch 3 and aurawatch pro which handles open water swims and lasts longer on a charge", "source": "ai_assisted"}
-{"id": "r018", "repeat_of": "t015", "type": "different", "question": "aurawatch 3 or aurawatch pro, which one works with an iphone running ios 14?", "source": "ai_assisted"}
+{"id": "r016", "repeat_of": "t015", "type": "same", "question": "between the clearview 27 and 32 ultra, which monitor lets me toggle between two laptops and charge via usb-c", "source": "ai_assisted"}
+{"id": "r017", "repeat_of": "t015", "type": "same", "question": "want to hook up two computers and charge over type-c, should i get clearview 27 or 32 ultra", "source": "ai_assisted"}
+{"id": "r018", "repeat_of": "t015", "type": "different", "question": "clearview 27 or 32 ultra if i want a monitor with a 144 hz refresh rate and height adjustable stand", "source": "ai_assisted"}
 {"id": "r019", "repeat_of": "t018", "type": "same", "question": "plugged my laptop into the clearview 27 over usb-c, video shows up fine but there is no charging", "source": "ai_assisted"}
 {"id": "r020", "repeat_of": "t018", "type": "same", "question": "my laptop screen mirrors onto clearview 27 via type-c cable, why isnt it getting power", "source": "ai_assisted"}
 {"id": "r021", "repeat_of": "t018", "type": "different", "question": "connected my laptop to clearview 27 with hdmi cable, display works fine but laptop is not charging at all", "source": "ai_assisted"}
@@ -28,9 +28,9 @@
 {"id": "r028", "repeat_of": "t029", "type": "same", "question": "pre-ordered headphones 45 days back and got billed right away, delivered just 10 days ago — is the 30 day return period over", "source": "ai_assisted"}
 {"id": "r029", "repeat_of": "t029", "type": "same", "question": "my preorder was placed and charged 45 days ago but reached me 10 days ago, am i already past the 30 day return limit", "source": "ai_assisted"}
 {"id": "r030", "repeat_of": "t029", "type": "different", "question": "i preordered my headphones 45 days ago and was charged immediately, package arrived 35 days back. has my 30 day return window expired?", "source": "ai_assisted"}
-{"id": "r031", "repeat_of": "t031", "type": "same", "question": "we ordered 15 novatab units for our office 20 days back and need to return 5 unopened ones, does the 30 day return rule cover us", "source": "ai_assisted"}
-{"id": "r032", "repeat_of": "t031", "type": "same", "question": "bought 15 novatabs for company staff 20 days ago, can we send back 5 sealed boxes using the 30 day return window", "source": "ai_assisted"}
-{"id": "r033", "repeat_of": "t031", "type": "different", "question": "our company bought 8 novatab tablets 20 days ago for staff. we want to return 5 of them that are unused in box, can we do that under the 30 day policy?", "source": "ai_assisted"}
+{"id": "r031", "repeat_of": "t031", "type": "same", "question": "we had 15 novatab units delivered for our office 20 days back and need to return 5 unopened ones, does the 30 day return rule cover us", "source": "ai_assisted"}
+{"id": "r032", "repeat_of": "t031", "type": "same", "question": "received 15 novatabs for company staff 20 days ago, can we send back 5 sealed boxes using the 30 day return window", "source": "ai_assisted"}
+{"id": "r033", "repeat_of": "t031", "type": "different", "question": "our company had 8 novatab tablets delivered 20 days ago for staff. we want to return 5 of them that are unused in box, can we do that under the 30 day policy?", "source": "ai_assisted"}
 {"id": "r034", "repeat_of": "t032", "type": "same", "question": "got a warranty replacement smartwatch with just 2 weeks remaining on the original 1 year cover, does the new unit restart a full 1 year warranty", "source": "ai_assisted"}
 {"id": "r035", "repeat_of": "t032", "type": "same", "question": "my watch was replaced under warranty when 2 weeks were left out of 1 year — will the replacement have a fresh 1 year warranty", "source": "ai_assisted"}
 {"id": "r036", "repeat_of": "t032", "type": "different", "question": "techstore just replaced my smartwatch under warranty when 6 months were left on my 1 year warranty. does my replacement unit get a 90-day warranty or 6 months?", "source": "ai_assisted"}
