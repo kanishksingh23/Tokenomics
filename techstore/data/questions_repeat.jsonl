@@ -1,0 +1,36 @@
+{"id": "r001", "repeat_of": "t002", "type": "same", "question": "whats the shipping timeline for tier-2 towns such as jaipur", "source": "ai_assisted"}
+{"id": "r002", "repeat_of": "t002", "type": "same", "question": "how long will delivery take if i order to a tier 2 city like jaipur", "source": "ai_assisted"}
+{"id": "r003", "repeat_of": "t002", "type": "different", "question": "how many days does delivery take to remote north eastern pin codes", "source": "ai_assisted"}
+{"id": "r004", "repeat_of": "t003", "type": "same", "question": "is free setup and demo available for laptops too or just monitors", "source": "ai_assisted"}
+{"id": "r005", "repeat_of": "t003", "type": "same", "question": "do you send someone for free installation of laptops as well or only displays", "source": "ai_assisted"}
+{"id": "r006", "repeat_of": "t003", "type": "different", "question": "do you guys provide free demo and installation for all monitors including 27 inch ones?", "source": "ai_assisted"}
+{"id": "r007", "repeat_of": "t011", "type": "same", "question": "whats the usb-c charging wattage on the 32 inch clearview display", "source": "ai_assisted"}
+{"id": "r008", "repeat_of": "t011", "type": "same", "question": "how many watts of power output can the 32 inch clearview deliver through usb c", "source": "ai_assisted"}
+{"id": "r009", "repeat_of": "t011", "type": "different", "question": "how much power delivery does the 27 inch clearview monitor give over usb c?", "source": "ai_assisted"}
+{"id": "r010", "repeat_of": "t012", "type": "same", "question": "which voltcharge adapter do i need for full speed charging on the pulsebook pro 16", "source": "ai_assisted"}
+{"id": "r011", "repeat_of": "t012", "type": "same", "question": "to charge a pulsebook pro 16 at fastest speed which voltcharge model should i buy", "source": "ai_assisted"}
+{"id": "r012", "repeat_of": "t012", "type": "different", "question": "which voltcharge charger should i get to charge my pulsebook 14 at max speed?", "source": "ai_assisted"}
+{"id": "r013", "repeat_of": "t013", "type": "same", "question": "comparing novatab mini 8 with the 11 inch model, what extra screen and hardware specs do i get for the higher price", "source": "ai_assisted"}
+{"id": "r014", "repeat_of": "t013", "type": "same", "question": "whats different in display and specs between novatab mini 8 and the 11 inch tablet to justify the cost", "source": "ai_assisted"}
+{"id": "r015", "repeat_of": "t013", "type": "different", "question": "deciding between novatab mini 8 and the 11 inch one, which one comes with a free stylus inside the box?", "source": "ai_assisted"}
+{"id": "r016", "repeat_of": "t015", "type": "same", "question": "between the clearview 27 and 32 ultra, which monitor lets me toggle between two laptops and charge via usb-c", "source": "ai_assisted"}
+{"id": "r017", "repeat_of": "t015", "type": "same", "question": "want to hook up two computers and charge over type-c, should i get clearview 27 or 32 ultra", "source": "ai_assisted"}
+{"id": "r018", "repeat_of": "t015", "type": "different", "question": "clearview 27 or 32 ultra if i want a monitor with a 144 hz refresh rate and height adjustable stand", "source": "ai_assisted"}
+{"id": "r019", "repeat_of": "t018", "type": "same", "question": "plugged my laptop into the clearview 27 over usb-c, video shows up fine but there is no charging", "source": "ai_assisted"}
+{"id": "r020", "repeat_of": "t018", "type": "same", "question": "my laptop screen mirrors onto clearview 27 via type-c cable, why isnt it getting power", "source": "ai_assisted"}
+{"id": "r021", "repeat_of": "t018", "type": "different", "question": "connected my laptop to clearview 27 with hdmi cable, display works fine but laptop is not charging at all", "source": "ai_assisted"}
+{"id": "r022", "repeat_of": "t021", "type": "same", "question": "ordered a pulsebook 14 on your site five days back and now its listed 3000 rupees cheaper, can i claim the difference", "source": "ai_assisted"}
+{"id": "r023", "repeat_of": "t021", "type": "same", "question": "purchased the pulsebook 14 five days ago and today the techstore price went down by rs 3000, do i get a refund for the drop", "source": "ai_assisted"}
+{"id": "r024", "repeat_of": "t021", "type": "different", "question": "bought a pulsebook 14 ten days ago on techstore and today you dropped the site price by 3000 rs. will you refund me the difference?", "source": "ai_assisted"}
+{"id": "r025", "repeat_of": "t027", "type": "same", "question": "getting sporadic 30s timeouts on POST /v1/shipments, can our client retry right away without risk", "source": "ai_assisted"}
+{"id": "r026", "repeat_of": "t027", "type": "same", "question": "some POST /v1/shipments requests time out after 30s, is an immediate retry safe to do", "source": "ai_assisted"}
+{"id": "r027", "repeat_of": "t027", "type": "different", "question": "our GET /v1/shipments calls occasionally hit a 30s timeout. is it safe to retry without an idempotency key?", "source": "ai_assisted"}
+{"id": "r028", "repeat_of": "t029", "type": "same", "question": "pre-ordered headphones 45 days back and got billed right away, delivered just 10 days ago — is the 30 day return period over", "source": "ai_assisted"}
+{"id": "r029", "repeat_of": "t029", "type": "same", "question": "my preorder was placed and charged 45 days ago but reached me 10 days ago, am i already past the 30 day return limit", "source": "ai_assisted"}
+{"id": "r030", "repeat_of": "t029", "type": "different", "question": "i preordered my headphones 45 days ago and was charged immediately, package arrived 35 days back. has my 30 day return window expired?", "source": "ai_assisted"}
+{"id": "r031", "repeat_of": "t031", "type": "same", "question": "we had 15 novatab units delivered for our office 20 days back and need to return 5 unopened ones, does the 30 day return rule cover us", "source": "ai_assisted"}
+{"id": "r032", "repeat_of": "t031", "type": "same", "question": "received 15 novatabs for company staff 20 days ago, can we send back 5 sealed boxes using the 30 day return window", "source": "ai_assisted"}
+{"id": "r033", "repeat_of": "t031", "type": "different", "question": "our company had 8 novatab tablets delivered 20 days ago for staff. we want to return 5 of them that are unused in box, can we do that under the 30 day policy?", "source": "ai_assisted"}
+{"id": "r034", "repeat_of": "t032", "type": "same", "question": "got a warranty replacement smartwatch with just 2 weeks remaining on the original 1 year cover, does the new unit restart a full 1 year warranty", "source": "ai_assisted"}
+{"id": "r035", "repeat_of": "t032", "type": "same", "question": "my watch was replaced under warranty when 2 weeks were left out of 1 year — will the replacement have a fresh 1 year warranty", "source": "ai_assisted"}
+{"id": "r036", "repeat_of": "t032", "type": "different", "question": "techstore just replaced my smartwatch under warranty when 6 months were left on my 1 year warranty. does my replacement unit get a 90-day warranty or 6 months?", "source": "ai_assisted"}
