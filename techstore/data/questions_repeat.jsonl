@@ -1,36 +1,36 @@
-{"id": "r001", "repeat_of": "t001", "type": "same", "question": "do you refund the shipping fee if i cancel my order before dispatch?", "source": "ai_assisted"}
-{"id": "r002", "repeat_of": "t001", "type": "same", "question": "will i get back what i paid for delivery if i decide to cancel prior to shipping", "source": "ai_assisted"}
-{"id": "r003", "repeat_of": "t001", "type": "different", "question": "if i cancel an order after it gets shipped do i get the delivery charges back too", "source": "ai_assisted"}
-{"id": "r004", "repeat_of": "t004", "type": "same", "question": "is open-box delivery allowed so i can inspect the item with the courier present?", "source": "ai_assisted"}
-{"id": "r005", "repeat_of": "t004", "type": "same", "question": "am i allowed to open and inspect the parcel before signing for delivery", "source": "ai_assisted"}
-{"id": "r006", "repeat_of": "t004", "type": "different", "question": "can i check the package in front of delivery guy on an order of five thousand?", "source": "ai_assisted"}
-{"id": "r007", "repeat_of": "t009", "type": "same", "question": "can i use an active stylus with the novatab mini 8 to write notes?", "source": "ai_assisted"}
-{"id": "r008", "repeat_of": "t009", "type": "same", "question": "is pen input supported on novatab mini 8 for drawing and note taking", "source": "ai_assisted"}
-{"id": "r009", "repeat_of": "t009", "type": "different", "question": "does the novatab 11 support a pen or stylus for taking notes in college?", "source": "ai_assisted"}
-{"id": "r010", "repeat_of": "t010", "type": "same", "question": "are the m100 earbuds safe to use while sweating at the gym or in light rain", "source": "ai_assisted"}
-{"id": "r011", "repeat_of": "t010", "type": "same", "question": "is it fine to exercise with m100 earphones outdoors if it starts raining?", "source": "ai_assisted"}
-{"id": "r012", "repeat_of": "t010", "type": "different", "question": "can i wear the m100 earbuds while swimming in a pool?", "source": "ai_assisted"}
-{"id": "r013", "repeat_of": "t014", "type": "same", "question": "do studio buds pro offer active noise cancellation and case wireless charging compared to m100?", "source": "ai_assisted"}
-{"id": "r014", "repeat_of": "t014", "type": "same", "question": "if i want wireless charging and anc is upgrading from m100 to studio buds pro necessary?", "source": "ai_assisted"}
-{"id": "r015", "repeat_of": "t014", "type": "different", "question": "are the studio buds pro worth the extra price over m100 if i only care about splash resistance?", "source": "ai_assisted"}
-{"id": "r016", "repeat_of": "t016", "type": "same", "question": "left my earbud case discharged for months and now no charging led shows up when connected, what should i do?", "source": "ai_assisted"}
-{"id": "r017", "repeat_of": "t016", "type": "same", "question": "charging indicator not lighting up on earbud case after sitting in a drawer unused for months", "source": "ai_assisted"}
-{"id": "r018", "repeat_of": "t016", "type": "different", "question": "plugged my earbud case in after using it this morning and the light isnt turning on at all, is it dead?", "source": "ai_assisted"}
-{"id": "r019", "repeat_of": "t017", "type": "same", "question": "voltbank is showing 80% battery but it does not seem to charge my bluetooth earbuds", "source": "ai_assisted"}
-{"id": "r020", "repeat_of": "t017", "type": "same", "question": "why wont my voltbank charge my earbuds even though the screen shows 80% remaining", "source": "ai_assisted"}
-{"id": "r021", "repeat_of": "t017", "type": "different", "question": "my voltbank has 80% charge but when i plug my laptop into the usb-a port it wont charge", "source": "ai_assisted"}
-{"id": "r022", "repeat_of": "t020", "type": "same", "question": "the card i paid with is closed now, can techstore deposit my refund directly into another bank account?", "source": "ai_assisted"}
-{"id": "r023", "repeat_of": "t020", "type": "same", "question": "can i give you different bank details for my refund because my old credit card got cancelled by the bank", "source": "ai_assisted"}
-{"id": "r024", "repeat_of": "t020", "type": "different", "question": "my credit card that i used to pay was closed by my bank last week. will my bank still receive and route the refund to my savings account?", "source": "ai_assisted"}
-{"id": "r025", "repeat_of": "t022", "type": "same", "question": "i did cash on delivery and returned the parcel, why didnt the refund come to my phone number on upi?", "source": "ai_assisted"}
-{"id": "r026", "repeat_of": "t022", "type": "same", "question": "waiting for refund on a cod return, can you just transfer it to my upi ID linked to my phone", "source": "ai_assisted"}
-{"id": "r027", "repeat_of": "t022", "type": "different", "question": "returned my upi order last week, why havent you refunded to my upi yet? you have my phone number", "source": "ai_assisted"}
-{"id": "r028", "repeat_of": "t025", "type": "same", "question": "getting 403 insufficient_scope on POST /v1/orders, is it possible to add new scopes to our current token?", "source": "ai_assisted"}
-{"id": "r029", "repeat_of": "t025", "type": "same", "question": "our api token gets 403 with insufficient_scope on POST /v1/orders, can we edit the existing token permissions", "source": "ai_assisted"}
-{"id": "r030", "repeat_of": "t025", "type": "different", "question": "POST /v1/orders is throwing 403 with error body {\"code\": \"insufficient_scope\"}. Does this mean our api key or signature failed authentication?", "source": "ai_assisted"}
-{"id": "r031", "repeat_of": "t026", "type": "same", "question": "api v1 responses have a Sunset header returned, what is this and when will our integration stop working?", "source": "ai_assisted"}
-{"id": "r032", "repeat_of": "t026", "type": "same", "question": "what does the Sunset header in v1 api calls mean and how much migration time do we get?", "source": "ai_assisted"}
-{"id": "r033", "repeat_of": "t026", "type": "different", "question": "we are seeing new unknown fields in api responses for v1, what does that mean and will our integration break?", "source": "ai_assisted"}
-{"id": "r034", "repeat_of": "t030", "type": "same", "question": "soundwave earbuds were delivered physically damaged with broken case, but i already tore the seal. does hygiene policy block my replacement?", "source": "ai_assisted"}
-{"id": "r035", "repeat_of": "t030", "type": "same", "question": "my new earbuds arrived with a cracked shell and opened packaging, can i still get a replacement despite the hygiene return rules", "source": "ai_assisted"}
-{"id": "r036", "repeat_of": "t030", "type": "different", "question": "my soundwave earbuds arrived in perfect condition but they dont fit my ears comfortably. i opened the plastic seal, am i denied a return because hygiene rules say opened earphones cant be returned?", "source": "ai_assisted"}
+{"id": "r001", "repeat_of": "t002", "type": "same", "question": "whats the shipping timeline for tier-2 towns such as jaipur", "source": "ai_assisted"}
+{"id": "r002", "repeat_of": "t002", "type": "same", "question": "how long will delivery take if i order to a tier 2 city like jaipur", "source": "ai_assisted"}
+{"id": "r003", "repeat_of": "t002", "type": "different", "question": "how many days does delivery take to remote north eastern pin codes", "source": "ai_assisted"}
+{"id": "r004", "repeat_of": "t003", "type": "same", "question": "is free setup and demo available for laptops too or just monitors", "source": "ai_assisted"}
+{"id": "r005", "repeat_of": "t003", "type": "same", "question": "do you send someone for free installation of laptops as well or only displays", "source": "ai_assisted"}
+{"id": "r006", "repeat_of": "t003", "type": "different", "question": "do you guys provide free demo and installation for all monitors including 27 inch ones?", "source": "ai_assisted"}
+{"id": "r007", "repeat_of": "t011", "type": "same", "question": "whats the usb-c charging wattage on the 32 inch clearview display", "source": "ai_assisted"}
+{"id": "r008", "repeat_of": "t011", "type": "same", "question": "how many watts of power output can the 32 inch clearview deliver through usb c", "source": "ai_assisted"}
+{"id": "r009", "repeat_of": "t011", "type": "different", "question": "how much power delivery does the 27 inch clearview monitor give over usb c?", "source": "ai_assisted"}
+{"id": "r010", "repeat_of": "t012", "type": "same", "question": "which voltcharge adapter do i need for full speed charging on the pulsebook pro 16", "source": "ai_assisted"}
+{"id": "r011", "repeat_of": "t012", "type": "same", "question": "to charge a pulsebook pro 16 at fastest speed which voltcharge model should i buy", "source": "ai_assisted"}
+{"id": "r012", "repeat_of": "t012", "type": "different", "question": "which voltcharge charger should i get to charge my pulsebook 14 at max speed?", "source": "ai_assisted"}
+{"id": "r013", "repeat_of": "t013", "type": "same", "question": "comparing novatab mini 8 with the 11 inch model, what extra screen and hardware specs do i get for the higher price", "source": "ai_assisted"}
+{"id": "r014", "repeat_of": "t013", "type": "same", "question": "whats different in display and specs between novatab mini 8 and the 11 inch tablet to justify the cost", "source": "ai_assisted"}
+{"id": "r015", "repeat_of": "t013", "type": "different", "question": "deciding between novatab mini 8 and the 11 inch one, which one comes with a free stylus inside the box?", "source": "ai_assisted"}
+{"id": "r016", "repeat_of": "t015", "type": "same", "question": "for open water swimming and better battery life should i pick aurawatch 3 or the pro", "source": "ai_assisted"}
+{"id": "r017", "repeat_of": "t015", "type": "same", "question": "between aurawatch 3 and aurawatch pro which handles open water swims and lasts longer on a charge", "source": "ai_assisted"}
+{"id": "r018", "repeat_of": "t015", "type": "different", "question": "aurawatch 3 or aurawatch pro, which one works with an iphone running ios 14?", "source": "ai_assisted"}
+{"id": "r019", "repeat_of": "t018", "type": "same", "question": "plugged my laptop into the clearview 27 over usb-c, video shows up fine but there is no charging", "source": "ai_assisted"}
+{"id": "r020", "repeat_of": "t018", "type": "same", "question": "my laptop screen mirrors onto clearview 27 via type-c cable, why isnt it getting power", "source": "ai_assisted"}
+{"id": "r021", "repeat_of": "t018", "type": "different", "question": "connected my laptop to clearview 27 with hdmi cable, display works fine but laptop is not charging at all", "source": "ai_assisted"}
+{"id": "r022", "repeat_of": "t021", "type": "same", "question": "ordered a pulsebook 14 on your site five days back and now its listed 3000 rupees cheaper, can i claim the difference", "source": "ai_assisted"}
+{"id": "r023", "repeat_of": "t021", "type": "same", "question": "purchased the pulsebook 14 five days ago and today the techstore price went down by rs 3000, do i get a refund for the drop", "source": "ai_assisted"}
+{"id": "r024", "repeat_of": "t021", "type": "different", "question": "bought a pulsebook 14 ten days ago on techstore and today you dropped the site price by 3000 rs. will you refund me the difference?", "source": "ai_assisted"}
+{"id": "r025", "repeat_of": "t027", "type": "same", "question": "getting sporadic 30s timeouts on POST /v1/shipments, can our client retry right away without risk", "source": "ai_assisted"}
+{"id": "r026", "repeat_of": "t027", "type": "same", "question": "some POST /v1/shipments requests time out after 30s, is an immediate retry safe to do", "source": "ai_assisted"}
+{"id": "r027", "repeat_of": "t027", "type": "different", "question": "our GET /v1/shipments calls occasionally hit a 30s timeout. is it safe to retry without an idempotency key?", "source": "ai_assisted"}
+{"id": "r028", "repeat_of": "t029", "type": "same", "question": "pre-ordered headphones 45 days back and got billed right away, delivered just 10 days ago — is the 30 day return period over", "source": "ai_assisted"}
+{"id": "r029", "repeat_of": "t029", "type": "same", "question": "my preorder was placed and charged 45 days ago but reached me 10 days ago, am i already past the 30 day return limit", "source": "ai_assisted"}
+{"id": "r030", "repeat_of": "t029", "type": "different", "question": "i preordered my headphones 45 days ago and was charged immediately, package arrived 35 days back. has my 30 day return window expired?", "source": "ai_assisted"}
+{"id": "r031", "repeat_of": "t031", "type": "same", "question": "we ordered 15 novatab units for our office 20 days back and need to return 5 unopened ones, does the 30 day return rule cover us", "source": "ai_assisted"}
+{"id": "r032", "repeat_of": "t031", "type": "same", "question": "bought 15 novatabs for company staff 20 days ago, can we send back 5 sealed boxes using the 30 day return window", "source": "ai_assisted"}
+{"id": "r033", "repeat_of": "t031", "type": "different", "question": "our company bought 8 novatab tablets 20 days ago for staff. we want to return 5 of them that are unused in box, can we do that under the 30 day policy?", "source": "ai_assisted"}
+{"id": "r034", "repeat_of": "t032", "type": "same", "question": "got a warranty replacement smartwatch with just 2 weeks remaining on the original 1 year cover, does the new unit restart a full 1 year warranty", "source": "ai_assisted"}
+{"id": "r035", "repeat_of": "t032", "type": "same", "question": "my watch was replaced under warranty when 2 weeks were left out of 1 year — will the replacement have a fresh 1 year warranty", "source": "ai_assisted"}
+{"id": "r036", "repeat_of": "t032", "type": "different", "question": "techstore just replaced my smartwatch under warranty when 6 months were left on my 1 year warranty. does my replacement unit get a 90-day warranty or 6 months?", "source": "ai_assisted"}
